@@ -14,7 +14,10 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedResourcesRouteImport } from './routes/_authenticated/resources'
 import { Route as AuthenticatedProjectsRouteImport } from './routes/_authenticated/projects'
+import { Route as AuthenticatedProjectAllocationsRouteImport } from './routes/_authenticated/project-allocations'
 import { Route as AuthenticatedCustomersRouteImport } from './routes/_authenticated/customers'
+import { Route as AuthenticatedBenchRouteImport } from './routes/_authenticated/bench'
+import { Route as AuthenticatedAllocationsRouteImport } from './routes/_authenticated/allocations'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -40,22 +43,45 @@ const AuthenticatedProjectsRoute = AuthenticatedProjectsRouteImport.update({
   path: '/projects',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedProjectAllocationsRoute =
+  AuthenticatedProjectAllocationsRouteImport.update({
+    id: '/project-allocations',
+    path: '/project-allocations',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedCustomersRoute = AuthenticatedCustomersRouteImport.update({
   id: '/customers',
   path: '/customers',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBenchRoute = AuthenticatedBenchRouteImport.update({
+  id: '/bench',
+  path: '/bench',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAllocationsRoute =
+  AuthenticatedAllocationsRouteImport.update({
+    id: '/allocations',
+    path: '/allocations',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
+  '/allocations': typeof AuthenticatedAllocationsRoute
+  '/bench': typeof AuthenticatedBenchRoute
   '/customers': typeof AuthenticatedCustomersRoute
+  '/project-allocations': typeof AuthenticatedProjectAllocationsRoute
   '/projects': typeof AuthenticatedProjectsRoute
   '/resources': typeof AuthenticatedResourcesRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/allocations': typeof AuthenticatedAllocationsRoute
+  '/bench': typeof AuthenticatedBenchRoute
   '/customers': typeof AuthenticatedCustomersRoute
+  '/project-allocations': typeof AuthenticatedProjectAllocationsRoute
   '/projects': typeof AuthenticatedProjectsRoute
   '/resources': typeof AuthenticatedResourcesRoute
   '/': typeof AuthenticatedIndexRoute
@@ -64,21 +90,43 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/allocations': typeof AuthenticatedAllocationsRoute
+  '/_authenticated/bench': typeof AuthenticatedBenchRoute
   '/_authenticated/customers': typeof AuthenticatedCustomersRoute
+  '/_authenticated/project-allocations': typeof AuthenticatedProjectAllocationsRoute
   '/_authenticated/projects': typeof AuthenticatedProjectsRoute
   '/_authenticated/resources': typeof AuthenticatedResourcesRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/customers' | '/projects' | '/resources'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/allocations'
+    | '/bench'
+    | '/customers'
+    | '/project-allocations'
+    | '/projects'
+    | '/resources'
   fileRoutesByTo: FileRoutesByTo
-  to: '/auth' | '/customers' | '/projects' | '/resources' | '/'
+  to:
+    | '/auth'
+    | '/allocations'
+    | '/bench'
+    | '/customers'
+    | '/project-allocations'
+    | '/projects'
+    | '/resources'
+    | '/'
   id:
     | '__root__'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/allocations'
+    | '/_authenticated/bench'
     | '/_authenticated/customers'
+    | '/_authenticated/project-allocations'
     | '/_authenticated/projects'
     | '/_authenticated/resources'
     | '/_authenticated/'
@@ -126,6 +174,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/project-allocations': {
+      id: '/_authenticated/project-allocations'
+      path: '/project-allocations'
+      fullPath: '/project-allocations'
+      preLoaderRoute: typeof AuthenticatedProjectAllocationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/customers': {
       id: '/_authenticated/customers'
       path: '/customers'
@@ -133,18 +188,38 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCustomersRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/bench': {
+      id: '/_authenticated/bench'
+      path: '/bench'
+      fullPath: '/bench'
+      preLoaderRoute: typeof AuthenticatedBenchRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/allocations': {
+      id: '/_authenticated/allocations'
+      path: '/allocations'
+      fullPath: '/allocations'
+      preLoaderRoute: typeof AuthenticatedAllocationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAllocationsRoute: typeof AuthenticatedAllocationsRoute
+  AuthenticatedBenchRoute: typeof AuthenticatedBenchRoute
   AuthenticatedCustomersRoute: typeof AuthenticatedCustomersRoute
+  AuthenticatedProjectAllocationsRoute: typeof AuthenticatedProjectAllocationsRoute
   AuthenticatedProjectsRoute: typeof AuthenticatedProjectsRoute
   AuthenticatedResourcesRoute: typeof AuthenticatedResourcesRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAllocationsRoute: AuthenticatedAllocationsRoute,
+  AuthenticatedBenchRoute: AuthenticatedBenchRoute,
   AuthenticatedCustomersRoute: AuthenticatedCustomersRoute,
+  AuthenticatedProjectAllocationsRoute: AuthenticatedProjectAllocationsRoute,
   AuthenticatedProjectsRoute: AuthenticatedProjectsRoute,
   AuthenticatedResourcesRoute: AuthenticatedResourcesRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
