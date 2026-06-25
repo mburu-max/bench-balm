@@ -24,17 +24,17 @@ function Pill({ tone: t, children }: { tone: keyof typeof tone; children: React.
   );
 }
 
-export function ProjectStatusBadge({ status }: { status: ProjectStatus }) {
-  const map: Record<ProjectStatus, keyof typeof tone> = {
+export function ProjectStatusBadge({ status }: { status: ProjectStatus | string }) {
+  const map: Record<string, keyof typeof tone> = {
     Draft: "muted",
-    Pending_Delivery_Lead: "warning",
-    Pending_Finance: "warning",
+    Verified: "warning",
     Active: "success",
     On_Hold: "info",
     Closed: "muted",
     Rejected: "destructive",
   };
-  return <Pill tone={map[status]}>{PROJECT_STATUS_LABEL[status]}</Pill>;
+  const label = PROJECT_STATUS_LABEL[status as ProjectStatus] ?? String(status).replace("_", " ");
+  return <Pill tone={map[status] ?? "muted"}>{label}</Pill>;
 }
 
 export function ResourceStatusBadge({ status }: { status: ResourceStatus }) {
