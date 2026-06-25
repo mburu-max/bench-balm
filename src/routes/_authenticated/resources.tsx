@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useResources } from "@/lib/queries";
+import { useCurrentRole } from "@/lib/useCurrentRole";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
