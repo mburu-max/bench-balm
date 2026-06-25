@@ -37,6 +37,10 @@ function AllocationsPage() {
   const projects = useProjects();
   const allocations = useAllocations();
   const qc = useQueryClient();
+  const { data: role } = useCurrentRole();
+  const isReadOnly = !!(role && !role.isFinance && !role.isDeveloper && !role.isPm);
+  const canEditProject = (p: any) =>
+    !!(role?.isFinance || role?.isDeveloper || (role?.isPm && p?.project_manager_user_id === role.userId));
 
   const [resourceId, setResourceId] = useState<string>("");
   const [customerId, setCustomerId] = useState<string>("");
