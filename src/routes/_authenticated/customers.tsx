@@ -26,6 +26,7 @@ import { useCustomers } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { REGIONS, SERVICE_LINES, VERTICALS, type ServiceLine } from "@/lib/constants";
+import { useCurrentRole } from "@/lib/useCurrentRole";
 
 export const Route = createFileRoute("/_authenticated/customers")({
   component: CustomersPage,
