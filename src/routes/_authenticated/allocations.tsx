@@ -282,8 +282,13 @@ function AllocationsPage() {
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-5">
+            {isReadOnly && (
+              <span className="text-xs text-muted-foreground self-center mr-2">
+                Read-only role — allocations cannot be edited
+              </span>
+            )}
             <Button variant="ghost" onClick={reset}>Reset</Button>
-            <Button onClick={save} disabled={saving || !resource || over}>
+            <Button onClick={save} disabled={saving || !resource || over || isReadOnly}>
               {saving ? "Saving…" : "Save Allocation"}
             </Button>
           </div>
