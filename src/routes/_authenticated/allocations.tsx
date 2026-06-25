@@ -25,6 +25,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ALLOCATION_TYPES, type AllocationType } from "@/lib/constants";
 import { AllocationTypeBadge } from "@/components/StatusBadge";
+import { useCurrentRole } from "@/lib/useCurrentRole";
 
 export const Route = createFileRoute("/_authenticated/allocations")({
   component: AllocationsPage,
