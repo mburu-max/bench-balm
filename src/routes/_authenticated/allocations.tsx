@@ -25,6 +25,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ALLOCATION_TYPES, type AllocationType } from "@/lib/constants";
 import { AllocationTypeBadge } from "@/components/StatusBadge";
+import { useCurrentRole } from "@/lib/useCurrentRole";
 
 export const Route = createFileRoute("/_authenticated/allocations")({
   component: AllocationsPage,
@@ -36,6 +37,10 @@ function AllocationsPage() {
   const projects = useProjects();
   const allocations = useAllocations();
   const qc = useQueryClient();
+  const { data: role } = useCurrentRole();
+  const isReadOnly = !!(role && !role.isFinance && !role.isDeveloper && !role.isPm);
+  const canEditProject = (p: any) =>
+    !!(role?.isFinance || role?.isDeveloper || (role?.isPm && p?.project_manager_user_id === role.userId));
 
   const [resourceId, setResourceId] = useState<string>("");
   const [customerId, setCustomerId] = useState<string>("");
@@ -54,9 +59,13 @@ function AllocationsPage() {
 
   const filteredProjects = useMemo(() => {
     return (projects.data ?? []).filter(
-      (p) => p.status === "Active" && (!customerId || p.customer_id === customerId),
+      (p) =>
+        p.status === "Active" &&
+        (!customerId || p.customer_id === customerId) &&
+        // PMs can only allocate to their own projects; finance/dev see all active
+        (role?.isFinance || role?.isDeveloper || (role?.isPm && (p as any).project_manager_user_id === role.userId)),
     );
-  }, [projects.data, customerId]);
+  }, [projects.data, customerId, role]);
 
   const myAllocations = useMemo(
     () => (allocations.data ?? []).filter((a) => a.resource_id === resourceId),
@@ -273,8 +282,13 @@ function AllocationsPage() {
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-5">
+            {isReadOnly && (
+              <span className="text-xs text-muted-foreground self-center mr-2">
+                Read-only role — allocations cannot be edited
+              </span>
+            )}
             <Button variant="ghost" onClick={reset}>Reset</Button>
-            <Button onClick={save} disabled={saving || !resource || over}>
+            <Button onClick={save} disabled={saving || !resource || over || isReadOnly}>
               {saving ? "Saving…" : "Save Allocation"}
             </Button>
           </div>
@@ -324,9 +338,11 @@ function AllocationsPage() {
                     <td className="px-3 py-3 text-right tabular-nums font-medium">{a.allocation_pct}%</td>
                     <td className="px-3 py-3 text-muted-foreground">{a.remarks ?? "—"}</td>
                     <td className="px-5 py-3 text-right">
-                      <Button variant="ghost" size="icon" onClick={() => remove(a.id)}>
-                        <Trash2 className="size-4 text-destructive" />
-                      </Button>
+                      {canEditProject(a.projects) && (
+                        <Button variant="ghost" size="icon" onClick={() => remove(a.id)}>
+                          <Trash2 className="size-4 text-destructive" />
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -187,6 +187,7 @@ export type Database = {
           project_code: string
           project_description: string
           project_manager_id: string | null
+          project_manager_user_id: string | null
           service_line: Database["public"]["Enums"]["service_line"]
           start_date: string
           status: Database["public"]["Enums"]["project_status"]
@@ -209,6 +210,7 @@ export type Database = {
           project_code: string
           project_description: string
           project_manager_id?: string | null
+          project_manager_user_id?: string | null
           service_line: Database["public"]["Enums"]["service_line"]
           start_date: string
           status?: Database["public"]["Enums"]["project_status"]
@@ -231,6 +233,7 @@ export type Database = {
           project_code?: string
           project_description?: string
           project_manager_id?: string | null
+          project_manager_user_id?: string | null
           service_line?: Database["public"]["Enums"]["service_line"]
           start_date?: string
           status?: Database["public"]["Enums"]["project_status"]
@@ -327,6 +330,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_app_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -335,6 +342,14 @@ export type Database = {
         Returns: boolean
       }
       is_admin_like: { Args: { _user_id: string }; Returns: boolean }
+      is_developer: { Args: { _uid?: string }; Returns: boolean }
+      is_dl: { Args: { _uid?: string }; Returns: boolean }
+      is_finance: { Args: { _uid?: string }; Returns: boolean }
+      is_pm: { Args: { _uid?: string }; Returns: boolean }
+      is_project_pm: {
+        Args: { _project_id: string; _uid?: string }
+        Returns: boolean
+      }
     }
     Enums: {
       allocation_type: "Billable" | "Non-Billable" | "Bench" | "Leave"
@@ -345,6 +360,7 @@ export type Database = {
         | "project_manager"
         | "finance"
         | "viewer"
+        | "developer"
       employment_type: "FTE" | "Contractor" | "Vendor"
       project_status:
         | "Draft"
@@ -354,6 +370,7 @@ export type Database = {
         | "On_Hold"
         | "Closed"
         | "Rejected"
+        | "Verified"
       resource_status: "Active" | "On_Leave" | "Exited"
       service_line: "DLaaS" | "CLM" | "MS" | "CCaaS" | "Legacy"
     }
@@ -491,6 +508,7 @@ export const Constants = {
         "project_manager",
         "finance",
         "viewer",
+        "developer",
       ],
       employment_type: ["FTE", "Contractor", "Vendor"],
       project_status: [
@@ -501,6 +519,7 @@ export const Constants = {
         "On_Hold",
         "Closed",
         "Rejected",
+        "Verified",
       ],
       resource_status: ["Active", "On_Leave", "Exited"],
       service_line: ["DLaaS", "CLM", "MS", "CCaaS", "Legacy"],

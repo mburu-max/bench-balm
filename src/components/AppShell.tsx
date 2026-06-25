@@ -9,31 +9,46 @@ import {
   Coffee,
   LogOut,
   Layers,
+  ShieldCheck,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { useCurrentRole } from "@/lib/useCurrentRole";
+import { ROLE_LABEL } from "@/lib/constants";
 
-const NAV = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { to: "/customers", label: "Customers", icon: Building2 },
-  { to: "/projects", label: "Projects", icon: FolderKanban },
-  { to: "/resources", label: "Resources", icon: Users },
-  { to: "/allocations", label: "Resource Allocation", icon: CalendarRange },
-  { to: "/project-allocations", label: "Project Allocation", icon: Briefcase },
-  { to: "/bench", label: "Bench Report", icon: Coffee },
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  exact?: boolean;
+  show: (r: ReturnType<typeof useCurrentRole>["data"]) => boolean;
+};
+
+const NAV: NavItem[] = [
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true, show: () => true },
+  { to: "/projects", label: "Projects", icon: FolderKanban, show: () => true },
+  { to: "/allocations", label: "Resource Allocation", icon: CalendarRange, show: () => true },
+  { to: "/project-allocations", label: "Project Allocation", icon: Briefcase, show: () => true },
+  { to: "/bench", label: "Bench Report", icon: Coffee, show: () => true },
+  { to: "/customers", label: "Customer Master", icon: Building2, show: (r) => !!(r?.isFinance || r?.isDeveloper) },
+  { to: "/resources", label: "Resource Master", icon: Users, show: (r) => !!(r?.isFinance || r?.isDeveloper) },
+  { to: "/admin/users", label: "User Roles", icon: ShieldCheck, show: (r) => !!r?.isDeveloper },
 ];
 
 export function AppShell({ children, title, actions }: { children: ReactNode; title: string; actions?: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const role = useCurrentRole();
 
   const signOut = async () => {
     await supabase.auth.signOut();
     navigate({ to: "/auth" });
   };
+
+  const visible = NAV.filter((n) => n.show(role.data));
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -50,7 +65,7 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
           </div>
         </div>
         <nav className="flex-1 px-3 space-y-0.5">
-          {NAV.map((n) => {
+          {visible.map((n) => {
             const active = n.exact
               ? location.pathname === n.to
               : location.pathname.startsWith(n.to);
@@ -72,7 +87,13 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
             );
           })}
         </nav>
-        <div className="p-3 border-t border-sidebar-border">
+        <div className="p-3 border-t border-sidebar-border space-y-2">
+          {role.data?.role && (
+            <div className="px-3 py-2 rounded-md bg-sidebar-accent/40 text-[11px]">
+              <div className="uppercase tracking-widest text-sidebar-foreground/60">Signed in as</div>
+              <div className="font-medium mt-0.5">{ROLE_LABEL[role.data.role as string] ?? role.data.role}</div>
+            </div>
+          )}
           <Button
             variant="ghost"
             className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"

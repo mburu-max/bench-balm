@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useResources } from "@/lib/queries";
+import { useCurrentRole } from "@/lib/useCurrentRole";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -73,6 +74,8 @@ const empty: Form = {
 
 function ResourcesPage() {
   const resources = useResources();
+  const { data: role } = useCurrentRole();
+  const canWrite = !!(role?.isFinance || role?.isDeveloper);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Form>(empty);
@@ -156,6 +159,7 @@ function ResourcesPage() {
     <AppShell
       title="Resources"
       actions={
+        canWrite ? (
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button onClick={startNew}>
@@ -281,6 +285,7 @@ function ResourcesPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        ) : null
       }
     >
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -335,12 +340,18 @@ function ResourcesPage() {
                   <td className="px-3 py-3 text-muted-foreground">{r.employment_type}</td>
                   <td className="px-3 py-3"><ResourceStatusBadge status={r.status} /></td>
                   <td className="px-5 py-3 text-right">
-                    <Button variant="ghost" size="icon" onClick={() => startEdit(r)}>
-                      <Pencil className="size-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => remove(r.id)}>
-                      <Trash2 className="size-4 text-destructive" />
-                    </Button>
+                    {canWrite ? (
+                      <>
+                        <Button variant="ghost" size="icon" onClick={() => startEdit(r)}>
+                          <Pencil className="size-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => remove(r.id)}>
+                          <Trash2 className="size-4 text-destructive" />
+                        </Button>
+                      </>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Read only</span>
+                    )}
                   </td>
                 </tr>
               ))}
