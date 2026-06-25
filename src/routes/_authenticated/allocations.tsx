@@ -338,9 +338,11 @@ function AllocationsPage() {
                     <td className="px-3 py-3 text-right tabular-nums font-medium">{a.allocation_pct}%</td>
                     <td className="px-3 py-3 text-muted-foreground">{a.remarks ?? "—"}</td>
                     <td className="px-5 py-3 text-right">
-                      <Button variant="ghost" size="icon" onClick={() => remove(a.id)}>
-                        <Trash2 className="size-4 text-destructive" />
-                      </Button>
+                      {canEditProject(a.projects) && (
+                        <Button variant="ghost" size="icon" onClick={() => remove(a.id)}>
+                          <Trash2 className="size-4 text-destructive" />
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))}
