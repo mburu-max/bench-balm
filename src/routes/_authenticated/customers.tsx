@@ -121,6 +121,7 @@ function CustomersPage() {
     <AppShell
       title="Customers"
       actions={
+        canWrite ? (
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button onClick={startNew}>
