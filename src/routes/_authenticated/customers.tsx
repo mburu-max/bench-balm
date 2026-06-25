@@ -261,12 +261,18 @@ function CustomersPage() {
                   <td className="px-3 py-3 text-muted-foreground">{c.region ?? "—"}</td>
                   <td className="px-3 py-3 text-muted-foreground">{c.vertical ?? "—"}</td>
                   <td className="px-5 py-3 text-right">
-                    <Button variant="ghost" size="icon" onClick={() => startEdit(c)}>
-                      <Pencil className="size-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => remove(c.id)}>
-                      <Trash2 className="size-4 text-destructive" />
-                    </Button>
+                    {canWrite ? (
+                      <>
+                        <Button variant="ghost" size="icon" onClick={() => startEdit(c)}>
+                          <Pencil className="size-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => remove(c.id)}>
+                          <Trash2 className="size-4 text-destructive" />
+                        </Button>
+                      </>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Read only</span>
+                    )}
                   </td>
                 </tr>
               ))}
