@@ -59,9 +59,13 @@ function AllocationsPage() {
 
   const filteredProjects = useMemo(() => {
     return (projects.data ?? []).filter(
-      (p) => p.status === "Active" && (!customerId || p.customer_id === customerId),
+      (p) =>
+        p.status === "Active" &&
+        (!customerId || p.customer_id === customerId) &&
+        // PMs can only allocate to their own projects; finance/dev see all active
+        (role?.isFinance || role?.isDeveloper || (role?.isPm && (p as any).project_manager_user_id === role.userId)),
     );
-  }, [projects.data, customerId]);
+  }, [projects.data, customerId, role]);
 
   const myAllocations = useMemo(
     () => (allocations.data ?? []).filter((a) => a.resource_id === resourceId),
