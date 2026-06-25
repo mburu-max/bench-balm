@@ -74,6 +74,8 @@ const empty: Form = {
 
 function ResourcesPage() {
   const resources = useResources();
+  const { data: role } = useCurrentRole();
+  const canWrite = !!(role?.isFinance || role?.isDeveloper);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Form>(empty);
