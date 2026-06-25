@@ -159,6 +159,7 @@ function ResourcesPage() {
     <AppShell
       title="Resources"
       actions={
+        canWrite ? (
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button onClick={startNew}>
