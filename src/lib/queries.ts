@@ -49,7 +49,7 @@ export function useAllocations() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("allocations")
-        .select("*, projects(project_code, project_description, status), customers(customer_name), resources(full_name, status)")
+        .select("*, projects(project_code, project_description, status, project_manager_user_id), customers(customer_name), resources(full_name, status)")
         .order("allocation_start_date", { ascending: false });
       if (error) throw error;
       return data;
