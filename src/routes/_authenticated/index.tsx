@@ -41,6 +41,15 @@ function Dashboard() {
   const resources = useResources();
   const allocations = useAllocations();
 
+  const trend = useQuery({
+    queryKey: ["util-trend"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("v_utilisation_weekly").select("*");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const loading =
     customers.isLoading || projects.isLoading || resources.isLoading || allocations.isLoading;
 
