@@ -4,6 +4,8 @@ import { KpiCard } from "@/components/KpiCard";
 import { useAllocations, useCustomers, useProjects, useResources } from "@/lib/queries";
 import { computeBench } from "@/lib/bench";
 import { SERVICE_LINES } from "@/lib/constants";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Users,
   Briefcase,
@@ -18,6 +20,8 @@ import {
   CartesianGrid,
   Cell,
   Legend,
+  Line,
+  LineChart,
   Pie,
   PieChart,
   ResponsiveContainer,
