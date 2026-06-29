@@ -12,11 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedSnapshotsRouteImport } from './routes/_authenticated/snapshots'
 import { Route as AuthenticatedResourcesRouteImport } from './routes/_authenticated/resources'
 import { Route as AuthenticatedProjectsRouteImport } from './routes/_authenticated/projects'
 import { Route as AuthenticatedProjectAllocationsRouteImport } from './routes/_authenticated/project-allocations'
+import { Route as AuthenticatedDemandRouteImport } from './routes/_authenticated/demand'
 import { Route as AuthenticatedCustomersRouteImport } from './routes/_authenticated/customers'
 import { Route as AuthenticatedBenchRouteImport } from './routes/_authenticated/bench'
+import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
 import { Route as AuthenticatedAllocationsRouteImport } from './routes/_authenticated/allocations'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 
@@ -32,6 +35,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSnapshotsRoute = AuthenticatedSnapshotsRouteImport.update({
+  id: '/snapshots',
+  path: '/snapshots',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedResourcesRoute = AuthenticatedResourcesRouteImport.update({
@@ -50,6 +58,11 @@ const AuthenticatedProjectAllocationsRoute =
     path: '/project-allocations',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedDemandRoute = AuthenticatedDemandRouteImport.update({
+  id: '/demand',
+  path: '/demand',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCustomersRoute = AuthenticatedCustomersRouteImport.update({
   id: '/customers',
   path: '/customers',
@@ -58,6 +71,11 @@ const AuthenticatedCustomersRoute = AuthenticatedCustomersRouteImport.update({
 const AuthenticatedBenchRoute = AuthenticatedBenchRouteImport.update({
   id: '/bench',
   path: '/bench',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAuditRoute = AuthenticatedAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAllocationsRoute =
@@ -76,21 +94,27 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
   '/allocations': typeof AuthenticatedAllocationsRoute
+  '/audit': typeof AuthenticatedAuditRoute
   '/bench': typeof AuthenticatedBenchRoute
   '/customers': typeof AuthenticatedCustomersRoute
+  '/demand': typeof AuthenticatedDemandRoute
   '/project-allocations': typeof AuthenticatedProjectAllocationsRoute
   '/projects': typeof AuthenticatedProjectsRoute
   '/resources': typeof AuthenticatedResourcesRoute
+  '/snapshots': typeof AuthenticatedSnapshotsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/allocations': typeof AuthenticatedAllocationsRoute
+  '/audit': typeof AuthenticatedAuditRoute
   '/bench': typeof AuthenticatedBenchRoute
   '/customers': typeof AuthenticatedCustomersRoute
+  '/demand': typeof AuthenticatedDemandRoute
   '/project-allocations': typeof AuthenticatedProjectAllocationsRoute
   '/projects': typeof AuthenticatedProjectsRoute
   '/resources': typeof AuthenticatedResourcesRoute
+  '/snapshots': typeof AuthenticatedSnapshotsRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
 }
@@ -99,11 +123,14 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/allocations': typeof AuthenticatedAllocationsRoute
+  '/_authenticated/audit': typeof AuthenticatedAuditRoute
   '/_authenticated/bench': typeof AuthenticatedBenchRoute
   '/_authenticated/customers': typeof AuthenticatedCustomersRoute
+  '/_authenticated/demand': typeof AuthenticatedDemandRoute
   '/_authenticated/project-allocations': typeof AuthenticatedProjectAllocationsRoute
   '/_authenticated/projects': typeof AuthenticatedProjectsRoute
   '/_authenticated/resources': typeof AuthenticatedResourcesRoute
+  '/_authenticated/snapshots': typeof AuthenticatedSnapshotsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
 }
@@ -113,21 +140,27 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/allocations'
+    | '/audit'
     | '/bench'
     | '/customers'
+    | '/demand'
     | '/project-allocations'
     | '/projects'
     | '/resources'
+    | '/snapshots'
     | '/admin/users'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
     | '/allocations'
+    | '/audit'
     | '/bench'
     | '/customers'
+    | '/demand'
     | '/project-allocations'
     | '/projects'
     | '/resources'
+    | '/snapshots'
     | '/'
     | '/admin/users'
   id:
@@ -135,11 +168,14 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/allocations'
+    | '/_authenticated/audit'
     | '/_authenticated/bench'
     | '/_authenticated/customers'
+    | '/_authenticated/demand'
     | '/_authenticated/project-allocations'
     | '/_authenticated/projects'
     | '/_authenticated/resources'
+    | '/_authenticated/snapshots'
     | '/_authenticated/'
     | '/_authenticated/admin/users'
   fileRoutesById: FileRoutesById
@@ -172,6 +208,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/snapshots': {
+      id: '/_authenticated/snapshots'
+      path: '/snapshots'
+      fullPath: '/snapshots'
+      preLoaderRoute: typeof AuthenticatedSnapshotsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/resources': {
       id: '/_authenticated/resources'
       path: '/resources'
@@ -193,6 +236,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectAllocationsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/demand': {
+      id: '/_authenticated/demand'
+      path: '/demand'
+      fullPath: '/demand'
+      preLoaderRoute: typeof AuthenticatedDemandRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/customers': {
       id: '/_authenticated/customers'
       path: '/customers'
@@ -205,6 +255,13 @@ declare module '@tanstack/react-router' {
       path: '/bench'
       fullPath: '/bench'
       preLoaderRoute: typeof AuthenticatedBenchRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/audit': {
+      id: '/_authenticated/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AuthenticatedAuditRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/allocations': {
@@ -226,22 +283,28 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAllocationsRoute: typeof AuthenticatedAllocationsRoute
+  AuthenticatedAuditRoute: typeof AuthenticatedAuditRoute
   AuthenticatedBenchRoute: typeof AuthenticatedBenchRoute
   AuthenticatedCustomersRoute: typeof AuthenticatedCustomersRoute
+  AuthenticatedDemandRoute: typeof AuthenticatedDemandRoute
   AuthenticatedProjectAllocationsRoute: typeof AuthenticatedProjectAllocationsRoute
   AuthenticatedProjectsRoute: typeof AuthenticatedProjectsRoute
   AuthenticatedResourcesRoute: typeof AuthenticatedResourcesRoute
+  AuthenticatedSnapshotsRoute: typeof AuthenticatedSnapshotsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedAdminUsersRoute: typeof AuthenticatedAdminUsersRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAllocationsRoute: AuthenticatedAllocationsRoute,
+  AuthenticatedAuditRoute: AuthenticatedAuditRoute,
   AuthenticatedBenchRoute: AuthenticatedBenchRoute,
   AuthenticatedCustomersRoute: AuthenticatedCustomersRoute,
+  AuthenticatedDemandRoute: AuthenticatedDemandRoute,
   AuthenticatedProjectAllocationsRoute: AuthenticatedProjectAllocationsRoute,
   AuthenticatedProjectsRoute: AuthenticatedProjectsRoute,
   AuthenticatedResourcesRoute: AuthenticatedResourcesRoute,
+  AuthenticatedSnapshotsRoute: AuthenticatedSnapshotsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedAdminUsersRoute: AuthenticatedAdminUsersRoute,
 }
@@ -256,13 +319,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

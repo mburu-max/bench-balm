@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      allocation_snapshots: {
+        Row: {
+          allocation_end_date: string | null
+          allocation_pct: number | null
+          allocation_start_date: string | null
+          allocation_type: string | null
+          created_at: string
+          customer_name: string | null
+          id: string
+          manager: string | null
+          omni_id: string | null
+          project_code: string | null
+          project_id: string | null
+          resource_id: string | null
+          resource_name: string | null
+          role: string | null
+          service_line: string | null
+          snapshot_date: string
+        }
+        Insert: {
+          allocation_end_date?: string | null
+          allocation_pct?: number | null
+          allocation_start_date?: string | null
+          allocation_type?: string | null
+          created_at?: string
+          customer_name?: string | null
+          id?: string
+          manager?: string | null
+          omni_id?: string | null
+          project_code?: string | null
+          project_id?: string | null
+          resource_id?: string | null
+          resource_name?: string | null
+          role?: string | null
+          service_line?: string | null
+          snapshot_date: string
+        }
+        Update: {
+          allocation_end_date?: string | null
+          allocation_pct?: number | null
+          allocation_start_date?: string | null
+          allocation_type?: string | null
+          created_at?: string
+          customer_name?: string | null
+          id?: string
+          manager?: string | null
+          omni_id?: string | null
+          project_code?: string | null
+          project_id?: string | null
+          resource_id?: string | null
+          resource_name?: string | null
+          role?: string | null
+          service_line?: string | null
+          snapshot_date?: string
+        }
+        Relationships: []
+      }
       allocations: {
         Row: {
           allocation_end_date: string
@@ -113,6 +170,39 @@ export type Database = {
           },
         ]
       }
+      audit_log: {
+        Row: {
+          action: string
+          actor: string | null
+          created_at: string
+          id: number
+          new_data: Json | null
+          old_data: Json | null
+          row_id: string | null
+          table_name: string
+        }
+        Insert: {
+          action: string
+          actor?: string | null
+          created_at?: string
+          id?: number
+          new_data?: Json | null
+          old_data?: Json | null
+          row_id?: string | null
+          table_name: string
+        }
+        Update: {
+          action?: string
+          actor?: string | null
+          created_at?: string
+          id?: number
+          new_data?: Json | null
+          old_data?: Json | null
+          row_id?: string | null
+          table_name?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           created_at: string
@@ -148,6 +238,65 @@ export type Database = {
           vertical?: string | null
         }
         Relationships: []
+      }
+      demand_requests: {
+        Row: {
+          allocation_pct: number
+          created_at: string
+          created_by: string | null
+          headcount: number
+          id: string
+          notes: string | null
+          priority: string
+          project_id: string | null
+          required_from: string
+          required_to: string
+          role: string
+          service_line: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          allocation_pct?: number
+          created_at?: string
+          created_by?: string | null
+          headcount: number
+          id?: string
+          notes?: string | null
+          priority?: string
+          project_id?: string | null
+          required_from: string
+          required_to: string
+          role: string
+          service_line: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          allocation_pct?: number
+          created_at?: string
+          created_by?: string | null
+          headcount?: number
+          id?: string
+          notes?: string | null
+          priority?: string
+          project_id?: string | null
+          required_from?: string
+          required_to?: string
+          role?: string
+          service_line?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demand_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -327,7 +476,15 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_utilisation_weekly: {
+        Row: {
+          avg_utilisation_pct: number | null
+          headcount: number | null
+          service_line: string | null
+          week_start: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       current_app_role: {
@@ -350,6 +507,7 @@ export type Database = {
         Args: { _project_id: string; _uid?: string }
         Returns: boolean
       }
+      take_allocation_snapshot: { Args: { _d?: string }; Returns: number }
     }
     Enums: {
       allocation_type: "Billable" | "Non-Billable" | "Bench" | "Leave"

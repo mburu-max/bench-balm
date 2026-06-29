@@ -105,6 +105,10 @@ function ProjectsPage() {
 
   const save = async () => {
     if (!form.project_code.trim()) return toast.error("Project code required");
+    const code = form.project_code.trim().toUpperCase();
+    if (!/^(CLM|MS|DLAAS|CCAAS|LEGACY|INT|NB)-\d{4}-\d{3}$/.test(code)) {
+      return toast.error("Project code must be [SL|INT|NB]-YYYY-NNN (e.g. CLM-2026-001)");
+    }
     if (!form.customer_id) return toast.error("Customer required");
     if (!form.service_line) return toast.error("Service line required");
     if (!form.start_date || !form.end_date) return toast.error("Start and end dates required");
@@ -112,7 +116,7 @@ function ProjectsPage() {
     const { data: userData } = await supabase.auth.getUser();
     const uid = userData.user?.id ?? null;
     const payload: any = {
-      project_code: form.project_code.trim().toUpperCase(),
+      project_code: code,
       hubspot_deal_id: form.hubspot_deal_id || null,
       project_description: form.project_description,
       customer_id: form.customer_id,
@@ -187,9 +191,12 @@ function ProjectsPage() {
                   <Input
                     value={form.project_code}
                     onChange={(e) => setForm({ ...form, project_code: e.target.value })}
-                    placeholder="DLS-AXN-001"
+                    placeholder="CLM-2026-001"
                     className="font-mono uppercase"
                   />
+                  <p className="text-[11px] text-muted-foreground">
+                    Format: <span className="font-mono">[SL|INT|NB]-YYYY-NNN</span> · SL ∈ CLM, MS, DLAAS, CCAAS, LEGACY · use <span className="font-mono">INT-</span> for internal, <span className="font-mono">NB-</span> for non-billable
+                  </p>
                 </div>
                 <div className="space-y-1.5">
                   <Label>HubSpot Deal ID</Label>
