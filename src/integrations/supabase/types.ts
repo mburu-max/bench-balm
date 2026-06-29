@@ -416,6 +416,7 @@ export type Database = {
           service_line: Database["public"]["Enums"]["service_line"]
           status: Database["public"]["Enums"]["resource_status"]
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -433,6 +434,7 @@ export type Database = {
           service_line: Database["public"]["Enums"]["service_line"]
           status?: Database["public"]["Enums"]["resource_status"]
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -449,6 +451,73 @@ export type Database = {
           position?: string | null
           service_line?: Database["public"]["Enums"]["service_line"]
           status?: Database["public"]["Enums"]["resource_status"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      headcount_forecast: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          month: string
+          planned_headcount: number
+          service_line: Database["public"]["Enums"]["service_line"]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          month: string
+          planned_headcount: number
+          service_line: Database["public"]["Enums"]["service_line"]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          month?: string
+          planned_headcount?: number
+          service_line?: Database["public"]["Enums"]["service_line"]
+        }
+        Relationships: []
+      }
+      service_lines: {
+        Row: {
+          buffer_pct_max: number | null
+          buffer_pct_min: number | null
+          created_at: string
+          description: string | null
+          full_name: string
+          id: Database["public"]["Enums"]["service_line"]
+          lead_user_id: string | null
+          target_utilisation_max: number | null
+          target_utilisation_min: number | null
+          updated_at: string
+        }
+        Insert: {
+          buffer_pct_max?: number | null
+          buffer_pct_min?: number | null
+          created_at?: string
+          description?: string | null
+          full_name: string
+          id: Database["public"]["Enums"]["service_line"]
+          lead_user_id?: string | null
+          target_utilisation_max?: number | null
+          target_utilisation_min?: number | null
+          updated_at?: string
+        }
+        Update: {
+          buffer_pct_max?: number | null
+          buffer_pct_min?: number | null
+          created_at?: string
+          description?: string | null
+          full_name?: string
+          id?: Database["public"]["Enums"]["service_line"]
+          lead_user_id?: string | null
+          target_utilisation_max?: number | null
+          target_utilisation_min?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -470,6 +539,27 @@ export type Database = {
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_service_lines: {
+        Row: {
+          created_at: string
+          id: string
+          service_line: Database["public"]["Enums"]["service_line"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          service_line: Database["public"]["Enums"]["service_line"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          service_line?: Database["public"]["Enums"]["service_line"]
           user_id?: string
         }
         Relationships: []
@@ -502,11 +592,30 @@ export type Database = {
       is_developer: { Args: { _uid?: string }; Returns: boolean }
       is_dl: { Args: { _uid?: string }; Returns: boolean }
       is_finance: { Args: { _uid?: string }; Returns: boolean }
+      is_governance_lead: { Args: { _uid?: string }; Returns: boolean }
       is_pm: { Args: { _uid?: string }; Returns: boolean }
       is_project_pm: {
         Args: { _project_id: string; _uid?: string }
         Returns: boolean
       }
+      is_resource_role: { Args: { _uid?: string }; Returns: boolean }
+      is_sl_lead: {
+        Args: {
+          _sl: Database["public"]["Enums"]["service_line"]
+          _uid?: string
+        }
+        Returns: boolean
+      }
+      request_leave: {
+        Args: {
+          _end: string
+          _reason?: string
+          _resource_id: string
+          _start: string
+        }
+        Returns: string
+      }
+      return_from_leave: { Args: { _resource_id: string }; Returns: undefined }
       take_allocation_snapshot: { Args: { _d?: string }; Returns: number }
     }
     Enums: {
@@ -519,6 +628,8 @@ export type Database = {
         | "finance"
         | "viewer"
         | "developer"
+        | "service_line_lead"
+        | "resource"
       employment_type: "FTE" | "Contractor" | "Vendor"
       project_status:
         | "Draft"
@@ -667,6 +778,8 @@ export const Constants = {
         "finance",
         "viewer",
         "developer",
+        "service_line_lead",
+        "resource",
       ],
       employment_type: ["FTE", "Contractor", "Vendor"],
       project_status: [
