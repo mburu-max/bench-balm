@@ -191,9 +191,12 @@ function ProjectsPage() {
                   <Input
                     value={form.project_code}
                     onChange={(e) => setForm({ ...form, project_code: e.target.value })}
-                    placeholder="DLS-AXN-001"
+                    placeholder="CLM-2026-001"
                     className="font-mono uppercase"
                   />
+                  <p className="text-[11px] text-muted-foreground">
+                    Format: <span className="font-mono">[SL|INT|NB]-YYYY-NNN</span> · SL ∈ CLM, MS, DLAAS, CCAAS, LEGACY · use <span className="font-mono">INT-</span> for internal, <span className="font-mono">NB-</span> for non-billable
+                  </p>
                 </div>
                 <div className="space-y-1.5">
                   <Label>HubSpot Deal ID</Label>
