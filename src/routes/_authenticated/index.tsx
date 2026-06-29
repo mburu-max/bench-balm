@@ -104,6 +104,37 @@ function Dashboard() {
         <KpiCard label="Over-allocated" value={loading ? "—" : overAllocated} icon={AlertTriangle} accent="destructive" hint={onLeave ? `${onLeave} on leave` : undefined} />
       </div>
 
+      <div className="rounded-xl border bg-card p-5 mt-6">
+        <h2 className="font-display text-base font-semibold">13-Week Utilisation Trend</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">Rolling weekly average per service line (billable + non-billable)</p>
+        <div className="h-64 mt-4">
+          <ResponsiveContainer>
+            <LineChart
+              data={(() => {
+                const map = new Map<string, any>();
+                for (const r of (trend.data ?? []) as any[]) {
+                  const k = r.week_start;
+                  if (!map.has(k)) map.set(k, { week: k });
+                  map.get(k)[r.service_line] = r.avg_utilisation_pct;
+                }
+                return Array.from(map.values()).sort((a, b) => a.week.localeCompare(b.week));
+              })()}
+              margin={{ top: 8, right: 12, left: -10, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+              <XAxis dataKey="week" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+              <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
+              <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              {SERVICE_LINES.map((sl, i) => (
+                <Line key={sl} type="monotone" dataKey={sl} stroke={pieColors[i % pieColors.length]} strokeWidth={2} dot={false} />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
         <div className="lg:col-span-2 rounded-xl border bg-card p-5">
           <div className="flex items-baseline justify-between">
