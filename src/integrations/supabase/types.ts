@@ -217,6 +217,9 @@ export type Database = {
       }
       customers: {
         Row: {
+          account_manager: string | null
+          account_tier: string | null
+          contract_type: string | null
           created_at: string
           created_by: string | null
           customer_name: string
@@ -228,6 +231,9 @@ export type Database = {
           vertical: string | null
         }
         Insert: {
+          account_manager?: string | null
+          account_tier?: string | null
+          contract_type?: string | null
           created_at?: string
           created_by?: string | null
           customer_name: string
@@ -239,6 +245,9 @@ export type Database = {
           vertical?: string | null
         }
         Update: {
+          account_manager?: string | null
+          account_tier?: string | null
+          contract_type?: string | null
           created_at?: string
           created_by?: string | null
           customer_name?: string
@@ -256,6 +265,8 @@ export type Database = {
           allocation_pct: number
           created_at: string
           created_by: string | null
+          demand_classification: Database["public"]["Enums"]["demand_classification"] | null
+          fulfilled_at: string | null
           headcount: number
           id: string
           notes: string | null
@@ -272,6 +283,8 @@ export type Database = {
           allocation_pct?: number
           created_at?: string
           created_by?: string | null
+          demand_classification?: Database["public"]["Enums"]["demand_classification"] | null
+          fulfilled_at?: string | null
           headcount: number
           id?: string
           notes?: string | null
@@ -288,6 +301,8 @@ export type Database = {
           allocation_pct?: number
           created_at?: string
           created_by?: string | null
+          demand_classification?: Database["public"]["Enums"]["demand_classification"] | null
+          fulfilled_at?: string | null
           headcount?: number
           id?: string
           notes?: string | null
@@ -349,6 +364,7 @@ export type Database = {
           project_description: string
           project_manager_id: string | null
           project_manager_user_id: string | null
+          project_type: Database["public"]["Enums"]["project_type"] | null
           service_line: Database["public"]["Enums"]["service_line"]
           start_date: string
           status: Database["public"]["Enums"]["project_status"]
@@ -372,6 +388,7 @@ export type Database = {
           project_description: string
           project_manager_id?: string | null
           project_manager_user_id?: string | null
+          project_type?: Database["public"]["Enums"]["project_type"] | null
           service_line: Database["public"]["Enums"]["service_line"]
           start_date: string
           status?: Database["public"]["Enums"]["project_status"]
@@ -395,6 +412,7 @@ export type Database = {
           project_description?: string
           project_manager_id?: string | null
           project_manager_user_id?: string | null
+          project_type?: Database["public"]["Enums"]["project_type"] | null
           service_line?: Database["public"]["Enums"]["service_line"]
           start_date?: string
           status?: Database["public"]["Enums"]["project_status"]
@@ -642,6 +660,13 @@ export type Database = {
         | "developer"
         | "service_line_lead"
         | "resource"
+      demand_classification: "Confirmed" | "Probable" | "Pipeline" | "Internal"
+      project_type:
+        | "Billable_Delivery"
+        | "Non_Billable"
+        | "Bench_Available"
+        | "Training"
+        | "Internal_Operations"
       employment_type: "FTE" | "Contractor" | "Vendor"
       project_status:
         | "Draft"
@@ -793,7 +818,15 @@ export const Constants = {
         "service_line_lead",
         "resource",
       ],
+      demand_classification: ["Confirmed", "Probable", "Pipeline", "Internal"],
       employment_type: ["FTE", "Contractor", "Vendor"],
+      project_type: [
+        "Billable_Delivery",
+        "Non_Billable",
+        "Bench_Available",
+        "Training",
+        "Internal_Operations",
+      ],
       project_status: [
         "Draft",
         "Pending_Delivery_Lead",

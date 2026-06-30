@@ -27,6 +27,14 @@ import { useCustomers, useProjects } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SERVICE_LINES, type ServiceLine, type ProjectStatus, PROJECT_STATUSES } from "@/lib/constants";
+
+const PROJECT_TYPES = [
+  { value: "Billable_Delivery", label: "Billable Delivery" },
+  { value: "Non_Billable", label: "Non-Billable" },
+  { value: "Bench_Available", label: "Bench / Available" },
+  { value: "Training", label: "Training" },
+  { value: "Internal_Operations", label: "Internal Operations" },
+] as const;
 import { ProjectStatusBadge } from "@/components/StatusBadge";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 
@@ -41,6 +49,7 @@ type Form = {
   project_description: string;
   customer_id: string;
   service_line: ServiceLine | "";
+  project_type: string;
   delivery_center: string;
   start_date: string;
   end_date: string;
@@ -53,6 +62,7 @@ const empty: Form = {
   project_description: "",
   customer_id: "",
   service_line: "",
+  project_type: "",
   delivery_center: "",
   start_date: "",
   end_date: "",
@@ -97,6 +107,7 @@ function ProjectsPage() {
       project_description: p.project_description,
       customer_id: p.customer_id,
       service_line: p.service_line,
+      project_type: (p as any).project_type ?? "",
       delivery_center: p.delivery_center ?? "",
       start_date: p.start_date,
       end_date: p.end_date,
@@ -123,6 +134,7 @@ function ProjectsPage() {
       project_description: form.project_description,
       customer_id: form.customer_id,
       service_line: form.service_line as ServiceLine,
+      project_type: form.project_type || null,
       delivery_center: form.delivery_center || null,
       start_date: form.start_date,
       end_date: form.end_date,
@@ -248,6 +260,20 @@ function ProjectsPage() {
                         <SelectItem key={s} value={s}>
                           {s}
                         </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Project Type</Label>
+                  <Select
+                    value={form.project_type}
+                    onValueChange={(v) => setForm({ ...form, project_type: v })}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                    <SelectContent>
+                      {PROJECT_TYPES.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

@@ -24,6 +24,7 @@ export const Route = createFileRoute("/_authenticated/demand")({
 
 const PRIORITIES = ["Low", "Medium", "High", "Critical"] as const;
 const STATUSES = ["Open", "In_Progress", "Fulfilled", "Cancelled"] as const;
+const CLASSIFICATIONS = ["Confirmed", "Probable", "Pipeline", "Internal"] as const;
 
 type Form = {
   id?: string;
@@ -34,6 +35,7 @@ type Form = {
   required_from: string;
   required_to: string;
   priority: string;
+  demand_classification: string;
   status: string;
   notes: string;
   project_id: string | null;
@@ -43,7 +45,7 @@ const empty: Form = {
   service_line: "DLaaS", role: "", headcount: 1, allocation_pct: 100,
   required_from: new Date().toISOString().slice(0, 10),
   required_to: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
-  priority: "Medium", status: "Open", notes: "", project_id: null,
+  priority: "Medium", demand_classification: "Confirmed", status: "Open", notes: "", project_id: null,
 };
 
 function DemandPage() {
@@ -77,7 +79,9 @@ function DemandPage() {
       service_line: form.service_line, role: form.role.trim(),
       headcount: form.headcount, allocation_pct: form.allocation_pct,
       required_from: form.required_from, required_to: form.required_to,
-      priority: form.priority, status: form.status, notes: form.notes || null,
+      priority: form.priority,
+      demand_classification: form.demand_classification || null,
+      status: form.status, notes: form.notes || null,
       project_id: form.project_id,
     };
     let error;
@@ -163,6 +167,13 @@ function DemandPage() {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
+                  <Label>Classification</Label>
+                  <Select value={form.demand_classification} onValueChange={(v) => setForm({ ...form, demand_classification: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{CLASSIFICATIONS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
                   <Label>Status</Label>
                   <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -204,6 +215,7 @@ function DemandPage() {
                 <th className="text-right px-3 py-2.5 font-medium">HC</th>
                 <th className="text-right px-3 py-2.5 font-medium">%</th>
                 <th className="text-left px-3 py-2.5 font-medium">Window</th>
+                <th className="text-left px-3 py-2.5 font-medium">Classification</th>
                 <th className="text-left px-3 py-2.5 font-medium">Priority</th>
                 <th className="text-left px-3 py-2.5 font-medium">Status</th>
                 <th className="px-5 py-2.5"></th>
@@ -217,6 +229,7 @@ function DemandPage() {
                   <td className="px-3 py-3 text-right tabular-nums">{d.headcount}</td>
                   <td className="px-3 py-3 text-right tabular-nums">{d.allocation_pct}%</td>
                   <td className="px-3 py-3 text-xs text-muted-foreground tabular-nums">{d.required_from} → {d.required_to}</td>
+                  <td className="px-3 py-3 text-xs text-muted-foreground">{(d as any).demand_classification ?? "—"}</td>
                   <td className="px-3 py-3">
                     <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${priorityClass(d.priority)}`}>{d.priority}</span>
                   </td>
