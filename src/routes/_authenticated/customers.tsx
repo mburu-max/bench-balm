@@ -295,6 +295,7 @@ function CustomersPage() {
                 <th className="text-left px-3 py-2.5 font-medium">AM</th>
                 <th className="text-left px-3 py-2.5 font-medium">Region</th>
                 <th className="text-left px-3 py-2.5 font-medium">Vertical</th>
+                <th className="text-left px-3 py-2.5 font-medium">Sync</th>
                 <th className="px-5 py-2.5"></th>
               </tr>
             </thead>
@@ -318,6 +319,11 @@ function CustomersPage() {
                   <td className="px-3 py-3 text-muted-foreground text-xs">{(c as any).account_manager ?? "—"}</td>
                   <td className="px-3 py-3 text-muted-foreground">{c.region ?? "—"}</td>
                   <td className="px-3 py-3 text-muted-foreground">{c.vertical ?? "—"}</td>
+                  <td className="px-3 py-3">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                      HubSpot: {(c as any).hubspot_sync_status ?? "not_configured"}
+                    </span>
+                  </td>
                   <td className="px-5 py-3 text-right">
                     {canWrite ? (
                       <>
