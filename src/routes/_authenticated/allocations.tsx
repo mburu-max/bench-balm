@@ -230,6 +230,11 @@ function AllocationsPage() {
                   {ALLOCATION_TYPES.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {allocationType === "Billable" && resource?.employment_type === "Contractor" && (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+                  R-07: Contractor billing — ensure correct employment type is set; cost treatment differs from FTE (downstream finance impact).
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label>% Allocation</Label>

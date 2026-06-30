@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Camera, Download } from "lucide-react";
+import { Camera, Download, FileSpreadsheet, FileText } from "lucide-react";
+import { exportToExcel, exportToPdf } from "@/lib/export";
 
 export const Route = createFileRoute("/_authenticated/snapshots")({
   component: SnapshotsPage,
@@ -62,6 +63,12 @@ function SnapshotsPage() {
     qc.invalidateQueries({ queryKey: ["snapshot-rows"] });
   };
 
+  const SNAP_HEADERS = ["resource_name","omni_id","role","service_line","project_code","customer_name","allocation_type","allocation_pct","allocation_start_date","allocation_end_date","manager"];
+
+  const snapRows = () => (rows.data ?? []).map((r) =>
+    SNAP_HEADERS.map((h) => (r as any)[h] ?? "")
+  );
+
   const download = () => {
     const csv = toCSV(rows.data ?? []);
     const blob = new Blob([csv], { type: "text/csv" });
@@ -72,6 +79,9 @@ function SnapshotsPage() {
     URL.revokeObjectURL(a.href);
   };
 
+  const downloadExcel = () => exportToExcel(`allocation-snapshot-${date}`, `Snapshot ${date}`, SNAP_HEADERS, snapRows());
+  const downloadPdf = () => exportToPdf(`allocation-snapshot-${date}`, `Allocation Snapshot — ${date}`, SNAP_HEADERS, snapRows());
+
   return (
     <AppShell
       title="Allocation Snapshots"
@@ -81,8 +91,14 @@ function SnapshotsPage() {
           {canTake && (
             <Button onClick={takeSnapshot}><Camera className="size-4 mr-1.5" /> Take snapshot</Button>
           )}
-          <Button variant="outline" onClick={download} disabled={!rows.data?.length}>
-            <Download className="size-4 mr-1.5" /> Export CSV
+          <Button variant="outline" size="sm" onClick={download} disabled={!rows.data?.length}>
+            <Download className="size-4 mr-1.5" /> CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={downloadExcel} disabled={!rows.data?.length}>
+            <FileSpreadsheet className="size-4 mr-1.5" /> Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={downloadPdf} disabled={!rows.data?.length}>
+            <FileText className="size-4 mr-1.5" /> PDF
           </Button>
         </div>
       }

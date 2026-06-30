@@ -16,7 +16,8 @@ import { computeBench, type BenchRow } from "@/lib/bench";
 import { SERVICE_LINES } from "@/lib/constants";
 import { BenchBandBadge, ResourceStatusBadge } from "@/components/StatusBadge";
 import { KpiCard } from "@/components/KpiCard";
-import { AlertTriangle, Coffee, Download, PauseCircle } from "lucide-react";
+import { AlertTriangle, Coffee, Download, PauseCircle, FileSpreadsheet, FileText } from "lucide-react";
+import { exportToExcel, exportToPdf } from "@/lib/export";
 
 export const Route = createFileRoute("/_authenticated/bench")({
   component: BenchPage,
@@ -62,14 +63,16 @@ function BenchPage() {
     over: bench.filter((b) => b.benchPct < 0).length,
   };
 
+  const BENCH_HEADERS = ["Omni ID","Name","Role","SL","Manager","Location","Total %","Bench %","Status"];
+  const benchRows = () => filtered.map((b) => [
+    b.resource.omni_id, b.resource.full_name, b.resource.position ?? "",
+    b.resource.service_line, b.resource.manager_name ?? "", b.resource.location ?? "",
+    b.totalPct, b.benchPct, b.resource.status,
+  ]);
+
   const exportCsv = () => {
-    const headers = ["Omni ID","Name","Role","SL","Manager","Location","Total %","Bench %","Status"];
-    const rows = filtered.map((b) => [
-      b.resource.omni_id, b.resource.full_name, b.resource.position ?? "",
-      b.resource.service_line, b.resource.manager_name ?? "", b.resource.location ?? "",
-      b.totalPct, b.benchPct, b.resource.status,
-    ]);
-    const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const rows = benchRows();
+    const csv = [BENCH_HEADERS, ...rows].map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -79,13 +82,24 @@ function BenchPage() {
     URL.revokeObjectURL(url);
   };
 
+  const exportExcel = () => exportToExcel(`bench-report-${date}`, "Bench Report", BENCH_HEADERS, benchRows());
+  const exportPdf = () => exportToPdf(`bench-report-${date}`, `Bench Report — ${date}`, BENCH_HEADERS, benchRows());
+
   return (
     <AppShell
       title="Bench Report"
       actions={
-        <Button variant="outline" size="sm" onClick={exportCsv}>
-          <Download className="size-4 mr-1.5" /> Export CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={exportCsv}>
+            <Download className="size-4 mr-1.5" /> CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportExcel}>
+            <FileSpreadsheet className="size-4 mr-1.5" /> Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportPdf}>
+            <FileText className="size-4 mr-1.5" /> PDF
+          </Button>
+        </div>
       }
     >
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
