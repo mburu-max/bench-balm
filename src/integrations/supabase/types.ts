@@ -605,6 +605,68 @@ export type Database = {
         }
         Relationships: []
       }
+      v_resource_bench_streak: {
+        Row: {
+          resource_id: string | null
+          bench_since: string | null
+          last_seen_benched: string | null
+          consecutive_bench_days: number | null
+        }
+        Relationships: []
+      }
+      v_kpi_project_code_coverage: {
+        Row: { pct_with_project_code: number | null }
+        Relationships: []
+      }
+      v_kpi_allocation_freshness: {
+        Row: { pct_fresh: number | null }
+        Relationships: []
+      }
+      v_kpi_avg_bench_days: {
+        Row: { avg_bench_days: number | null }
+        Relationships: []
+      }
+      v_kpi_demand_lead_time: {
+        Row: { avg_lead_time_days: number | null }
+        Relationships: []
+      }
+      v_kpi_forecast_accuracy: {
+        Row: {
+          month: string | null
+          service_line: string | null
+          planned_headcount: number | null
+          actual_headcount: number | null
+          accuracy_pct: number | null
+        }
+        Relationships: []
+      }
+      v_kpi_utilisation_now: {
+        Row: {
+          service_line: string | null
+          total_active: number | null
+          avg_utilisation_pct: number | null
+          over_allocated_count: number | null
+          bench_count: number | null
+        }
+        Relationships: []
+      }
+      v_cliff_edge: {
+        Row: {
+          resource_id: string | null
+          full_name: string | null
+          omni_id: string | null
+          service_line: string | null
+          position: string | null
+          manager_name: string | null
+          employment_type: string | null
+          last_covered_date: string | null
+          days_until_cliff: number | null
+          cliff_band: number | null
+          ending_project_code: string | null
+          ending_customer_name: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       current_app_role: {

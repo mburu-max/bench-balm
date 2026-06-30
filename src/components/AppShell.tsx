@@ -14,6 +14,7 @@ import {
   FileClock,
   TrendingUp,
   BarChart2,
+  AlertOctagon,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,7 @@ const NAV: NavItem[] = [
   { to: "/allocations", label: "Resource Allocation", icon: CalendarRange, show: (r) => !!r?.hasAnyOtherRole },
   { to: "/project-allocations", label: "Project Allocation", icon: Briefcase, show: (r) => !!r?.hasAnyOtherRole },
   { to: "/bench", label: "Bench Report", icon: Coffee, show: (r) => !!r?.hasAnyOtherRole },
+  { to: "/cliff-edge", label: "Cliff Edge", icon: AlertOctagon, show: (r) => !!r?.hasAnyOtherRole },
   { to: "/demand", label: "Demand Intake", icon: TrendingUp, show: (r) => !!r?.hasAnyOtherRole },
   { to: "/kpis", label: "KPI Dashboard", icon: BarChart2, show: (r) => !!r?.hasAnyOtherRole },
   { to: "/customers", label: "Customer Master", icon: Building2, show: (r) => !!(r?.isGovernanceLead || r?.isDeveloper) },

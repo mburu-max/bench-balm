@@ -6,6 +6,7 @@ import { computeBench } from "@/lib/bench";
 import { SERVICE_LINES } from "@/lib/constants";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Link } from "@tanstack/react-router";
 import {
   Users,
   Briefcase,
@@ -13,6 +14,8 @@ import {
   Activity,
   AlertTriangle,
   Coffee,
+  AlertOctagon,
+  ArrowRight,
 } from "lucide-react";
 import {
   Bar,
@@ -45,6 +48,15 @@ function Dashboard() {
     queryKey: ["util-trend"],
     queryFn: async () => {
       const { data, error } = await supabase.from("v_utilisation_weekly").select("*");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const cliffEdge = useQuery({
+    queryKey: ["cliff-edge-summary"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("v_cliff_edge").select("*");
       if (error) throw error;
       return data ?? [];
     },
@@ -103,6 +115,30 @@ function Dashboard() {
         <KpiCard label="On Bench" value={loading ? "—" : benchCount} icon={Coffee} accent="warning" />
         <KpiCard label="Over-allocated" value={loading ? "—" : overAllocated} icon={AlertTriangle} accent="destructive" hint={onLeave ? `${onLeave} on leave` : undefined} />
       </div>
+
+      {(() => {
+        const cliffData = cliffEdge.data ?? [];
+        const urgent = cliffData.filter((r) => (r.cliff_band ?? 90) <= 30).length;
+        if (cliffEdge.isLoading || cliffData.length === 0) return null;
+        return (
+          <Link to="/cliff-edge" className="block mt-6">
+            <div className={`rounded-xl border p-4 flex items-center justify-between gap-4 transition-colors hover:bg-muted/40 ${urgent > 0 ? "border-destructive/40 bg-destructive/5" : "border-warning/40 bg-warning/5"}`}>
+              <div className="flex items-center gap-3">
+                <AlertOctagon className={`size-5 ${urgent > 0 ? "text-destructive" : "text-warning-foreground"}`} />
+                <div>
+                  <div className="text-sm font-medium">
+                    {cliffData.length} resource{cliffData.length === 1 ? "" : "s"} approaching a cliff edge in the next 90 days
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {urgent > 0 ? `${urgent} need action within 30 days` : "None urgent yet, but worth a look"}
+                  </div>
+                </div>
+              </div>
+              <ArrowRight className="size-4 text-muted-foreground" />
+            </div>
+          </Link>
+        );
+      })()}
 
       <div className="rounded-xl border bg-card p-5 mt-6">
         <h2 className="font-display text-base font-semibold">13-Week Utilisation Trend</h2>

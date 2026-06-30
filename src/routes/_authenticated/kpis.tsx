@@ -44,32 +44,32 @@ function KpisPage() {
   const coverage = useQuery({
     queryKey: ["kpi-coverage"],
     queryFn: async () => {
-      const { data } = await supabase.from("v_kpi_project_code_coverage" as any).select("*").single();
-      return (data as any)?.pct_with_project_code ?? 0;
+      const { data } = await supabase.from("v_kpi_project_code_coverage").select("*").single();
+      return data?.pct_with_project_code ?? 0;
     },
   });
 
   const freshness = useQuery({
     queryKey: ["kpi-freshness"],
     queryFn: async () => {
-      const { data } = await supabase.from("v_kpi_allocation_freshness" as any).select("*").single();
-      return (data as any)?.pct_fresh ?? 0;
+      const { data } = await supabase.from("v_kpi_allocation_freshness").select("*").single();
+      return data?.pct_fresh ?? 0;
     },
   });
 
   const benchDays = useQuery({
     queryKey: ["kpi-bench-days"],
     queryFn: async () => {
-      const { data } = await supabase.from("v_kpi_avg_bench_days" as any).select("*").single();
-      return (data as any)?.avg_bench_days ?? 0;
+      const { data } = await supabase.from("v_kpi_avg_bench_days").select("*").single();
+      return data?.avg_bench_days ?? 0;
     },
   });
 
   const demandLead = useQuery({
     queryKey: ["kpi-demand-lead"],
     queryFn: async () => {
-      const { data } = await supabase.from("v_kpi_demand_lead_time" as any).select("*").single();
-      return (data as any)?.avg_lead_time_days ?? 0;
+      const { data } = await supabase.from("v_kpi_demand_lead_time").select("*").single();
+      return data?.avg_lead_time_days ?? 0;
     },
   });
 
