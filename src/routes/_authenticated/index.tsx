@@ -23,10 +23,9 @@ import {
   CartesianGrid,
   Cell,
   Legend,
-  Line,
-  LineChart,
   Pie,
   PieChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -44,12 +43,11 @@ function Dashboard() {
   const resources = useResources();
   const allocations = useAllocations();
 
-  const trend = useQuery({
-    queryKey: ["util-trend"],
+  const slTargets = useQuery({
+    queryKey: ["sl-targets"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("v_utilisation_weekly").select("*");
-      if (error) throw error;
-      return data ?? [];
+      const { data } = await supabase.from("service_lines").select("id, target_utilisation_min, target_utilisation_max");
+      return Object.fromEntries((data ?? []).map((s) => [s.id, s])) as Record<string, { target_utilisation_min: number | null; target_utilisation_max: number | null }>;
     },
   });
 
@@ -73,19 +71,33 @@ function Dashboard() {
   const overAllocated = bench.filter((b) => b.benchPct < 0).length;
   const onLeave = (resources.data ?? []).filter((r) => r.status === "On_Leave").length;
 
-  // Per service line stats
+  // Per service line stats with target bands
   const slData = SERVICE_LINES.map((sl) => {
     const slRes = activeResources.filter((r) => r.service_line === sl);
     const slBench = computeBench(slRes, allocations.data ?? []);
     const allocated = slBench.reduce((s, b) => s + Math.min(100, b.totalPct), 0);
     const total = slRes.length * 100;
     const utilization = total > 0 ? Math.round((allocated / total) * 100) : 0;
+    const target = slTargets.data?.[sl];
+    const targetMin = target?.target_utilisation_min ?? 80;
+    const targetMax = target?.target_utilisation_max ?? 95;
+    const inTarget = utilization >= targetMin;
     return {
-      sl,
-      resources: slRes.length,
-      utilization,
+      sl, resources: slRes.length, utilization,
       bench: slBench.filter((b) => b.benchPct > 0).length,
       fully: slBench.filter((b) => b.benchPct === 0).length,
+      targetMin, targetMax, inTarget,
+    };
+  });
+
+  // Cliff exposure per SL (30 / 60-90 day bands)
+  const cliffBySl = SERVICE_LINES.map((sl) => {
+    const rows = (cliffEdge.data ?? []).filter((r) => r.service_line === sl);
+    return {
+      sl,
+      "≤30d": rows.filter((r) => (r.cliff_band ?? 90) <= 30).length,
+      "31–60d": rows.filter((r) => r.cliff_band === 60).length,
+      "61–90d": rows.filter((r) => r.cliff_band === 90).length,
     };
   });
 
@@ -140,33 +152,69 @@ function Dashboard() {
         );
       })()}
 
-      <div className="rounded-xl border bg-card p-5 mt-6">
-        <h2 className="font-display text-base font-semibold">13-Week Utilisation Trend</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">Rolling weekly average per service line (billable + non-billable)</p>
-        <div className="h-64 mt-4">
-          <ResponsiveContainer>
-            <LineChart
-              data={(() => {
-                const map = new Map<string, any>();
-                for (const r of (trend.data ?? []) as any[]) {
-                  const k = r.week_start;
-                  if (!map.has(k)) map.set(k, { week: k });
-                  map.get(k)[r.service_line] = r.avg_utilisation_pct;
-                }
-                return Array.from(map.values()).sort((a, b) => a.week.localeCompare(b.week));
-              })()}
-              margin={{ top: 8, right: 12, left: -10, bottom: 0 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-              <XAxis dataKey="week" stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-              <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
-              <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              {SERVICE_LINES.map((sl, i) => (
-                <Line key={sl} type="monotone" dataKey={sl} stroke={pieColors[i % pieColors.length]} strokeWidth={2} dot={false} />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
+        {/* Utilisation vs Target */}
+        <div className="rounded-xl border bg-card p-5">
+          <h2 className="font-display text-base font-semibold">Utilisation vs Target</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Today's blended util % per SL — green bars are on target, red are below
+          </p>
+          <div className="h-64 mt-4">
+            <ResponsiveContainer>
+              <BarChart data={slData} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                <XAxis dataKey="sl" stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
+                <Tooltip
+                  contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }}
+                  formatter={(value: number, _: string, props: any) => {
+                    const d = props.payload;
+                    return [`${value}% (target ${d.targetMin}–${d.targetMax}%)`, "Utilisation"];
+                  }}
+                />
+                {/* Per-SL target min reference lines */}
+                {slData.map((d) => (
+                  <ReferenceLine key={`min-${d.sl}`} y={d.targetMin} stroke="var(--color-muted-foreground)" strokeDasharray="3 3" strokeOpacity={0.4} />
+                ))}
+                <Bar dataKey="utilization" radius={[6, 6, 0, 0]}>
+                  {slData.map((d) => (
+                    <Cell
+                      key={d.sl}
+                      fill={d.inTarget ? "var(--color-success, #22c55e)" : "var(--color-destructive)"}
+                      fillOpacity={0.85}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex items-center gap-4 mt-2 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-success inline-block" /> On/above target</span>
+            <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-destructive inline-block" /> Below target</span>
+            <span className="flex items-center gap-1.5"><span className="inline-block w-5 border-t border-dashed border-muted-foreground/50" /> Target floor</span>
+          </div>
+        </div>
+
+        {/* Cliff Exposure per SL */}
+        <div className="rounded-xl border bg-card p-5">
+          <h2 className="font-display text-base font-semibold">30/60/90-Day Cliff Exposure</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Resources with no follow-on allocation, by SL and urgency band
+          </p>
+          <div className="h-64 mt-4">
+            <ResponsiveContainer>
+              <BarChart data={cliffBySl} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                <XAxis dataKey="sl" stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="≤30d" stackId="a" fill="var(--color-destructive)" fillOpacity={0.85} radius={[0, 0, 0, 0]} />
+                <Bar dataKey="31–60d" stackId="a" fill="var(--color-warning)" fillOpacity={0.85} />
+                <Bar dataKey="61–90d" stackId="a" fill="var(--color-chart-3)" fillOpacity={0.7} radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
 
