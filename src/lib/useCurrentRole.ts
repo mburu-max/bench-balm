@@ -1,14 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { AppRole } from "@/lib/constants";
+import type { AppRole, ServiceLine } from "@/lib/constants";
 
 export type CurrentRole = {
   userId: string | null;
   role: AppRole | "admin" | "viewer" | null;
   isDeveloper: boolean;
+  isGovernanceLead: boolean;
   isFinance: boolean;
   isDl: boolean;
+  isSlLead: boolean;
   isPm: boolean;
+  isResource: boolean;
+  serviceLines: ServiceLine[];
+  hasAnyOtherRole: boolean;
 };
 
 const RANK: Record<string, number> = {
@@ -17,7 +22,9 @@ const RANK: Record<string, number> = {
   governance_lead: 3,
   finance: 4,
   delivery_lead: 5,
-  project_manager: 6,
+  service_line_lead: 6,
+  project_manager: 7,
+  resource: 8,
   viewer: 9,
 };
 
@@ -29,19 +36,45 @@ export function useCurrentRole() {
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id ?? null;
       if (!uid) {
-        return { userId: null, role: null, isDeveloper: false, isFinance: false, isDl: false, isPm: false };
+        return {
+          userId: null, role: null,
+          isDeveloper: false, isGovernanceLead: false, isFinance: false,
+          isDl: false, isSlLead: false, isPm: false, isResource: false,
+          serviceLines: [], hasAnyOtherRole: false,
+        };
       }
-      const { data } = await supabase
+      const { data: rolesData } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", uid);
-      const roles = (data ?? []).map((r) => r.role as string);
+      const roles = (rolesData ?? []).map((r) => r.role as string);
       const top = roles.sort((a, b) => (RANK[a] ?? 99) - (RANK[b] ?? 99))[0] ?? null;
+
       const isDeveloper = roles.includes("developer") || roles.includes("admin");
-      const isFinance = isDeveloper || roles.includes("finance") || roles.includes("governance_lead");
+      const isGovernanceLead = isDeveloper || roles.includes("governance_lead");
+      // isFinance: governance_lead still has all finance-level visibility (audit, snapshots, etc.)
+      const isFinance = isGovernanceLead || roles.includes("finance");
       const isDl = isDeveloper || roles.includes("delivery_lead");
+      const isSlLead = isDeveloper || roles.includes("service_line_lead");
       const isPm = isDeveloper || roles.includes("project_manager");
-      return { userId: uid, role: (top as any) ?? null, isDeveloper, isFinance, isDl, isPm };
+      const isResource = roles.includes("resource");
+      const hasAnyOtherRole = isDeveloper || isGovernanceLead || isFinance || isDl || isSlLead || isPm;
+
+      let serviceLines: ServiceLine[] = [];
+      if (isSlLead && !isDeveloper) {
+        const { data: slData } = await supabase
+          .from("user_service_lines")
+          .select("service_line")
+          .eq("user_id", uid);
+        serviceLines = (slData ?? []).map((r) => r.service_line as ServiceLine);
+      }
+
+      return {
+        userId: uid, role: (top as any) ?? null,
+        isDeveloper, isGovernanceLead, isFinance,
+        isDl, isSlLead, isPm, isResource,
+        serviceLines, hasAnyOtherRole,
+      };
     },
   });
 }

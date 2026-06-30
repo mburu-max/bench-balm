@@ -50,6 +50,9 @@ function AllocationsPage() {
   const [end, setEnd] = useState("");
   const [pct, setPct] = useState<number>(100);
   const [remarks, setRemarks] = useState("");
+  const [capOverride, setCapOverride] = useState(false);
+  const [capOverrideReason, setCapOverrideReason] = useState("");
+  const [dateOverrideReason, setDateOverrideReason] = useState("");
   const [saving, setSaving] = useState(false);
 
   const resource = useMemo(
@@ -105,6 +108,9 @@ function AllocationsPage() {
     setEnd("");
     setPct(100);
     setRemarks("");
+    setCapOverride(false);
+    setCapOverrideReason("");
+    setDateOverrideReason("");
   };
 
   const save = async () => {
@@ -133,7 +139,10 @@ function AllocationsPage() {
       allocation_pct: pct,
       remarks: remarks || null,
       created_by: userData.user?.id ?? null,
-    };
+      cap_override: capOverride || false,
+      cap_override_reason: capOverride ? capOverrideReason || null : null,
+      date_override_reason: dateOverrideReason || null,
+    } as any;
     const { error } = await supabase.from("allocations").insert(payload);
     setSaving(false);
     if (error) return toast.error(error.message);
@@ -165,7 +174,7 @@ function AllocationsPage() {
               </SelectTrigger>
               <SelectContent>
                 {(resources.data ?? [])
-                  .filter((r) => r.status !== "Exited")
+                  .filter((r) => r.status === "Active")
                   .map((r) => (
                     <SelectItem key={r.id} value={r.id}>
                       <span className="font-mono text-xs mr-2">{r.omni_id}</span>
@@ -280,6 +289,22 @@ function AllocationsPage() {
               <Label>Remarks</Label>
               <Textarea rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} />
             </div>
+            {role?.isGovernanceLead && over && (
+              <div className="col-span-2 rounded-lg border border-warning bg-warning/10 p-3 space-y-2">
+                <p className="text-xs font-medium text-warning-foreground">Over-allocation detected — Governance Lead override (R-01)</p>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={capOverride} onChange={(e) => setCapOverride(e.target.checked)} />
+                  Override 100% cap
+                </label>
+                {capOverride && (
+                  <Input placeholder="Reason required *" value={capOverrideReason} onChange={(e) => setCapOverrideReason(e.target.value)} />
+                )}
+              </div>
+            )}
+            <div className="col-span-2 space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Date override reason (optional — allows dates outside project window per R-02)</Label>
+              <Input placeholder="Leave blank to enforce project date bounds" value={dateOverrideReason} onChange={(e) => setDateOverrideReason(e.target.value)} />
+            </div>
           </div>
           <div className="flex justify-end gap-2 mt-5">
             {isReadOnly && (
@@ -288,7 +313,7 @@ function AllocationsPage() {
               </span>
             )}
             <Button variant="ghost" onClick={reset}>Reset</Button>
-            <Button onClick={save} disabled={saving || !resource || over || isReadOnly}>
+            <Button onClick={save} disabled={saving || !resource || (over && !(capOverride && capOverrideReason.trim())) || isReadOnly}>
               {saving ? "Saving…" : "Save Allocation"}
             </Button>
           </div>

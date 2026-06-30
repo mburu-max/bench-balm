@@ -77,9 +77,13 @@ export type Database = {
           allocation_pct: number
           allocation_start_date: string
           allocation_type: Database["public"]["Enums"]["allocation_type"]
+          cap_override: boolean
+          cap_override_by: string | null
+          cap_override_reason: string | null
           created_at: string
           created_by: string | null
           customer_id: string | null
+          date_override_reason: string | null
           employment_type: Database["public"]["Enums"]["employment_type"] | null
           id: string
           location: string | null
@@ -99,9 +103,13 @@ export type Database = {
           allocation_pct: number
           allocation_start_date: string
           allocation_type?: Database["public"]["Enums"]["allocation_type"]
+          cap_override?: boolean
+          cap_override_by?: string | null
+          cap_override_reason?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
+          date_override_reason?: string | null
           employment_type?:
             | Database["public"]["Enums"]["employment_type"]
             | null
@@ -142,6 +150,10 @@ export type Database = {
           resource_status?:
             | Database["public"]["Enums"]["resource_status"]
             | null
+          cap_override?: boolean
+          cap_override_by?: string | null
+          cap_override_reason?: string | null
+          date_override_reason?: string | null
           role?: string | null
           service_line?: Database["public"]["Enums"]["service_line"]
           updated_at?: string

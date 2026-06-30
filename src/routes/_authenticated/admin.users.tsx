@@ -11,9 +11,10 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ROLE_LABEL } from "@/lib/constants";
+import { ROLE_LABEL, SERVICE_LINES } from "@/lib/constants";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { ShieldAlert } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/admin/users")({
   component: AdminUsersPage,
@@ -21,9 +22,12 @@ export const Route = createFileRoute("/_authenticated/admin/users")({
 
 const ASSIGNABLE_ROLES = [
   "developer",
+  "governance_lead",
   "finance",
   "delivery_lead",
+  "service_line_lead",
   "project_manager",
+  "resource",
 ] as const;
 
 function AdminUsersPage() {
@@ -49,23 +53,42 @@ function AdminUsersPage() {
       if (error) throw error;
       const { data: rolesData, error: rErr } = await supabase.from("user_roles").select("user_id, role");
       if (rErr) throw rErr;
-      const map = new Map<string, string[]>();
+      const { data: slData } = await supabase.from("user_service_lines").select("user_id, service_line");
+      const roleMap = new Map<string, string[]>();
       for (const r of rolesData ?? []) {
-        const arr = map.get(r.user_id) ?? [];
+        const arr = roleMap.get(r.user_id) ?? [];
         arr.push(r.role as string);
-        map.set(r.user_id, arr);
+        roleMap.set(r.user_id, arr);
       }
-      return (profiles ?? []).map((p) => ({ ...p, roles: map.get(p.id) ?? [] }));
+      const slMap = new Map<string, string[]>();
+      for (const s of slData ?? []) {
+        const arr = slMap.get(s.user_id) ?? [];
+        arr.push(s.service_line as string);
+        slMap.set(s.user_id, arr);
+      }
+      return (profiles ?? []).map((p) => ({ ...p, roles: roleMap.get(p.id) ?? [], serviceLines: slMap.get(p.id) ?? [] }));
     },
   });
 
   const setRole = async (userId: string, newRole: string) => {
-    // Replace all roles with the single chosen one
     const { error: delErr } = await supabase.from("user_roles").delete().eq("user_id", userId);
     if (delErr) return toast.error(delErr.message);
     const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: newRole as any });
     if (error) return toast.error(error.message);
+    // Remove SL ownership rows when switching away from service_line_lead
+    if (newRole !== "service_line_lead") {
+      await supabase.from("user_service_lines").delete().eq("user_id", userId);
+    }
     toast.success("Role updated");
+    qc.invalidateQueries({ queryKey: ["admin-users"] });
+  };
+
+  const toggleSlOwnership = async (userId: string, sl: string, owned: boolean) => {
+    if (owned) {
+      await supabase.from("user_service_lines").insert({ user_id: userId, service_line: sl as any });
+    } else {
+      await supabase.from("user_service_lines").delete().eq("user_id", userId).eq("service_line", sl as any);
+    }
     qc.invalidateQueries({ queryKey: ["admin-users"] });
   };
 
@@ -102,7 +125,8 @@ function AdminUsersPage() {
             </thead>
             <tbody>
               {(users.data ?? []).map((u: any) => {
-                const primary = u.roles[0] ?? "project_manager";
+                const primary = u.roles[0] ?? "resource";
+                const isSlLead = primary === "service_line_lead";
                 return (
                   <tr key={u.id} className="border-t">
                     <td className="px-5 py-3 font-medium">{u.full_name ?? "—"}</td>
@@ -112,15 +136,32 @@ function AdminUsersPage() {
                         {ROLE_LABEL[primary] ?? primary}
                       </span>
                     </td>
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3 space-y-2">
                       <Select value={primary} onValueChange={(v) => setRole(u.id, v)}>
                         <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {ASSIGNABLE_ROLES.map((r) => (
-                            <SelectItem key={r} value={r}>{ROLE_LABEL[r]}</SelectItem>
+                            <SelectItem key={r} value={r}>{ROLE_LABEL[r] ?? r}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      {isSlLead && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {SERVICE_LINES.map((sl) => {
+                            const owned = (u.serviceLines ?? []).includes(sl);
+                            return (
+                              <button
+                                key={sl}
+                                type="button"
+                                onClick={() => toggleSlOwnership(u.id, sl, !owned)}
+                                className={`px-2 py-0.5 rounded text-[10px] border transition-colors ${owned ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`}
+                              >
+                                {sl}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );

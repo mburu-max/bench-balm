@@ -31,14 +31,15 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true, show: () => true },
-  { to: "/projects", label: "Projects", icon: FolderKanban, show: () => true },
-  { to: "/allocations", label: "Resource Allocation", icon: CalendarRange, show: () => true },
-  { to: "/project-allocations", label: "Project Allocation", icon: Briefcase, show: () => true },
-  { to: "/bench", label: "Bench Report", icon: Coffee, show: () => true },
-  { to: "/demand", label: "Demand Intake", icon: TrendingUp, show: () => true },
-  { to: "/customers", label: "Customer Master", icon: Building2, show: (r) => !!(r?.isFinance || r?.isDeveloper) },
-  { to: "/resources", label: "Resource Master", icon: Users, show: (r) => !!(r?.isFinance || r?.isDeveloper) },
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true, show: (r) => !!r?.hasAnyOtherRole },
+  { to: "/my-profile", label: "My Profile", icon: Users, show: (r) => !!(r?.isResource && !r?.hasAnyOtherRole) },
+  { to: "/projects", label: "Projects", icon: FolderKanban, show: (r) => !!r?.hasAnyOtherRole },
+  { to: "/allocations", label: "Resource Allocation", icon: CalendarRange, show: (r) => !!r?.hasAnyOtherRole },
+  { to: "/project-allocations", label: "Project Allocation", icon: Briefcase, show: (r) => !!r?.hasAnyOtherRole },
+  { to: "/bench", label: "Bench Report", icon: Coffee, show: (r) => !!r?.hasAnyOtherRole },
+  { to: "/demand", label: "Demand Intake", icon: TrendingUp, show: (r) => !!r?.hasAnyOtherRole },
+  { to: "/customers", label: "Customer Master", icon: Building2, show: (r) => !!(r?.isGovernanceLead || r?.isDeveloper) },
+  { to: "/resources", label: "Resource Master", icon: Users, show: (r) => !!(r?.isGovernanceLead || r?.isDeveloper || r?.isSlLead) },
   { to: "/snapshots", label: "Snapshots", icon: Camera, show: (r) => !!(r?.isFinance || r?.isDeveloper) },
   { to: "/audit", label: "Audit Trail", icon: FileClock, show: (r) => !!(r?.isFinance || r?.isDeveloper) },
   { to: "/admin/users", label: "User Roles", icon: ShieldCheck, show: (r) => !!r?.isDeveloper },

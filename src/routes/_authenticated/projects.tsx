@@ -72,8 +72,10 @@ function ProjectsPage() {
 
   const canCreate = !!(role?.isPm || role?.isDl || role?.isFinance || role?.isDeveloper);
   const canVerify = !!(role?.isDl || role?.isFinance || role?.isDeveloper);
-  const canActivate = !!(role?.isFinance || role?.isDeveloper);
-  const canDelete = !!(role?.isFinance || role?.isDeveloper);
+  const canActivate = !!(role?.isGovernanceLead || role?.isDeveloper);
+  // Finance can only confirm contract_signed on a Verified project (column-guard trigger enforces this at DB level)
+  const canConfirmContract = !!(role?.isFinance || role?.isDeveloper);
+  const canDelete = !!(role?.isGovernanceLead || role?.isDeveloper);
 
   const canEditProject = (p: any) => {
     if (role?.isDeveloper || role?.isFinance || role?.isDl) return true;
@@ -263,7 +265,7 @@ function ProjectsPage() {
                     <Checkbox
                       checked={form.contract_signed}
                       onCheckedChange={(v) => setForm({ ...form, contract_signed: !!v })}
-                      disabled={!canActivate && !role?.isDl}
+                      disabled={!canConfirmContract && !role?.isDl}
                     />
                     Signed contract on file (required to activate)
                   </label>
@@ -392,7 +394,7 @@ function ProjectsPage() {
                           <Pencil className="size-4" />
                         </Button>
                       )}
-                      {canDelete && (
+                      {canDelete && p.status !== "Closed" && (
                         <Button variant="ghost" size="icon" onClick={() => remove(p.id)}>
                           <Trash2 className="size-4 text-destructive" />
                         </Button>

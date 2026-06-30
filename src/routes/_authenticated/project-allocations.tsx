@@ -200,7 +200,7 @@ function ProjectAllocationsPage() {
                         <Select value={row.resource_id} onValueChange={(v) => setRow(row.key, { resource_id: v })}>
                           <SelectTrigger className="h-9"><SelectValue placeholder="Pick…" /></SelectTrigger>
                           <SelectContent>
-                            {(resources.data ?? []).filter((r) => r.status !== "Exited").map((r) => (
+                            {(resources.data ?? []).filter((r) => r.status === "Active").map((r) => (
                               <SelectItem key={r.id} value={r.id}>
                                 <span className="font-mono text-xs mr-2">{r.omni_id}</span>{r.full_name}
                               </SelectItem>

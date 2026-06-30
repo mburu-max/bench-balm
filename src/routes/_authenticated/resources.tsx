@@ -75,7 +75,7 @@ const empty: Form = {
 function ResourcesPage() {
   const resources = useResources();
   const { data: role } = useCurrentRole();
-  const canWrite = !!(role?.isFinance || role?.isDeveloper);
+  const canWrite = !!(role?.isGovernanceLead || role?.isDeveloper || role?.isSlLead);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Form>(empty);
@@ -345,9 +345,11 @@ function ResourcesPage() {
                         <Button variant="ghost" size="icon" onClick={() => startEdit(r)}>
                           <Pencil className="size-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => remove(r.id)}>
-                          <Trash2 className="size-4 text-destructive" />
-                        </Button>
+                        {r.status !== "Exited" && (
+                          <Button variant="ghost" size="icon" onClick={() => remove(r.id)}>
+                            <Trash2 className="size-4 text-destructive" />
+                          </Button>
+                        )}
                       </>
                     ) : (
                       <span className="text-xs text-muted-foreground">Read only</span>

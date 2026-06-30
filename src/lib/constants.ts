@@ -46,19 +46,23 @@ export const VERTICALS = [
 // Roles (matches DB app_role enum). 'admin' & 'viewer' kept for backwards compat but unused by UI.
 export const APP_ROLES = [
   "developer",
-  "finance",
   "governance_lead",
+  "finance",
   "delivery_lead",
+  "service_line_lead",
   "project_manager",
+  "resource",
 ] as const;
 export type AppRole = (typeof APP_ROLES)[number];
 
 export const ROLE_LABEL: Record<string, string> = {
   developer: "Developer",
   admin: "Developer (legacy)",
-  finance: "Finance / Governance",
-  governance_lead: "Finance / Governance",
+  governance_lead: "Governance Lead",
+  finance: "Finance",
   delivery_lead: "Delivery Lead",
+  service_line_lead: "Service Line Lead",
   project_manager: "Project Manager",
+  resource: "Resource (self-service)",
   viewer: "Viewer",
 };

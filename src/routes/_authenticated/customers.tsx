@@ -52,7 +52,7 @@ const empty: Form = {
 function CustomersPage() {
   const customers = useCustomers();
   const { data: role } = useCurrentRole();
-  const canWrite = !!(role?.isFinance || role?.isDeveloper);
+  const canWrite = !!(role?.isGovernanceLead || role?.isDeveloper);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Form>(empty);
