@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { useCustomers } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -300,7 +301,9 @@ function CustomersPage() {
             <tbody>
               {filtered.map((c) => (
                 <tr key={c.id} className="border-t hover:bg-muted/30">
-                  <td className="px-5 py-3 font-medium">{c.customer_name}</td>
+                  <td className="px-5 py-3 font-medium">
+                    <Link to={`/customers/${c.id}` as any} className="hover:underline">{c.customer_name}</Link>
+                  </td>
                   <td className="px-3 py-3">
                     <div className="flex flex-wrap gap-1">
                       {(c.service_lines ?? []).map((sl: string) => (
