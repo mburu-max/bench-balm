@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Pencil, Trash2, ArrowRight, CheckCircle2, XCircle, Lock } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowRight, XCircle, Lock } from "lucide-react";
 import { useCustomers, useProjects } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -441,32 +441,6 @@ function ProjectsPage() {
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-3 text-sm">
-        <div className="rounded-lg border bg-card p-4">
-          <div className="font-medium flex items-center gap-2">
-            <span className="size-2 rounded-full bg-muted-foreground" /> 1. Draft · Project Manager
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            PM creates the project as Draft.
-          </p>
-        </div>
-        <div className="rounded-lg border bg-card p-4">
-          <div className="font-medium flex items-center gap-2">
-            <span className="size-2 rounded-full bg-warning" /> 2. Verified · Delivery Lead
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Delivery Lead reviews the Draft and marks it Verified.
-          </p>
-        </div>
-        <div className="rounded-lg border bg-card p-4">
-          <div className="font-medium flex items-center gap-2">
-            <CheckCircle2 className="size-3.5 text-success" /> 3. Active · Finance / Governance
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Finance confirms signed contract and locks the project to Active — only then it appears in allocation dropdowns.
-          </p>
-        </div>
-      </div>
     </AppShell>
   );
 }
