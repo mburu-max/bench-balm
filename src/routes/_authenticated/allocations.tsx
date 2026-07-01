@@ -23,7 +23,13 @@ import {
 } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ALLOCATION_TYPES, type AllocationType } from "@/lib/constants";
+import {
+  ALLOCATION_TYPES,
+  type AllocationType,
+  ALLOCATION_MODELS,
+  ALLOCATION_MODEL_LABEL,
+  type AllocationModel,
+} from "@/lib/constants";
 import { AllocationTypeBadge } from "@/components/StatusBadge";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 
@@ -38,14 +44,17 @@ function AllocationsPage() {
   const allocations = useAllocations();
   const qc = useQueryClient();
   const { data: role } = useCurrentRole();
-  const isReadOnly = !!(role && !role.isFinance && !role.isDeveloper && !role.isPm);
+  // Editors: developer, governance lead, PM (own projects), SL/Delivery lead. Finance is read-only.
+  const canEdit = !!(role?.isDeveloper || role?.isGovernanceLead || role?.isPm || role?.isSlLead);
+  const isReadOnly = !canEdit;
   const canEditProject = (p: any) =>
-    !!(role?.isFinance || role?.isDeveloper || (role?.isPm && p?.project_manager_user_id === role.userId));
+    !!(role?.isDeveloper || role?.isGovernanceLead || role?.isSlLead || (role?.isPm && p?.project_manager_user_id === role.userId));
 
   const [resourceId, setResourceId] = useState<string>("");
   const [customerId, setCustomerId] = useState<string>("");
   const [projectId, setProjectId] = useState<string>("");
   const [allocationType, setAllocationType] = useState<AllocationType>("Billable");
+  const [allocationModel, setAllocationModel] = useState<AllocationModel | "">("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [pct, setPct] = useState<number>(100);
@@ -65,8 +74,8 @@ function AllocationsPage() {
       (p) =>
         p.status === "Active" &&
         (!customerId || p.customer_id === customerId) &&
-        // PMs can only allocate to their own projects; finance/dev see all active
-        (role?.isFinance || role?.isDeveloper || (role?.isPm && (p as any).project_manager_user_id === role.userId)),
+        // PMs can only allocate to their own projects; governance/SL-lead/dev see all active
+        (role?.isDeveloper || role?.isGovernanceLead || role?.isSlLead || (role?.isPm && (p as any).project_manager_user_id === role.userId)),
     );
   }, [projects.data, customerId, role]);
 
@@ -104,6 +113,7 @@ function AllocationsPage() {
     setCustomerId("");
     setProjectId("");
     setAllocationType("Billable");
+    setAllocationModel("");
     setStart("");
     setEnd("");
     setPct(100);
@@ -116,6 +126,7 @@ function AllocationsPage() {
   const save = async () => {
     if (!resource) return toast.error("Pick a resource");
     if (allocationType !== "Leave" && !projectId) return toast.error("Pick a project");
+    if (allocationType !== "Leave" && !allocationModel) return toast.error("Pick an allocation model");
     if (!start || !end) return toast.error("Dates required");
     if (pct < 1 || pct > 100) return toast.error("Percentage must be 1-100");
     setSaving(true);
@@ -134,6 +145,7 @@ function AllocationsPage() {
       employment_type: resource.employment_type,
       resource_status: resource.status,
       allocation_type: allocationType,
+      allocation_model: allocationType === "Leave" ? null : (allocationModel || null),
       allocation_start_date: start,
       allocation_end_date: end,
       allocation_pct: pct,
@@ -247,6 +259,19 @@ function AllocationsPage() {
               />
             </div>
             {!isLeave && (
+              <div className="space-y-1.5">
+                <Label>Allocation Model</Label>
+                <Select value={allocationModel} onValueChange={(v) => setAllocationModel(v as AllocationModel)}>
+                  <SelectTrigger><SelectValue placeholder="Select model" /></SelectTrigger>
+                  <SelectContent>
+                    {ALLOCATION_MODELS.map((m) => (
+                      <SelectItem key={m} value={m}>{ALLOCATION_MODEL_LABEL[m]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {!isLeave && (
               <>
                 <div className="space-y-1.5">
                   <Label>Customer</Label>
@@ -340,6 +365,7 @@ function AllocationsPage() {
                 <tr>
                   <th className="text-left px-5 py-2.5 font-medium">Project</th>
                   <th className="text-left px-3 py-2.5 font-medium">Type</th>
+                  <th className="text-left px-3 py-2.5 font-medium">Model</th>
                   <th className="text-left px-3 py-2.5 font-medium">Dates</th>
                   <th className="text-right px-3 py-2.5 font-medium">%</th>
                   <th className="text-left px-3 py-2.5 font-medium">Remarks</th>
@@ -362,6 +388,9 @@ function AllocationsPage() {
                       )}
                     </td>
                     <td className="px-3 py-3"><AllocationTypeBadge type={a.allocation_type} /></td>
+                    <td className="px-3 py-3 text-xs text-muted-foreground">
+                      {a.allocation_model ? ALLOCATION_MODEL_LABEL[a.allocation_model as AllocationModel] : "—"}
+                    </td>
                     <td className="px-3 py-3 text-xs tabular-nums text-muted-foreground">
                       {a.allocation_start_date} → {a.allocation_end_date}
                     </td>
@@ -378,7 +407,7 @@ function AllocationsPage() {
                 ))}
                 {myAllocations.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-10 text-center text-muted-foreground">
+                    <td colSpan={7} className="px-5 py-10 text-center text-muted-foreground">
                       No allocations yet.
                     </td>
                   </tr>

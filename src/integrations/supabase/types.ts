@@ -74,6 +74,7 @@ export type Database = {
       allocations: {
         Row: {
           allocation_end_date: string
+          allocation_model: Database["public"]["Enums"]["allocation_model"] | null
           allocation_pct: number
           allocation_start_date: string
           allocation_type: Database["public"]["Enums"]["allocation_type"]
@@ -96,6 +97,7 @@ export type Database = {
         }
         Insert: {
           allocation_end_date: string
+          allocation_model?: Database["public"]["Enums"]["allocation_model"] | null
           allocation_pct: number
           allocation_start_date: string
           allocation_type?: Database["public"]["Enums"]["allocation_type"]
@@ -122,6 +124,7 @@ export type Database = {
         }
         Update: {
           allocation_end_date?: string
+          allocation_model?: Database["public"]["Enums"]["allocation_model"] | null
           allocation_pct?: number
           allocation_start_date?: string
           allocation_type?: Database["public"]["Enums"]["allocation_type"]
@@ -726,6 +729,12 @@ export type Database = {
       take_allocation_snapshot: { Args: { _d?: string }; Returns: number }
     }
     Enums: {
+      allocation_model:
+        | "Full_Dedication"
+        | "Partial_Split"
+        | "Time_Boxed"
+        | "Surge_Flex"
+        | "Shadow_Training"
       allocation_type: "Billable" | "Non-Billable" | "Bench" | "Leave"
       app_role:
         | "admin"
@@ -883,6 +892,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      allocation_model: [
+        "Full_Dedication",
+        "Partial_Split",
+        "Time_Boxed",
+        "Surge_Flex",
+        "Shadow_Training",
+      ],
       allocation_type: ["Billable", "Non-Billable", "Bench", "Leave"],
       app_role: [
         "admin",

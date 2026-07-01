@@ -4,6 +4,25 @@ export type ServiceLine = (typeof SERVICE_LINES)[number];
 export const ALLOCATION_TYPES = ["Billable", "Non-Billable", "Bench", "Leave"] as const;
 export type AllocationType = (typeof ALLOCATION_TYPES)[number];
 
+// Allocation model = the engagement pattern of a resource on a project (RA doc §4.2,
+// mandatory field per Dashboard Dev Tracker allocation_ledger). Distinct from % and type.
+export const ALLOCATION_MODELS = [
+  "Full_Dedication",
+  "Partial_Split",
+  "Time_Boxed",
+  "Surge_Flex",
+  "Shadow_Training",
+] as const;
+export type AllocationModel = (typeof ALLOCATION_MODELS)[number];
+
+export const ALLOCATION_MODEL_LABEL: Record<AllocationModel, string> = {
+  Full_Dedication: "Full Dedication (100%)",
+  Partial_Split: "Partial Split (multi-project)",
+  Time_Boxed: "Time-boxed",
+  Surge_Flex: "Surge / Flex",
+  Shadow_Training: "Shadow / Training",
+};
+
 export const PROJECT_STATUSES = [
   "Draft",
   "Verified",

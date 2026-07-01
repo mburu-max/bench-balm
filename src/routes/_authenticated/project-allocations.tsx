@@ -21,7 +21,13 @@ import {
 } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ALLOCATION_TYPES, type AllocationType } from "@/lib/constants";
+import {
+  ALLOCATION_TYPES,
+  type AllocationType,
+  ALLOCATION_MODELS,
+  ALLOCATION_MODEL_LABEL,
+  type AllocationModel,
+} from "@/lib/constants";
 import { AllocationTypeBadge } from "@/components/StatusBadge";
 
 export const Route = createFileRoute("/_authenticated/project-allocations")({
@@ -32,6 +38,7 @@ type Row = {
   key: string;
   resource_id: string;
   allocation_type: AllocationType;
+  allocation_model: AllocationModel | "";
   start: string;
   end: string;
   pct: number;
@@ -42,6 +49,7 @@ const blankRow = (): Row => ({
   key: crypto.randomUUID(),
   resource_id: "",
   allocation_type: "Billable",
+  allocation_model: "",
   start: "",
   end: "",
   pct: 100,
@@ -83,6 +91,7 @@ function ProjectAllocationsPage() {
   const saveRow = async (row: Row) => {
     if (!project) return toast.error("Pick a project first");
     if (!row.resource_id) return toast.error("Pick a resource");
+    if (!row.allocation_model) return toast.error("Pick an allocation model");
     if (!row.start || !row.end) return toast.error("Dates required");
     const resource = (resources.data ?? []).find((r) => r.id === row.resource_id);
     if (!resource) return;
@@ -101,6 +110,7 @@ function ProjectAllocationsPage() {
       employment_type: resource.employment_type,
       resource_status: resource.status,
       allocation_type: row.allocation_type,
+      allocation_model: row.allocation_model || null,
       allocation_start_date: row.start,
       allocation_end_date: row.end,
       allocation_pct: row.pct,
@@ -186,6 +196,7 @@ function ProjectAllocationsPage() {
                   <tr>
                     <th className="text-left px-3 py-2.5 font-medium min-w-[200px]">Resource</th>
                     <th className="text-left px-3 py-2.5 font-medium">Type</th>
+                    <th className="text-left px-3 py-2.5 font-medium min-w-[150px]">Model</th>
                     <th className="text-left px-3 py-2.5 font-medium">Start</th>
                     <th className="text-left px-3 py-2.5 font-medium">End</th>
                     <th className="text-left px-3 py-2.5 font-medium w-20">%</th>
@@ -214,6 +225,16 @@ function ProjectAllocationsPage() {
                           <SelectContent>
                             {ALLOCATION_TYPES.filter((t) => t !== "Leave").map((t) => (
                               <SelectItem key={t} value={t}>{t}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="px-3 py-2">
+                        <Select value={row.allocation_model} onValueChange={(v) => setRow(row.key, { allocation_model: v as AllocationModel })}>
+                          <SelectTrigger className="h-9"><SelectValue placeholder="Model" /></SelectTrigger>
+                          <SelectContent>
+                            {ALLOCATION_MODELS.map((m) => (
+                              <SelectItem key={m} value={m}>{ALLOCATION_MODEL_LABEL[m]}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -257,6 +278,7 @@ function ProjectAllocationsPage() {
                     <th className="text-left px-5 py-2.5 font-medium">Resource</th>
                     <th className="text-left px-3 py-2.5 font-medium">Role</th>
                     <th className="text-left px-3 py-2.5 font-medium">Type</th>
+                    <th className="text-left px-3 py-2.5 font-medium">Model</th>
                     <th className="text-left px-3 py-2.5 font-medium">Dates</th>
                     <th className="text-right px-3 py-2.5 font-medium">%</th>
                     <th className="px-5 py-2.5"></th>
@@ -271,6 +293,9 @@ function ProjectAllocationsPage() {
                       </td>
                       <td className="px-3 py-3 text-muted-foreground">{a.role ?? "—"}</td>
                       <td className="px-3 py-3"><AllocationTypeBadge type={a.allocation_type} /></td>
+                      <td className="px-3 py-3 text-xs text-muted-foreground">
+                        {a.allocation_model ? ALLOCATION_MODEL_LABEL[a.allocation_model as AllocationModel] : "—"}
+                      </td>
                       <td className="px-3 py-3 text-xs tabular-nums text-muted-foreground">
                         {a.allocation_start_date} → {a.allocation_end_date}
                       </td>
@@ -284,7 +309,7 @@ function ProjectAllocationsPage() {
                   ))}
                   {teamAllocations.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-5 py-10 text-center text-muted-foreground">
+                      <td colSpan={7} className="px-5 py-10 text-center text-muted-foreground">
                         No team members allocated yet.
                       </td>
                     </tr>
