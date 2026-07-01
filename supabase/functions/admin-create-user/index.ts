@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
       email,
       password,
       email_confirm: true,
-      user_metadata: { full_name: fullName },
+      user_metadata: { full_name: fullName, must_change_password: true },
     });
     if (cErr) return json({ error: cErr.message }, 400);
     const uid = created.user.id;
