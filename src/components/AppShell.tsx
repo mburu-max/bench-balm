@@ -15,8 +15,10 @@ import {
   TrendingUp,
   BarChart2,
   AlertOctagon,
+  ChevronDown,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
@@ -79,6 +81,14 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
   const navigate = useNavigate();
   const role = useCurrentRole();
 
+  // track open/closed state per labelled group; all start open
+  const labelledGroups = NAV_GROUPS.filter((g) => g.label !== null).map((g) => g.label as string);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(
+    Object.fromEntries(labelledGroups.map((l) => [l, true])),
+  );
+  const toggleGroup = (label: string) =>
+    setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+
   const signOut = async () => {
     await supabase.auth.signOut();
     navigate({ to: "/auth" });
@@ -98,18 +108,30 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
             </div>
           </div>
         </div>
-        <nav className="flex-1 px-3 overflow-y-auto min-h-0 py-2 space-y-4">
+        <nav className="flex-1 px-3 overflow-y-auto min-h-0 py-2 space-y-1">
           {NAV_GROUPS.map((group, gi) => {
             const visibleItems = group.items.filter((n) => n.show(role.data));
             if (visibleItems.length === 0) return null;
+            const isOpen = group.label === null || openGroups[group.label];
             return (
-              <div key={gi}>
+              <div key={gi} className={group.label ? "pt-2" : ""}>
                 {group.label && (
-                  <div className="px-3 pb-1 pt-0.5 text-[10px] uppercase tracking-widest text-sidebar-foreground/40 font-semibold">
+                  <button
+                    onClick={() => toggleGroup(group.label!)}
+                    className="w-full flex items-center justify-between px-3 py-1.5 rounded-md text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/50 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground/80 transition-colors"
+                  >
                     {group.label}
-                  </div>
+                    <ChevronDown
+                      className={cn("size-3 transition-transform duration-200", isOpen ? "rotate-0" : "-rotate-90")}
+                    />
+                  </button>
                 )}
-                <div className="space-y-0.5">
+                <div
+                  className={cn(
+                    "space-y-0.5 overflow-hidden transition-all duration-200",
+                    isOpen ? "mt-0.5 max-h-96 opacity-100" : "max-h-0 opacity-0",
+                  )}
+                >
                   {visibleItems.map((n) => {
                     const active = n.exact
                       ? location.pathname === n.to
