@@ -10,7 +10,7 @@ import {
   RefreshCw, BarChart2, Target,
 } from "lucide-react";
 
-export const Route = (createFileRoute as any)("/_authenticated/kpis")({
+export const Route = createFileRoute("/_authenticated/kpis")({
   component: KpisPage,
 });
 

@@ -6,7 +6,7 @@ import { ProjectStatusBadge, AllocationTypeBadge } from "@/components/StatusBadg
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export const Route = (createFileRoute as any)("/_authenticated/customers/$customerId")({
+export const Route = createFileRoute("/_authenticated/customers/$customerId")({
   component: CustomerDetailPage,
 });
 

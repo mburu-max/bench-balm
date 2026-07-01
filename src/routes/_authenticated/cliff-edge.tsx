@@ -16,7 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SERVICE_LINES } from "@/lib/constants";
 import { AlertOctagon, AlertTriangle, Clock3, Download } from "lucide-react";
 
-export const Route = (createFileRoute as any)("/_authenticated/cliff-edge")({
+export const Route = createFileRoute("/_authenticated/cliff-edge")({
   component: CliffEdgePage,
 });
 

@@ -20,7 +20,7 @@ import { AllocationTypeBadge, ResourceStatusBadge } from "@/components/StatusBad
 import { toast } from "sonner";
 import { CalendarOff, CalendarCheck } from "lucide-react";
 
-export const Route = (createFileRoute as any)("/_authenticated/my-profile")({
+export const Route = createFileRoute("/_authenticated/my-profile")({
   component: MyProfilePage,
 });
 
