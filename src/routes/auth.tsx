@@ -61,8 +61,8 @@ function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-background">
-      <div className="hidden lg:flex flex-col justify-between bg-sidebar text-sidebar-foreground p-12">
+    <div className="min-h-screen bg-background lg:h-screen lg:flex lg:overflow-hidden">
+      <div className="hidden lg:flex lg:flex-1 lg:flex-col lg:justify-between bg-sidebar text-sidebar-foreground p-12 overflow-y-auto">
         <div className="flex items-center gap-2.5">
           <div className="size-9 rounded-md bg-sidebar-primary text-sidebar-primary-foreground grid place-items-center">
             <Layers className="size-4" />
@@ -95,7 +95,7 @@ function AuthPage() {
         <div className="text-xs text-sidebar-foreground/40">© Execo · Service Delivery</div>
       </div>
 
-      <div className="flex items-center justify-center p-6 lg:p-12">
+      <div className="flex-1 flex items-start justify-center pt-10 pb-10 px-6 lg:items-center lg:pt-0 lg:px-12 lg:h-full">
         <Card className="w-full max-w-md p-8">
           <h2 className="font-display text-2xl font-semibold tracking-tight">Welcome back</h2>
           <p className="text-sm text-muted-foreground mt-1">Sign in to manage allocations.</p>

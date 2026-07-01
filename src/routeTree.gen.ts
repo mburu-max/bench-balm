@@ -16,11 +16,15 @@ import { Route as AuthenticatedSnapshotsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedResourcesRouteImport } from './routes/_authenticated/resources'
 import { Route as AuthenticatedProjectsRouteImport } from './routes/_authenticated/projects'
 import { Route as AuthenticatedProjectAllocationsRouteImport } from './routes/_authenticated/project-allocations'
+import { Route as AuthenticatedMyProfileRouteImport } from './routes/_authenticated/my-profile'
+import { Route as AuthenticatedKpisRouteImport } from './routes/_authenticated/kpis'
 import { Route as AuthenticatedDemandRouteImport } from './routes/_authenticated/demand'
 import { Route as AuthenticatedCustomersRouteImport } from './routes/_authenticated/customers'
+import { Route as AuthenticatedCliffEdgeRouteImport } from './routes/_authenticated/cliff-edge'
 import { Route as AuthenticatedBenchRouteImport } from './routes/_authenticated/bench'
 import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
 import { Route as AuthenticatedAllocationsRouteImport } from './routes/_authenticated/allocations'
+import { Route as AuthenticatedCustomersCustomerIdRouteImport } from './routes/_authenticated/customers.$customerId'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 
 const AuthRoute = AuthRouteImport.update({
@@ -58,6 +62,16 @@ const AuthenticatedProjectAllocationsRoute =
     path: '/project-allocations',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedMyProfileRoute = AuthenticatedMyProfileRouteImport.update({
+  id: '/my-profile',
+  path: '/my-profile',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedKpisRoute = AuthenticatedKpisRouteImport.update({
+  id: '/kpis',
+  path: '/kpis',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDemandRoute = AuthenticatedDemandRouteImport.update({
   id: '/demand',
   path: '/demand',
@@ -66,6 +80,11 @@ const AuthenticatedDemandRoute = AuthenticatedDemandRouteImport.update({
 const AuthenticatedCustomersRoute = AuthenticatedCustomersRouteImport.update({
   id: '/customers',
   path: '/customers',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCliffEdgeRoute = AuthenticatedCliffEdgeRouteImport.update({
+  id: '/cliff-edge',
+  path: '/cliff-edge',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedBenchRoute = AuthenticatedBenchRouteImport.update({
@@ -84,6 +103,12 @@ const AuthenticatedAllocationsRoute =
     path: '/allocations',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedCustomersCustomerIdRoute =
+  AuthenticatedCustomersCustomerIdRouteImport.update({
+    id: '/$customerId',
+    path: '/$customerId',
+    getParentRoute: () => AuthenticatedCustomersRoute,
+  } as any)
 const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
@@ -96,27 +121,35 @@ export interface FileRoutesByFullPath {
   '/allocations': typeof AuthenticatedAllocationsRoute
   '/audit': typeof AuthenticatedAuditRoute
   '/bench': typeof AuthenticatedBenchRoute
-  '/customers': typeof AuthenticatedCustomersRoute
+  '/cliff-edge': typeof AuthenticatedCliffEdgeRoute
+  '/customers': typeof AuthenticatedCustomersRouteWithChildren
   '/demand': typeof AuthenticatedDemandRoute
+  '/kpis': typeof AuthenticatedKpisRoute
+  '/my-profile': typeof AuthenticatedMyProfileRoute
   '/project-allocations': typeof AuthenticatedProjectAllocationsRoute
   '/projects': typeof AuthenticatedProjectsRoute
   '/resources': typeof AuthenticatedResourcesRoute
   '/snapshots': typeof AuthenticatedSnapshotsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/customers/$customerId': typeof AuthenticatedCustomersCustomerIdRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/allocations': typeof AuthenticatedAllocationsRoute
   '/audit': typeof AuthenticatedAuditRoute
   '/bench': typeof AuthenticatedBenchRoute
-  '/customers': typeof AuthenticatedCustomersRoute
+  '/cliff-edge': typeof AuthenticatedCliffEdgeRoute
+  '/customers': typeof AuthenticatedCustomersRouteWithChildren
   '/demand': typeof AuthenticatedDemandRoute
+  '/kpis': typeof AuthenticatedKpisRoute
+  '/my-profile': typeof AuthenticatedMyProfileRoute
   '/project-allocations': typeof AuthenticatedProjectAllocationsRoute
   '/projects': typeof AuthenticatedProjectsRoute
   '/resources': typeof AuthenticatedResourcesRoute
   '/snapshots': typeof AuthenticatedSnapshotsRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/customers/$customerId': typeof AuthenticatedCustomersCustomerIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -125,14 +158,18 @@ export interface FileRoutesById {
   '/_authenticated/allocations': typeof AuthenticatedAllocationsRoute
   '/_authenticated/audit': typeof AuthenticatedAuditRoute
   '/_authenticated/bench': typeof AuthenticatedBenchRoute
-  '/_authenticated/customers': typeof AuthenticatedCustomersRoute
+  '/_authenticated/cliff-edge': typeof AuthenticatedCliffEdgeRoute
+  '/_authenticated/customers': typeof AuthenticatedCustomersRouteWithChildren
   '/_authenticated/demand': typeof AuthenticatedDemandRoute
+  '/_authenticated/kpis': typeof AuthenticatedKpisRoute
+  '/_authenticated/my-profile': typeof AuthenticatedMyProfileRoute
   '/_authenticated/project-allocations': typeof AuthenticatedProjectAllocationsRoute
   '/_authenticated/projects': typeof AuthenticatedProjectsRoute
   '/_authenticated/resources': typeof AuthenticatedResourcesRoute
   '/_authenticated/snapshots': typeof AuthenticatedSnapshotsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
+  '/_authenticated/customers/$customerId': typeof AuthenticatedCustomersCustomerIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -142,27 +179,35 @@ export interface FileRouteTypes {
     | '/allocations'
     | '/audit'
     | '/bench'
+    | '/cliff-edge'
     | '/customers'
     | '/demand'
+    | '/kpis'
+    | '/my-profile'
     | '/project-allocations'
     | '/projects'
     | '/resources'
     | '/snapshots'
     | '/admin/users'
+    | '/customers/$customerId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
     | '/allocations'
     | '/audit'
     | '/bench'
+    | '/cliff-edge'
     | '/customers'
     | '/demand'
+    | '/kpis'
+    | '/my-profile'
     | '/project-allocations'
     | '/projects'
     | '/resources'
     | '/snapshots'
     | '/'
     | '/admin/users'
+    | '/customers/$customerId'
   id:
     | '__root__'
     | '/_authenticated'
@@ -170,14 +215,18 @@ export interface FileRouteTypes {
     | '/_authenticated/allocations'
     | '/_authenticated/audit'
     | '/_authenticated/bench'
+    | '/_authenticated/cliff-edge'
     | '/_authenticated/customers'
     | '/_authenticated/demand'
+    | '/_authenticated/kpis'
+    | '/_authenticated/my-profile'
     | '/_authenticated/project-allocations'
     | '/_authenticated/projects'
     | '/_authenticated/resources'
     | '/_authenticated/snapshots'
     | '/_authenticated/'
     | '/_authenticated/admin/users'
+    | '/_authenticated/customers/$customerId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -236,6 +285,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProjectAllocationsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/my-profile': {
+      id: '/_authenticated/my-profile'
+      path: '/my-profile'
+      fullPath: '/my-profile'
+      preLoaderRoute: typeof AuthenticatedMyProfileRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/kpis': {
+      id: '/_authenticated/kpis'
+      path: '/kpis'
+      fullPath: '/kpis'
+      preLoaderRoute: typeof AuthenticatedKpisRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/demand': {
       id: '/_authenticated/demand'
       path: '/demand'
@@ -248,6 +311,13 @@ declare module '@tanstack/react-router' {
       path: '/customers'
       fullPath: '/customers'
       preLoaderRoute: typeof AuthenticatedCustomersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/cliff-edge': {
+      id: '/_authenticated/cliff-edge'
+      path: '/cliff-edge'
+      fullPath: '/cliff-edge'
+      preLoaderRoute: typeof AuthenticatedCliffEdgeRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/bench': {
@@ -271,6 +341,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAllocationsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/customers/$customerId': {
+      id: '/_authenticated/customers/$customerId'
+      path: '/$customerId'
+      fullPath: '/customers/$customerId'
+      preLoaderRoute: typeof AuthenticatedCustomersCustomerIdRouteImport
+      parentRoute: typeof AuthenticatedCustomersRoute
+    }
     '/_authenticated/admin/users': {
       id: '/_authenticated/admin/users'
       path: '/admin/users'
@@ -281,12 +358,30 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedCustomersRouteChildren {
+  AuthenticatedCustomersCustomerIdRoute: typeof AuthenticatedCustomersCustomerIdRoute
+}
+
+const AuthenticatedCustomersRouteChildren: AuthenticatedCustomersRouteChildren =
+  {
+    AuthenticatedCustomersCustomerIdRoute:
+      AuthenticatedCustomersCustomerIdRoute,
+  }
+
+const AuthenticatedCustomersRouteWithChildren =
+  AuthenticatedCustomersRoute._addFileChildren(
+    AuthenticatedCustomersRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAllocationsRoute: typeof AuthenticatedAllocationsRoute
   AuthenticatedAuditRoute: typeof AuthenticatedAuditRoute
   AuthenticatedBenchRoute: typeof AuthenticatedBenchRoute
-  AuthenticatedCustomersRoute: typeof AuthenticatedCustomersRoute
+  AuthenticatedCliffEdgeRoute: typeof AuthenticatedCliffEdgeRoute
+  AuthenticatedCustomersRoute: typeof AuthenticatedCustomersRouteWithChildren
   AuthenticatedDemandRoute: typeof AuthenticatedDemandRoute
+  AuthenticatedKpisRoute: typeof AuthenticatedKpisRoute
+  AuthenticatedMyProfileRoute: typeof AuthenticatedMyProfileRoute
   AuthenticatedProjectAllocationsRoute: typeof AuthenticatedProjectAllocationsRoute
   AuthenticatedProjectsRoute: typeof AuthenticatedProjectsRoute
   AuthenticatedResourcesRoute: typeof AuthenticatedResourcesRoute
@@ -299,8 +394,11 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAllocationsRoute: AuthenticatedAllocationsRoute,
   AuthenticatedAuditRoute: AuthenticatedAuditRoute,
   AuthenticatedBenchRoute: AuthenticatedBenchRoute,
-  AuthenticatedCustomersRoute: AuthenticatedCustomersRoute,
+  AuthenticatedCliffEdgeRoute: AuthenticatedCliffEdgeRoute,
+  AuthenticatedCustomersRoute: AuthenticatedCustomersRouteWithChildren,
   AuthenticatedDemandRoute: AuthenticatedDemandRoute,
+  AuthenticatedKpisRoute: AuthenticatedKpisRoute,
+  AuthenticatedMyProfileRoute: AuthenticatedMyProfileRoute,
   AuthenticatedProjectAllocationsRoute: AuthenticatedProjectAllocationsRoute,
   AuthenticatedProjectsRoute: AuthenticatedProjectsRoute,
   AuthenticatedResourcesRoute: AuthenticatedResourcesRoute,

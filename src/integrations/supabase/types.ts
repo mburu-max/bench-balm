@@ -77,13 +77,9 @@ export type Database = {
           allocation_pct: number
           allocation_start_date: string
           allocation_type: Database["public"]["Enums"]["allocation_type"]
-          cap_override: boolean
-          cap_override_by: string | null
-          cap_override_reason: string | null
           created_at: string
           created_by: string | null
           customer_id: string | null
-          date_override_reason: string | null
           employment_type: Database["public"]["Enums"]["employment_type"] | null
           id: string
           location: string | null
@@ -103,13 +99,9 @@ export type Database = {
           allocation_pct: number
           allocation_start_date: string
           allocation_type?: Database["public"]["Enums"]["allocation_type"]
-          cap_override?: boolean
-          cap_override_by?: string | null
-          cap_override_reason?: string | null
           created_at?: string
           created_by?: string | null
           customer_id?: string | null
-          date_override_reason?: string | null
           employment_type?:
             | Database["public"]["Enums"]["employment_type"]
             | null
@@ -150,10 +142,6 @@ export type Database = {
           resource_status?:
             | Database["public"]["Enums"]["resource_status"]
             | null
-          cap_override?: boolean
-          cap_override_by?: string | null
-          cap_override_reason?: string | null
-          date_override_reason?: string | null
           role?: string | null
           service_line?: Database["public"]["Enums"]["service_line"]
           updated_at?: string
@@ -179,6 +167,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "resources"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "allocations_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "v_cliff_edge"
+            referencedColumns: ["resource_id"]
           },
         ]
       }
@@ -223,6 +218,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           customer_name: string
+          hubspot_sync_status: string
           id: string
           notes: string | null
           region: string | null
@@ -237,6 +233,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_name: string
+          hubspot_sync_status?: string
           id?: string
           notes?: string | null
           region?: string | null
@@ -251,6 +248,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_name?: string
+          hubspot_sync_status?: string
           id?: string
           notes?: string | null
           region?: string | null
@@ -265,7 +263,9 @@ export type Database = {
           allocation_pct: number
           created_at: string
           created_by: string | null
-          demand_classification: Database["public"]["Enums"]["demand_classification"] | null
+          demand_classification:
+            | Database["public"]["Enums"]["demand_classification"]
+            | null
           fulfilled_at: string | null
           headcount: number
           id: string
@@ -283,7 +283,9 @@ export type Database = {
           allocation_pct?: number
           created_at?: string
           created_by?: string | null
-          demand_classification?: Database["public"]["Enums"]["demand_classification"] | null
+          demand_classification?:
+            | Database["public"]["Enums"]["demand_classification"]
+            | null
           fulfilled_at?: string | null
           headcount: number
           id?: string
@@ -301,7 +303,9 @@ export type Database = {
           allocation_pct?: number
           created_at?: string
           created_by?: string | null
-          demand_classification?: Database["public"]["Enums"]["demand_classification"] | null
+          demand_classification?:
+            | Database["public"]["Enums"]["demand_classification"]
+            | null
           fulfilled_at?: string | null
           headcount?: number
           id?: string
@@ -324,6 +328,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      headcount_forecast: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          month: string
+          planned_headcount: number
+          service_line: Database["public"]["Enums"]["service_line"]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          month: string
+          planned_headcount: number
+          service_line: Database["public"]["Enums"]["service_line"]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          month?: string
+          planned_headcount?: number
+          service_line?: Database["public"]["Enums"]["service_line"]
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -441,6 +472,7 @@ export type Database = {
           id: string
           location: string | null
           manager_name: string | null
+          omni_hr_sync_status: string
           omni_id: string
           position: string | null
           service_line: Database["public"]["Enums"]["service_line"]
@@ -459,6 +491,7 @@ export type Database = {
           id?: string
           location?: string | null
           manager_name?: string | null
+          omni_hr_sync_status?: string
           omni_id: string
           position?: string | null
           service_line: Database["public"]["Enums"]["service_line"]
@@ -477,39 +510,13 @@ export type Database = {
           id?: string
           location?: string | null
           manager_name?: string | null
+          omni_hr_sync_status?: string
           omni_id?: string
           position?: string | null
           service_line?: Database["public"]["Enums"]["service_line"]
           status?: Database["public"]["Enums"]["resource_status"]
           updated_at?: string
           user_id?: string | null
-        }
-        Relationships: []
-      }
-      headcount_forecast: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          id: string
-          month: string
-          planned_headcount: number
-          service_line: Database["public"]["Enums"]["service_line"]
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          month: string
-          planned_headcount: number
-          service_line: Database["public"]["Enums"]["service_line"]
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          month?: string
-          planned_headcount?: number
-          service_line?: Database["public"]["Enums"]["service_line"]
         }
         Relationships: []
       }
@@ -596,74 +603,82 @@ export type Database = {
       }
     }
     Views: {
+      v_cliff_edge: {
+        Row: {
+          cliff_band: number | null
+          days_until_cliff: number | null
+          employment_type: string | null
+          ending_customer_name: string | null
+          ending_project_code: string | null
+          full_name: string | null
+          last_covered_date: string | null
+          manager_name: string | null
+          omni_id: string | null
+          position: string | null
+          resource_id: string | null
+          service_line: string | null
+        }
+        Relationships: []
+      }
+      v_kpi_allocation_freshness: {
+        Row: {
+          pct_fresh: number | null
+        }
+        Relationships: []
+      }
+      v_kpi_avg_bench_days: {
+        Row: {
+          avg_bench_days: number | null
+        }
+        Relationships: []
+      }
+      v_kpi_demand_lead_time: {
+        Row: {
+          avg_lead_time_days: number | null
+        }
+        Relationships: []
+      }
+      v_kpi_forecast_accuracy: {
+        Row: {
+          accuracy_pct: number | null
+          actual_headcount: number | null
+          month: string | null
+          planned_headcount: number | null
+          service_line: Database["public"]["Enums"]["service_line"] | null
+        }
+        Relationships: []
+      }
+      v_kpi_project_code_coverage: {
+        Row: {
+          pct_with_project_code: number | null
+        }
+        Relationships: []
+      }
+      v_kpi_utilisation_now: {
+        Row: {
+          avg_utilisation_pct: number | null
+          bench_count: number | null
+          over_allocated_count: number | null
+          service_line: Database["public"]["Enums"]["service_line"] | null
+          total_active: number | null
+        }
+        Relationships: []
+      }
+      v_resource_bench_streak: {
+        Row: {
+          bench_since: string | null
+          consecutive_bench_days: number | null
+          last_seen_benched: string | null
+          resource_id: string | null
+        }
+        Relationships: []
+      }
       v_utilisation_weekly: {
         Row: {
           avg_utilisation_pct: number | null
           headcount: number | null
           service_line: string | null
           week_start: string | null
-        }
-        Relationships: []
-      }
-      v_resource_bench_streak: {
-        Row: {
-          resource_id: string | null
-          bench_since: string | null
-          last_seen_benched: string | null
-          consecutive_bench_days: number | null
-        }
-        Relationships: []
-      }
-      v_kpi_project_code_coverage: {
-        Row: { pct_with_project_code: number | null }
-        Relationships: []
-      }
-      v_kpi_allocation_freshness: {
-        Row: { pct_fresh: number | null }
-        Relationships: []
-      }
-      v_kpi_avg_bench_days: {
-        Row: { avg_bench_days: number | null }
-        Relationships: []
-      }
-      v_kpi_demand_lead_time: {
-        Row: { avg_lead_time_days: number | null }
-        Relationships: []
-      }
-      v_kpi_forecast_accuracy: {
-        Row: {
-          month: string | null
-          service_line: string | null
-          planned_headcount: number | null
-          actual_headcount: number | null
-          accuracy_pct: number | null
-        }
-        Relationships: []
-      }
-      v_kpi_utilisation_now: {
-        Row: {
-          service_line: string | null
-          total_active: number | null
-          avg_utilisation_pct: number | null
-          over_allocated_count: number | null
-          bench_count: number | null
-        }
-        Relationships: []
-      }
-      v_cliff_edge: {
-        Row: {
-          resource_id: string | null
-          full_name: string | null
-          omni_id: string | null
-          service_line: string | null
-          position: string | null
-          manager_name: string | null
-          employment_type: string | null
-          last_covered_date: string | null
-          days_until_cliff: number | null
-          cliff_band: number | null
-          ending_project_code: string | null
-          ending_customer_name: string | null
         }
         Relationships: []
       }
@@ -723,12 +738,6 @@ export type Database = {
         | "service_line_lead"
         | "resource"
       demand_classification: "Confirmed" | "Probable" | "Pipeline" | "Internal"
-      project_type:
-        | "Billable_Delivery"
-        | "Non_Billable"
-        | "Bench_Available"
-        | "Training"
-        | "Internal_Operations"
       employment_type: "FTE" | "Contractor" | "Vendor"
       project_status:
         | "Draft"
@@ -739,6 +748,12 @@ export type Database = {
         | "Closed"
         | "Rejected"
         | "Verified"
+      project_type:
+        | "Billable_Delivery"
+        | "Non_Billable"
+        | "Bench_Available"
+        | "Training"
+        | "Internal_Operations"
       resource_status: "Active" | "On_Leave" | "Exited"
       service_line: "DLaaS" | "CLM" | "MS" | "CCaaS" | "Legacy"
     }
@@ -882,13 +897,6 @@ export const Constants = {
       ],
       demand_classification: ["Confirmed", "Probable", "Pipeline", "Internal"],
       employment_type: ["FTE", "Contractor", "Vendor"],
-      project_type: [
-        "Billable_Delivery",
-        "Non_Billable",
-        "Bench_Available",
-        "Training",
-        "Internal_Operations",
-      ],
       project_status: [
         "Draft",
         "Pending_Delivery_Lead",
@@ -898,6 +906,13 @@ export const Constants = {
         "Closed",
         "Rejected",
         "Verified",
+      ],
+      project_type: [
+        "Billable_Delivery",
+        "Non_Billable",
+        "Bench_Available",
+        "Training",
+        "Internal_Operations",
       ],
       resource_status: ["Active", "On_Leave", "Exited"],
       service_line: ["DLaaS", "CLM", "MS", "CCaaS", "Legacy"],
