@@ -32,21 +32,46 @@ type NavItem = {
   show: (r: ReturnType<typeof useCurrentRole>["data"]) => boolean;
 };
 
-const NAV: NavItem[] = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true, show: (r) => !!r?.hasAnyOtherRole },
-  { to: "/my-profile", label: "My Profile", icon: Users, show: (r) => !!(r?.isResource && !r?.hasAnyOtherRole) },
-  { to: "/projects", label: "Projects", icon: FolderKanban, show: (r) => !!r?.hasAnyOtherRole },
-  { to: "/allocations", label: "Resource Allocation", icon: CalendarRange, show: (r) => !!r?.hasAnyOtherRole },
-  { to: "/project-allocations", label: "Project Allocation", icon: Briefcase, show: (r) => !!r?.hasAnyOtherRole },
-  { to: "/bench", label: "Bench Report", icon: Coffee, show: (r) => !!r?.hasAnyOtherRole },
-  { to: "/cliff-edge", label: "Cliff Edge", icon: AlertOctagon, show: (r) => !!r?.hasAnyOtherRole },
-  { to: "/demand", label: "Demand Intake", icon: TrendingUp, show: (r) => !!r?.hasAnyOtherRole },
-  { to: "/kpis", label: "KPI Dashboard", icon: BarChart2, show: (r) => !!r?.hasAnyOtherRole },
-  { to: "/customers", label: "Customer Master", icon: Building2, show: (r) => !!(r?.isGovernanceLead || r?.isDeveloper) },
-  { to: "/resources", label: "Resource Master", icon: Users, show: (r) => !!(r?.isGovernanceLead || r?.isDeveloper || r?.isSlLead) },
-  { to: "/snapshots", label: "Snapshots", icon: Camera, show: (r) => !!(r?.isFinance || r?.isDeveloper) },
-  { to: "/audit", label: "Audit Trail", icon: FileClock, show: (r) => !!(r?.isFinance || r?.isDeveloper) },
-  { to: "/admin/users", label: "User Roles", icon: ShieldCheck, show: (r) => !!r?.isDeveloper },
+type NavGroup = {
+  label: string | null;
+  items: NavItem[];
+};
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: null,
+    items: [
+      { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true, show: (r) => !!r?.hasAnyOtherRole },
+      { to: "/my-profile", label: "My Profile", icon: Users, show: (r) => !!(r?.isResource && !r?.hasAnyOtherRole) },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
+      { to: "/projects", label: "Projects", icon: FolderKanban, show: (r) => !!r?.hasAnyOtherRole },
+      { to: "/allocations", label: "Resource Allocation", icon: CalendarRange, show: (r) => !!r?.hasAnyOtherRole },
+      { to: "/project-allocations", label: "Project Allocation", icon: Briefcase, show: (r) => !!r?.hasAnyOtherRole },
+      { to: "/bench", label: "Bench Report", icon: Coffee, show: (r) => !!r?.hasAnyOtherRole },
+      { to: "/cliff-edge", label: "Cliff Edge", icon: AlertOctagon, show: (r) => !!r?.hasAnyOtherRole },
+      { to: "/demand", label: "Demand Intake", icon: TrendingUp, show: (r) => !!r?.hasAnyOtherRole },
+      { to: "/kpis", label: "KPI Dashboard", icon: BarChart2, show: (r) => !!r?.hasAnyOtherRole },
+    ],
+  },
+  {
+    label: "Setup / Masters",
+    items: [
+      { to: "/customers", label: "Customer Master", icon: Building2, show: (r) => !!(r?.isGovernanceLead || r?.isDeveloper) },
+      { to: "/resources", label: "Resource Master", icon: Users, show: (r) => !!(r?.isGovernanceLead || r?.isDeveloper || r?.isSlLead) },
+    ],
+  },
+  {
+    label: "Administration",
+    items: [
+      { to: "/snapshots", label: "Snapshots", icon: Camera, show: (r) => !!(r?.isFinance || r?.isDeveloper) },
+      { to: "/audit", label: "Audit Trail", icon: FileClock, show: (r) => !!(r?.isFinance || r?.isDeveloper) },
+      { to: "/admin/users", label: "User Roles", icon: ShieldCheck, show: (r) => !!r?.isDeveloper },
+    ],
+  },
 ];
 
 export function AppShell({ children, title, actions }: { children: ReactNode; title: string; actions?: ReactNode }) {
@@ -58,8 +83,6 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
     await supabase.auth.signOut();
     navigate({ to: "/auth" });
   };
-
-  const visible = NAV.filter((n) => n.show(role.data));
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -75,26 +98,41 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
             </div>
           </div>
         </div>
-        <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto min-h-0">
-          {visible.map((n) => {
-            const active = n.exact
-              ? location.pathname === n.to
-              : location.pathname.startsWith(n.to);
-            const Icon = n.icon;
+        <nav className="flex-1 px-3 overflow-y-auto min-h-0 py-2 space-y-4">
+          {NAV_GROUPS.map((group, gi) => {
+            const visibleItems = group.items.filter((n) => n.show(role.data));
+            if (visibleItems.length === 0) return null;
             return (
-              <Link
-                key={n.to}
-                to={n.to}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+              <div key={gi}>
+                {group.label && (
+                  <div className="px-3 pb-1 pt-0.5 text-[10px] uppercase tracking-widest text-sidebar-foreground/40 font-semibold">
+                    {group.label}
+                  </div>
                 )}
-              >
-                <Icon className="size-4" />
-                {n.label}
-              </Link>
+                <div className="space-y-0.5">
+                  {visibleItems.map((n) => {
+                    const active = n.exact
+                      ? location.pathname === n.to
+                      : location.pathname.startsWith(n.to);
+                    const Icon = n.icon;
+                    return (
+                      <Link
+                        key={n.to}
+                        to={n.to}
+                        className={cn(
+                          "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                          active
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                            : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                        )}
+                      >
+                        <Icon className="size-4" />
+                        {n.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
         </nav>
