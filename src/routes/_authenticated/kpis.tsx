@@ -157,15 +157,6 @@ function KpisPage() {
           hint="Populate headcount targets in headcount_forecast table to enable"
         />
       </div>
-
-      <div className="mt-8 rounded-xl border bg-card p-5 text-sm text-muted-foreground">
-        <p className="font-medium text-foreground mb-1">Notes</p>
-        <ul className="list-disc list-inside space-y-1">
-          <li><strong>Avg Days on Bench</strong> and <strong>Forecast Accuracy</strong> improve as daily snapshot history accumulates (pg_cron runs daily at 01:00 UTC).</li>
-          <li><strong>Demand Lead Time</strong> requires demand requests to be closed as "Fulfilled" to populate.</li>
-          <li><strong>Forecast Accuracy</strong> requires planned headcount rows in the <code>headcount_forecast</code> table — editable by Governance Lead.</li>
-        </ul>
-      </div>
     </AppShell>
   );
 }
