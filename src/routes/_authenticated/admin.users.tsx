@@ -75,8 +75,8 @@ function AdminUsersPage() {
     if (delErr) return toast.error(delErr.message);
     const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: newRole as any });
     if (error) return toast.error(error.message);
-    // Remove SL ownership rows when switching away from service_line_lead
-    if (newRole !== "service_line_lead") {
+    // SL membership only applies to the SL-scoped roles; clear it otherwise.
+    if (newRole !== "service_line_lead" && newRole !== "delivery_lead") {
       await supabase.from("user_service_lines").delete().eq("user_id", userId);
     }
     toast.success("Role updated");
@@ -111,6 +111,8 @@ function AdminUsersPage() {
           <h2 className="font-display text-base font-semibold">All users</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
             Assign exactly one effective role per user. Backend enforces all access via RLS.
+            SL Leads / Delivery Leads see only the service line(s) toggled below; PMs see only
+            projects they own; Resources see only themselves.
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -126,7 +128,7 @@ function AdminUsersPage() {
             <tbody>
               {(users.data ?? []).map((u: any) => {
                 const primary = u.roles[0] ?? "resource";
-                const isSlLead = primary === "service_line_lead";
+                const showSlToggle = primary === "service_line_lead" || primary === "delivery_lead";
                 return (
                   <tr key={u.id} className="border-t">
                     <td className="px-5 py-3 font-medium">{u.full_name ?? "—"}</td>
@@ -145,7 +147,7 @@ function AdminUsersPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      {isSlLead && (
+                      {showSlToggle && (
                         <div className="flex flex-wrap gap-1 pt-1">
                           {SERVICE_LINES.map((sl) => {
                             const owned = (u.serviceLines ?? []).includes(sl);
