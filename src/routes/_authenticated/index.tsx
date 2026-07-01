@@ -1,10 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { KpiCard } from "@/components/KpiCard";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAllocations, useCustomers, useProjects, useResources } from "@/lib/queries";
 import { computeBench } from "@/lib/bench";
 import { isExtendedLeave, isCurrentLeave } from "@/lib/leave";
 import { SERVICE_LINES } from "@/lib/constants";
+import { useCurrentRole } from "@/lib/useCurrentRole";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "@tanstack/react-router";
@@ -61,27 +70,44 @@ function Dashboard() {
     },
   });
 
+  const { data: role } = useCurrentRole();
+  // Global-view roles can narrow the whole dashboard to one service line.
+  const canFilter = !!(role?.isGovernanceLead || role?.isFinance);
+  const [slFilter, setSlFilter] = useState<string>("all");
+  const matchesSl = (sl: string | null | undefined) => slFilter === "all" || sl === slFilter;
+
   const loading =
     customers.isLoading || projects.isLoading || resources.isLoading || allocations.isLoading;
 
-  const activeProjects = (projects.data ?? []).filter((p) => p.status === "Active");
-  const activeResources = (resources.data ?? []).filter((r) => r.status === "Active");
+  // Apply the optional service-line filter to every base dataset.
+  const fProjects = (projects.data ?? []).filter((p) => matchesSl(p.service_line));
+  const fResources = (resources.data ?? []).filter((r) => matchesSl(r.service_line));
+  const fCliff = (cliffEdge.data ?? []).filter((r) => matchesSl(r.service_line));
+  const fCustomers = slFilter === "all"
+    ? (customers.data ?? [])
+    : (customers.data ?? []).filter((c) => fProjects.some((p) => p.customer_id === c.id));
+  const fResourceIds = new Set(fResources.map((r) => r.id));
+
+  const activeProjects = fProjects.filter((p) => p.status === "Active");
+  const activeResources = fResources.filter((r) => r.status === "Active");
   const bench = computeBench(activeResources, allocations.data ?? []);
   const benchCount = bench.filter((b) => b.benchPct > 0).length;
   const fullyAllocated = bench.filter((b) => b.benchPct === 0).length;
   const overAllocated = bench.filter((b) => b.benchPct < 0).length;
-  const onLeave = (resources.data ?? []).filter((r) => r.status === "On_Leave").length;
+  const onLeave = fResources.filter((r) => r.status === "On_Leave").length;
 
   // Extended-leave escalation: resources currently on a Leave allocation longer than 5 days.
   const extendedLeaveResourceIds = new Set(
     (allocations.data ?? [])
-      .filter((a) => isExtendedLeave(a) && isCurrentLeave(a))
+      .filter((a) => fResourceIds.has(a.resource_id) && isExtendedLeave(a) && isCurrentLeave(a))
       .map((a) => a.resource_id),
   );
   const extendedLeaveCount = extendedLeaveResourceIds.size;
 
+  const shownSls = slFilter === "all" ? SERVICE_LINES : SERVICE_LINES.filter((s) => s === slFilter);
+
   // Per service line stats with target bands
-  const slData = SERVICE_LINES.map((sl) => {
+  const slData = shownSls.map((sl) => {
     const slRes = activeResources.filter((r) => r.service_line === sl);
     const slBench = computeBench(slRes, allocations.data ?? []);
     const allocated = slBench.reduce((s, b) => s + Math.min(100, b.totalPct), 0);
@@ -100,8 +126,8 @@ function Dashboard() {
   });
 
   // Cliff exposure per SL (30 / 60-90 day bands)
-  const cliffBySl = SERVICE_LINES.map((sl) => {
-    const rows = (cliffEdge.data ?? []).filter((r) => r.service_line === sl);
+  const cliffBySl = shownSls.map((sl) => {
+    const rows = fCliff.filter((r) => r.service_line === sl);
     return {
       sl,
       "≤30d": rows.filter((r) => (r.cliff_band ?? 90) <= 30).length,
@@ -110,7 +136,7 @@ function Dashboard() {
     };
   });
 
-  const projectsByStatus = (projects.data ?? []).reduce<Record<string, number>>((acc, p) => {
+  const projectsByStatus = fProjects.reduce<Record<string, number>>((acc, p) => {
     acc[p.status] = (acc[p.status] ?? 0) + 1;
     return acc;
   }, {});
@@ -127,9 +153,34 @@ function Dashboard() {
   ];
 
   return (
-    <AppShell title="Dashboard">
+    <AppShell
+      title="Dashboard"
+      actions={
+        canFilter ? (
+          <Select value={slFilter} onValueChange={setSlFilter}>
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All service lines</SelectItem>
+              {SERVICE_LINES.map((s) => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : undefined
+      }
+    >
+      {slFilter !== "all" && (
+        <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="inline-flex items-center rounded-full bg-primary/10 text-primary border border-primary/20 px-2.5 py-0.5 text-xs font-medium uppercase tracking-wide">
+            {slFilter}
+          </span>
+          Viewing a single service line — clear the filter to see the whole portfolio.
+        </div>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-        <KpiCard label="Customers" value={loading ? "—" : customers.data?.length ?? 0} icon={Building2} />
+        <KpiCard label="Customers" value={loading ? "—" : fCustomers.length} icon={Building2} />
         <KpiCard label="Active Projects" value={loading ? "—" : activeProjects.length} icon={Briefcase} accent="info" />
         <KpiCard label="Total Resources" value={loading ? "—" : activeResources.length} icon={Users} />
         <KpiCard label="Fully Allocated" value={loading ? "—" : fullyAllocated} icon={Activity} accent="success" />
@@ -138,7 +189,7 @@ function Dashboard() {
       </div>
 
       {(() => {
-        const cliffData = cliffEdge.data ?? [];
+        const cliffData = fCliff;
         const urgent = cliffData.filter((r) => (r.cliff_band ?? 90) <= 30).length;
         if (cliffEdge.isLoading || cliffData.length === 0) return null;
         return (
@@ -362,7 +413,7 @@ function Dashboard() {
             <p className="text-xs text-muted-foreground mt-0.5">Latest activity</p>
           </div>
           <div className="divide-y">
-            {(projects.data ?? []).slice(0, 6).map((p) => (
+            {fProjects.slice(0, 6).map((p) => (
               <div key={p.id} className="px-5 py-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="font-medium text-sm truncate">
@@ -378,9 +429,9 @@ function Dashboard() {
                 <ProjectStatusBadge status={p.status} />
               </div>
             ))}
-            {(projects.data ?? []).length === 0 && (
+            {fProjects.length === 0 && (
               <div className="px-5 py-10 text-center text-sm text-muted-foreground">
-                No projects yet. Create one from the Projects screen.
+                {slFilter === "all" ? "No projects yet. Create one from the Projects screen." : `No ${slFilter} projects.`}
               </div>
             )}
           </div>
