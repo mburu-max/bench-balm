@@ -95,7 +95,7 @@ function AuthPage() {
         <div className="text-xs text-sidebar-foreground/40">© Execo · Service Delivery</div>
       </div>
 
-      <div className="flex items-center justify-center p-6 lg:p-12">
+      <div className="flex-1 flex items-start justify-center pt-10 pb-10 px-6 lg:items-center lg:pt-0 lg:px-12 lg:h-full">
         <Card className="w-full max-w-md p-8">
           <h2 className="font-display text-2xl font-semibold tracking-tight">Welcome back</h2>
           <p className="text-sm text-muted-foreground mt-1">Sign in to manage allocations.</p>
