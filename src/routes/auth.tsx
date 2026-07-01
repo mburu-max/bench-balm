@@ -61,8 +61,8 @@ function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-background">
-      <div className="hidden lg:flex flex-col justify-between bg-sidebar text-sidebar-foreground p-12">
+    <div className="min-h-screen bg-background lg:h-screen lg:flex lg:overflow-hidden">
+      <div className="hidden lg:flex lg:flex-1 lg:flex-col lg:justify-between bg-sidebar text-sidebar-foreground p-12 overflow-y-auto">
         <div className="flex items-center gap-2.5">
           <div className="size-9 rounded-md bg-sidebar-primary text-sidebar-primary-foreground grid place-items-center">
             <Layers className="size-4" />
