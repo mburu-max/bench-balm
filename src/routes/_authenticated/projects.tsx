@@ -80,15 +80,16 @@ function ProjectsPage() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const canCreate = !!(role?.isPm || role?.isDl || role?.isFinance || role?.isDeveloper);
-  const canVerify = !!(role?.isDl || role?.isFinance || role?.isDeveloper);
+  // Finance is read-only (tracker RBAC-03). Project creation/verify = PM + SL/Delivery Lead;
+  // activation + contract confirmation = Governance Lead only.
+  const canCreate = !!(role?.isPm || role?.isDl || role?.isDeveloper);
+  const canVerify = !!(role?.isDl || role?.isDeveloper);
   const canActivate = !!(role?.isGovernanceLead || role?.isDeveloper);
-  // Finance can only confirm contract_signed on a Verified project (column-guard trigger enforces this at DB level)
-  const canConfirmContract = !!(role?.isFinance || role?.isDeveloper);
+  const canConfirmContract = !!(role?.isGovernanceLead || role?.isDeveloper);
   const canDelete = !!(role?.isGovernanceLead || role?.isDeveloper);
 
   const canEditProject = (p: any) => {
-    if (role?.isDeveloper || role?.isFinance || role?.isDl) return true;
+    if (role?.isDeveloper || role?.isGovernanceLead || role?.isDl) return true;
     if (role?.isPm && p.status === "Draft" && p.project_manager_user_id === role.userId) return true;
     return false;
   };
@@ -156,9 +157,9 @@ function ProjectsPage() {
   };
 
   const updateStatus = async (p: any, status: ProjectStatus) => {
-    if (status === "Verified" && !canVerify) return toast.error("Only Delivery Lead can verify");
+    if (status === "Verified" && !canVerify) return toast.error("Only SL / Delivery Lead can verify");
     if (status === "Active") {
-      if (!canActivate) return toast.error("Only Finance / Governance can activate");
+      if (!canActivate) return toast.error("Only Governance Lead can activate");
       if (!p.contract_signed) return toast.error("Signed contract required before activation");
     }
     const { error } = await supabase.from("projects").update({ status }).eq("id", p.id);
@@ -168,7 +169,7 @@ function ProjectsPage() {
   };
 
   const remove = async (id: string) => {
-    if (!canDelete) return toast.error("Only Finance / Governance can delete projects");
+    if (!canDelete) return toast.error("Only Governance Lead can delete projects");
     if (!confirm("Delete this project? Allocations will be removed.")) return;
     const { error } = await supabase.from("projects").delete().eq("id", id);
     if (error) return toast.error(error.message);
@@ -291,7 +292,7 @@ function ProjectsPage() {
                     <Checkbox
                       checked={form.contract_signed}
                       onCheckedChange={(v) => setForm({ ...form, contract_signed: !!v })}
-                      disabled={!canConfirmContract && !role?.isDl}
+                      disabled={!canConfirmContract}
                     />
                     Signed contract on file (required to activate)
                   </label>
@@ -405,7 +406,7 @@ function ProjectsPage() {
                           Awaiting signed contract
                         </span>
                       )}
-                      {(p.status === "Draft" || p.status === "Verified") && (role?.isFinance || role?.isDl || role?.isDeveloper) && (
+                      {(p.status === "Draft" || p.status === "Verified") && (role?.isDl || role?.isGovernanceLead || role?.isDeveloper) && (
                         <Button size="sm" variant="ghost" className="mr-1" onClick={() => updateStatus(p, "Rejected")}>
                           <XCircle className="size-4 mr-1 text-destructive" /> Reject
                         </Button>

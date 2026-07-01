@@ -52,10 +52,12 @@ export function useCurrentRole() {
 
       const isDeveloper = roles.includes("developer") || roles.includes("admin");
       const isGovernanceLead = isDeveloper || roles.includes("governance_lead");
-      // isFinance: governance_lead still has all finance-level visibility (audit, snapshots, etc.)
+      // isFinance = read-only visibility only (audit, snapshots, dashboards). Finance has
+      // ZERO edit rights per tracker RBAC-03; governance_lead keeps the same visibility.
       const isFinance = isGovernanceLead || roles.includes("finance");
-      const isDl = isDeveloper || roles.includes("delivery_lead");
-      const isSlLead = isDeveloper || roles.includes("service_line_lead");
+      // SL Lead = Delivery Lead: the two roles are operationally equivalent (tracker Sheet 3).
+      const isDl = isDeveloper || roles.includes("delivery_lead") || roles.includes("service_line_lead");
+      const isSlLead = isDeveloper || roles.includes("service_line_lead") || roles.includes("delivery_lead");
       const isPm = isDeveloper || roles.includes("project_manager");
       const isResource = roles.includes("resource");
       const hasAnyOtherRole = isDeveloper || isGovernanceLead || isFinance || isDl || isSlLead || isPm;
