@@ -63,7 +63,7 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
-      <aside className="hidden md:flex w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
+      <aside className="hidden md:flex w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border overflow-hidden">
         <div className="px-6 py-5 flex items-center gap-2.5">
           <div className="size-8 rounded-md bg-sidebar-primary text-sidebar-primary-foreground grid place-items-center">
             <Layers className="size-4" />
@@ -75,7 +75,7 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
             </div>
           </div>
         </div>
-        <nav className="flex-1 px-3 space-y-0.5">
+        <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto min-h-0">
           {visible.map((n) => {
             const active = n.exact
               ? location.pathname === n.to
