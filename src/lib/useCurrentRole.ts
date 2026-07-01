@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getViewAs } from "@/lib/impersonation";
 import type { AppRole, ServiceLine } from "@/lib/constants";
 
 export type CurrentRole = {
@@ -14,6 +15,9 @@ export type CurrentRole = {
   isResource: boolean;
   serviceLines: ServiceLine[];
   hasAnyOtherRole: boolean;
+  // Developer "view as" preview state (see lib/impersonation.ts).
+  realIsDeveloper: boolean;
+  impersonating: AppRole | null;
 };
 
 const RANK: Record<string, number> = {
@@ -41,6 +45,7 @@ export function useCurrentRole() {
           isDeveloper: false, isGovernanceLead: false, isFinance: false,
           isDl: false, isSlLead: false, isPm: false, isResource: false,
           serviceLines: [], hasAnyOtherRole: false,
+          realIsDeveloper: false, impersonating: null,
         };
       }
       const { data: rolesData } = await supabase
@@ -48,18 +53,24 @@ export function useCurrentRole() {
         .select("role")
         .eq("user_id", uid);
       const roles = (rolesData ?? []).map((r) => r.role as string);
-      const top = roles.sort((a, b) => (RANK[a] ?? 99) - (RANK[b] ?? 99))[0] ?? null;
 
-      const isDeveloper = roles.includes("developer") || roles.includes("admin");
-      const isGovernanceLead = isDeveloper || roles.includes("governance_lead");
+      // Developer "view as" preview: only a real developer may impersonate, and it only
+      // rewrites the UI-gating booleans below — the DB still enforces the real account.
+      const realIsDeveloper = roles.includes("developer") || roles.includes("admin");
+      const impersonating = realIsDeveloper ? getViewAs() : null;
+      const src = impersonating ? [impersonating] : roles;
+      const top = impersonating ?? (src.sort((a, b) => (RANK[a] ?? 99) - (RANK[b] ?? 99))[0] ?? null);
+
+      const isDeveloper = src.includes("developer") || src.includes("admin");
+      const isGovernanceLead = isDeveloper || src.includes("governance_lead");
       // isFinance = read-only visibility only (audit, snapshots, dashboards). Finance has
       // ZERO edit rights per tracker RBAC-03; governance_lead keeps the same visibility.
-      const isFinance = isGovernanceLead || roles.includes("finance");
+      const isFinance = isGovernanceLead || src.includes("finance");
       // SL Lead = Delivery Lead: the two roles are operationally equivalent (tracker Sheet 3).
-      const isDl = isDeveloper || roles.includes("delivery_lead") || roles.includes("service_line_lead");
-      const isSlLead = isDeveloper || roles.includes("service_line_lead") || roles.includes("delivery_lead");
-      const isPm = isDeveloper || roles.includes("project_manager");
-      const isResource = roles.includes("resource");
+      const isDl = isDeveloper || src.includes("delivery_lead") || src.includes("service_line_lead");
+      const isSlLead = isDeveloper || src.includes("service_line_lead") || src.includes("delivery_lead");
+      const isPm = isDeveloper || src.includes("project_manager");
+      const isResource = src.includes("resource");
       const hasAnyOtherRole = isDeveloper || isGovernanceLead || isFinance || isDl || isSlLead || isPm;
 
       let serviceLines: ServiceLine[] = [];
@@ -76,6 +87,7 @@ export function useCurrentRole() {
         isDeveloper, isGovernanceLead, isFinance,
         isDl, isSlLead, isPm, isResource,
         serviceLines, hasAnyOtherRole,
+        realIsDeveloper, impersonating: impersonating ?? null,
       };
     },
   });

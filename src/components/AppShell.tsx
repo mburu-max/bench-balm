@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   Building2,
@@ -15,15 +16,35 @@ import {
   BarChart2,
   AlertOctagon,
   ChevronDown,
+  Eye,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentRole } from "@/lib/useCurrentRole";
-import { ROLE_LABEL } from "@/lib/constants";
+import { setViewAs } from "@/lib/impersonation";
+import { ROLE_LABEL, type AppRole } from "@/lib/constants";
+
+// Roles a developer can preview via the "view as" switcher.
+const VIEW_AS_ROLES: AppRole[] = [
+  "developer",
+  "governance_lead",
+  "finance",
+  "delivery_lead",
+  "service_line_lead",
+  "project_manager",
+  "resource",
+];
 
 type NavItem = {
   to: string;
@@ -93,6 +114,14 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
       try { localStorage.setItem("nav_groups_open", JSON.stringify(next)); } catch {}
       return next;
     });
+
+  const qc = useQueryClient();
+  const changeViewAs = (val: string) => {
+    setViewAs(val === "developer" ? null : (val as AppRole));
+    qc.invalidateQueries({ queryKey: ["current-role"] });
+    // Land somewhere the previewed role can actually see.
+    navigate({ to: val === "resource" ? "/my-profile" : "/" });
+  };
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -170,6 +199,28 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
               <div className="font-medium mt-0.5">{ROLE_LABEL[role.data.role as string] ?? role.data.role}</div>
             </div>
           )}
+          {role.data?.realIsDeveloper && (
+            <div className={cn(
+              "px-3 py-2 rounded-md text-[11px] space-y-1.5",
+              role.data.impersonating ? "bg-warning/15 ring-1 ring-warning/40" : "bg-sidebar-accent/30",
+            )}>
+              <div className="flex items-center gap-1.5 uppercase tracking-widest text-sidebar-foreground/60">
+                <Eye className="size-3" /> View as
+              </div>
+              <Select value={role.data.impersonating ?? "developer"} onValueChange={changeViewAs}>
+                <SelectTrigger className="h-8 text-xs bg-sidebar text-sidebar-foreground border-sidebar-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {VIEW_AS_ROLES.map((r) => (
+                    <SelectItem key={r} value={r} className="text-xs">
+                      {r === "developer" ? "Developer (you)" : ROLE_LABEL[r]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <Button
             variant="ghost"
             className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
@@ -190,7 +241,23 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
             <ThemeToggle />
           </div>
         </header>
-        <main className="flex-1 p-6 overflow-auto">{children}</main>
+        <main className="flex-1 p-6 overflow-auto">
+          {role.data?.impersonating && (
+            <div className="mb-4 rounded-lg border border-warning/50 bg-warning/10 px-4 py-2.5 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm">
+                <Eye className="size-4 text-warning-foreground shrink-0" />
+                <span>
+                  <span className="font-medium">Preview mode</span> — viewing as{" "}
+                  {ROLE_LABEL[role.data.impersonating]}. Your data access is still the developer account.
+                </span>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => changeViewAs("developer")}>
+                Exit preview
+              </Button>
+            </div>
+          )}
+          {children}
+        </main>
       </div>
     </div>
   );
