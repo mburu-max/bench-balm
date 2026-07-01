@@ -9,11 +9,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ROLE_LABEL, SERVICE_LINES } from "@/lib/constants";
 import { useCurrentRole } from "@/lib/useCurrentRole";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/admin/users")({
@@ -83,6 +93,35 @@ function AdminUsersPage() {
     qc.invalidateQueries({ queryKey: ["admin-users"] });
   };
 
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const emptyForm = { email: "", password: "", full_name: "", role: "resource", service_lines: [] as string[] };
+  const [form, setForm] = useState(emptyForm);
+  const formShowsSl = form.role === "service_line_lead" || form.role === "delivery_lead";
+
+  const createUser = async () => {
+    if (!form.email.trim() || !form.password) return toast.error("Email and password required");
+    if (form.password.length < 6) return toast.error("Password must be at least 6 characters");
+    setCreating(true);
+    const { data, error } = await supabase.functions.invoke("admin-create-user", {
+      body: {
+        email: form.email.trim(),
+        password: form.password,
+        full_name: form.full_name.trim() || null,
+        role: form.role,
+        service_lines: formShowsSl ? form.service_lines : [],
+      },
+    });
+    setCreating(false);
+    if (error || (data as any)?.error) {
+      return toast.error((data as any)?.error ?? error?.message ?? "Failed to create user");
+    }
+    toast.success(`User ${form.email} created`);
+    setForm(emptyForm);
+    setCreateOpen(false);
+    qc.invalidateQueries({ queryKey: ["admin-users"] });
+  };
+
   const toggleSlOwnership = async (userId: string, sl: string, owned: boolean) => {
     if (owned) {
       await supabase.from("user_service_lines").insert({ user_id: userId, service_line: sl as any });
@@ -105,7 +144,72 @@ function AdminUsersPage() {
   }
 
   return (
-    <AppShell title="User Roles">
+    <AppShell
+      title="User Roles"
+      actions={
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm"><UserPlus className="size-4 mr-1.5" /> Create user</Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader><DialogTitle>Create a user</DialogTitle></DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <Label>Full name</Label>
+                <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Jane Doe" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Email *</Label>
+                <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="jane@execo.com" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Temporary password *</Label>
+                <Input type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="min 6 characters" />
+                <p className="text-[11px] text-muted-foreground">The user can change this after first sign-in.</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Role</Label>
+                <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v, service_lines: [] })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {ASSIGNABLE_ROLES.map((r) => (
+                      <SelectItem key={r} value={r}>{ROLE_LABEL[r] ?? r}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {formShowsSl && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Service lines (visibility scope)</Label>
+                  <div className="flex flex-wrap gap-1">
+                    {SERVICE_LINES.map((sl) => {
+                      const owned = form.service_lines.includes(sl);
+                      return (
+                        <button
+                          key={sl}
+                          type="button"
+                          onClick={() => setForm({
+                            ...form,
+                            service_lines: owned ? form.service_lines.filter((s) => s !== sl) : [...form.service_lines, sl],
+                          })}
+                          className={`px-2 py-0.5 rounded text-[10px] border transition-colors ${owned ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`}
+                        >
+                          {sl}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button onClick={createUser} disabled={creating}>{creating ? "Creating…" : "Create user"}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      }
+    >
       <div className="rounded-xl border bg-card overflow-hidden">
         <div className="px-5 py-4 border-b">
           <h2 className="font-display text-base font-semibold">All users</h2>

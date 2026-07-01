@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { toast } from "sonner";
@@ -20,7 +19,6 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
 
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,20 +28,6 @@ function AuthPage() {
     if (error) return toast.error(error.message);
     toast.success("Signed in");
     navigate({ to: "/" });
-  };
-
-  const signUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    const redirectUrl = `${window.location.origin}/`;
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: redirectUrl, data: { full_name: fullName } },
-    });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Account created. You can sign in now.");
   };
 
   const google = async () => {
@@ -121,51 +105,22 @@ function AuthPage() {
             <div className="h-px bg-border flex-1" />
           </div>
 
-          <Tabs defaultValue="signin">
-            <TabsList className="grid grid-cols-2 w-full">
-              <TabsTrigger value="signin">Sign in</TabsTrigger>
-              <TabsTrigger value="signup">Create account</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="signin">
-              <form onSubmit={signIn} className="space-y-4 mt-4">
-                <div className="space-y-1.5">
-                  <Label>Email</Label>
-                  <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Password</Label>
-                  <Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Signing in…" : "Sign in"}
-                </Button>
-              </form>
-            </TabsContent>
-
-            <TabsContent value="signup">
-              <form onSubmit={signUp} className="space-y-4 mt-4">
-                <div className="space-y-1.5">
-                  <Label>Full name</Label>
-                  <Input required value={fullName} onChange={(e) => setFullName(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Email</Label>
-                  <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Password</Label>
-                  <Input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Creating…" : "Create account"}
-                </Button>
-                <p className="text-xs text-muted-foreground">
-                  The first account created becomes Governance Lead / Admin.
-                </p>
-              </form>
-            </TabsContent>
-          </Tabs>
+          <form onSubmit={signIn} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Email</Label>
+              <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Password</Label>
+              <Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? "Signing in…" : "Sign in"}
+            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              Accounts are created by an administrator. Contact your Governance Lead for access.
+            </p>
+          </form>
         </Card>
       </div>
     </div>
