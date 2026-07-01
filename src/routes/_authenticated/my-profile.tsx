@@ -17,6 +17,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { AllocationTypeBadge, ResourceStatusBadge } from "@/components/StatusBadge";
+import { isExtendedLeave } from "@/lib/leave";
 import { toast } from "sonner";
 import { CalendarOff, CalendarCheck } from "lucide-react";
 
@@ -198,7 +199,14 @@ function MyProfilePage() {
                         <span className="text-muted-foreground italic">— Leave —</span>
                       )}
                     </td>
-                    <td className="px-3 py-3"><AllocationTypeBadge type={a.allocation_type} /></td>
+                    <td className="px-3 py-3">
+                      <AllocationTypeBadge type={a.allocation_type} />
+                      {isExtendedLeave(a) && (
+                        <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-warning/20 text-warning-foreground font-medium uppercase tracking-wide">
+                          Extended &gt;5d
+                        </span>
+                      )}
+                    </td>
                     <td className="px-3 py-3 text-xs tabular-nums text-muted-foreground">
                       {a.allocation_start_date} → {a.allocation_end_date}
                     </td>

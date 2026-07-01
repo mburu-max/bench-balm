@@ -3,6 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { KpiCard } from "@/components/KpiCard";
 import { useAllocations, useCustomers, useProjects, useResources } from "@/lib/queries";
 import { computeBench } from "@/lib/bench";
+import { isExtendedLeave, isCurrentLeave } from "@/lib/leave";
 import { SERVICE_LINES } from "@/lib/constants";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -70,6 +71,14 @@ function Dashboard() {
   const fullyAllocated = bench.filter((b) => b.benchPct === 0).length;
   const overAllocated = bench.filter((b) => b.benchPct < 0).length;
   const onLeave = (resources.data ?? []).filter((r) => r.status === "On_Leave").length;
+
+  // Extended-leave escalation: resources currently on a Leave allocation longer than 5 days.
+  const extendedLeaveResourceIds = new Set(
+    (allocations.data ?? [])
+      .filter((a) => isExtendedLeave(a) && isCurrentLeave(a))
+      .map((a) => a.resource_id),
+  );
+  const extendedLeaveCount = extendedLeaveResourceIds.size;
 
   // Per service line stats with target bands
   const slData = SERVICE_LINES.map((sl) => {
@@ -151,6 +160,20 @@ function Dashboard() {
           </Link>
         );
       })()}
+
+      {extendedLeaveCount > 0 && (
+        <div className="mt-4 rounded-xl border border-warning/40 bg-warning/5 p-4 flex items-center gap-3">
+          <Coffee className="size-5 text-warning-foreground" />
+          <div>
+            <div className="text-sm font-medium">
+              {extendedLeaveCount} resource{extendedLeaveCount === 1 ? "" : "s"} on extended leave (&gt;5 days)
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              Escalate for coverage — extended absences may leave projects short-staffed (RA §5.4.1).
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
         {/* Utilisation vs Target */}
