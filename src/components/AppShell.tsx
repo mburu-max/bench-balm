@@ -81,13 +81,20 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
   const navigate = useNavigate();
   const role = useCurrentRole();
 
-  // track open/closed state per labelled group; all start open
   const labelledGroups = NAV_GROUPS.filter((g) => g.label !== null).map((g) => g.label as string);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(
-    Object.fromEntries(labelledGroups.map((l) => [l, true])),
-  );
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    try {
+      const stored = localStorage.getItem("nav_groups_open");
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return Object.fromEntries(labelledGroups.map((l) => [l, true]));
+  });
   const toggleGroup = (label: string) =>
-    setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+    setOpenGroups((prev) => {
+      const next = { ...prev, [label]: !prev[label] };
+      try { localStorage.setItem("nav_groups_open", JSON.stringify(next)); } catch {}
+      return next;
+    });
 
   const signOut = async () => {
     await supabase.auth.signOut();
