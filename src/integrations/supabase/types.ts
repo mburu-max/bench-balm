@@ -74,7 +74,9 @@ export type Database = {
       allocations: {
         Row: {
           allocation_end_date: string
-          allocation_model: Database["public"]["Enums"]["allocation_model"] | null
+          allocation_model:
+            | Database["public"]["Enums"]["allocation_model"]
+            | null
           allocation_pct: number
           allocation_start_date: string
           allocation_type: Database["public"]["Enums"]["allocation_type"]
@@ -97,7 +99,9 @@ export type Database = {
         }
         Insert: {
           allocation_end_date: string
-          allocation_model?: Database["public"]["Enums"]["allocation_model"] | null
+          allocation_model?:
+            | Database["public"]["Enums"]["allocation_model"]
+            | null
           allocation_pct: number
           allocation_start_date: string
           allocation_type?: Database["public"]["Enums"]["allocation_type"]
@@ -124,7 +128,9 @@ export type Database = {
         }
         Update: {
           allocation_end_date?: string
-          allocation_model?: Database["public"]["Enums"]["allocation_model"] | null
+          allocation_model?:
+            | Database["public"]["Enums"]["allocation_model"]
+            | null
           allocation_pct?: number
           allocation_start_date?: string
           allocation_type?: Database["public"]["Enums"]["allocation_type"]
@@ -698,6 +704,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_sl_access: {
+        Args: {
+          _sl: Database["public"]["Enums"]["service_line"]
+          _uid?: string
+        }
+        Returns: boolean
+      }
       is_admin_like: { Args: { _user_id: string }; Returns: boolean }
       is_developer: { Args: { _uid?: string }; Returns: boolean }
       is_dl: { Args: { _uid?: string }; Returns: boolean }
@@ -716,6 +729,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      my_allocated_project_ids: { Args: never; Returns: string[] }
+      my_pm_project_ids: { Args: never; Returns: string[] }
+      my_pm_service_lines: {
+        Args: never
+        Returns: Database["public"]["Enums"]["service_line"][]
+      }
+      my_resource_ids: { Args: never; Returns: string[] }
       request_leave: {
         Args: {
           _end: string
