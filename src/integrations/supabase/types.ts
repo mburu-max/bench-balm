@@ -693,6 +693,34 @@ export type Database = {
       }
     }
     Functions: {
+      allocatable_resources: {
+        Args: never
+        Returns: {
+          created_at: string
+          created_by: string | null
+          default_allocation_type: Database["public"]["Enums"]["allocation_type"]
+          department: string | null
+          email: string | null
+          employment_type: Database["public"]["Enums"]["employment_type"]
+          full_name: string
+          id: string
+          location: string | null
+          manager_name: string | null
+          omni_hr_sync_status: string
+          omni_id: string
+          position: string | null
+          service_line: Database["public"]["Enums"]["service_line"]
+          status: Database["public"]["Enums"]["resource_status"]
+          updated_at: string
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "resources"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       current_app_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
@@ -731,11 +759,12 @@ export type Database = {
       }
       my_allocated_project_ids: { Args: never; Returns: string[] }
       my_pm_project_ids: { Args: never; Returns: string[] }
-      my_pm_service_lines: {
-        Args: never
-        Returns: Database["public"]["Enums"]["service_line"][]
-      }
       my_resource_ids: { Args: never; Returns: string[] }
+      next_project_code: {
+        Args: { _sl: Database["public"]["Enums"]["service_line"] }
+        Returns: string
+      }
+      pm_project_resource_ids: { Args: never; Returns: string[] }
       request_leave: {
         Args: {
           _end: string
