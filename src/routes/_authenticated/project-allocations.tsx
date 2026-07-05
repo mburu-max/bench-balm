@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import {
   useAllocations,
   useCustomers,
   useProjects,
-  useResources,
+  type ResourceRow,
 } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -59,7 +59,15 @@ const blankRow = (): Row => ({
 function ProjectAllocationsPage() {
   const customers = useCustomers();
   const projects = useProjects();
-  const resources = useResources();
+  // Allocatable pool (lets a PM staff from the bench in their projects' service lines).
+  const resources = useQuery({
+    queryKey: ["allocatable-resources"],
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)("allocatable_resources");
+      if (error) throw error;
+      return (data ?? []) as ResourceRow[];
+    },
+  });
   const allocations = useAllocations();
   const qc = useQueryClient();
 
