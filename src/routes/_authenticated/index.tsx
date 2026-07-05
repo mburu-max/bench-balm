@@ -63,8 +63,10 @@ function Dashboard() {
       </AppShell>
     );
   }
-  const slVariant = !!role && (role.isSlLead || role.isDl) && !role.isGovernanceLead && !role.isFinance;
-  return slVariant ? <SlLeadDashboard /> : <GovernanceDashboard />;
+  // Governance / Finance / Developer get the company-wide view; everyone else with a
+  // dashboard (SL Lead, Delivery Lead, PM) gets the scoped view — RLS decides the data.
+  const scopedVariant = !!role && role.hasAnyOtherRole && !role.isGovernanceLead && !role.isFinance;
+  return scopedVariant ? <SlLeadDashboard /> : <GovernanceDashboard />;
 }
 
 function GovernanceDashboard() {

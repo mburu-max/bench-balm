@@ -6,6 +6,10 @@ import { KpiCard } from "@/components/KpiCard";
 import { useAllocations, useProjects, useResources } from "@/lib/queries";
 import { computeBench } from "@/lib/bench";
 import { SERVICE_LINES } from "@/lib/constants";
+import { useCurrentRole } from "@/lib/useCurrentRole";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { SL_COLORS, todayStr, computeUtilTrend, type UtilView } from "@/lib/dashboard";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -38,7 +42,16 @@ export function SlLeadDashboard() {
   const projects = useProjects();
   const resources = useResources();
   const allocations = useAllocations();
+  const { data: role } = useCurrentRole();
   const [utilView, setUtilView] = useState<UtilView>("today");
+
+  // A multi-SL lead can slice between their OWN assigned service lines; a single-SL lead
+  // (or a PM) has no dropdown — their scope is fixed by RLS.
+  const assignedSls = role?.serviceLines ?? [];
+  const canPickSl = assignedSls.length > 1;
+  const [slFilter, setSlFilter] = useState<string>("all");
+  const matchesSl = (sl: string | null | undefined) => slFilter === "all" || sl === slFilter;
+  const isLead = !!(role?.isSlLead || role?.isDl);
 
   const slTargets = useQuery({
     queryKey: ["sl-targets"],
@@ -69,10 +82,11 @@ export function SlLeadDashboard() {
   const loading = projects.isLoading || resources.isLoading || allocations.isLoading;
   const today = todayStr();
 
-  // Data already scoped to the lead's service line(s) by RLS.
-  const allProjects = projects.data ?? [];
-  const allResources = resources.data ?? [];
-  const allAllocations = allocations.data ?? [];
+  // RLS already scopes to the lead's service line(s) / the PM's projects; this optional
+  // filter lets a multi-SL lead slice between their own service lines.
+  const allProjects = (projects.data ?? []).filter((p) => matchesSl(p.service_line));
+  const allResources = (resources.data ?? []).filter((r) => matchesSl(r.service_line));
+  const allAllocations = (allocations.data ?? []).filter((a) => matchesSl(a.service_line));
   const activeProjects = allProjects.filter((p) => p.status === "Active");
   const activeResources = allResources.filter((r) => r.status === "Active");
   const bench = computeBench(activeResources, allAllocations);
@@ -102,7 +116,7 @@ export function SlLeadDashboard() {
   const { trendSeries, avgBySl, hasTrend } = computeUtilTrend(snapTrend.data ?? [], headcountBySl, shownSls);
   const slDataWithAvg = slData.map((d) => ({ ...d, avg13: avgBySl[d.sl] ?? null }));
 
-  const cliff = cliffEdge.data ?? [];
+  const cliff = (cliffEdge.data ?? []).filter((r) => matchesSl(r.service_line));
   const cliffBySl = shownSls.map((sl) => {
     const rows = cliff.filter((r) => r.service_line === sl);
     return {
@@ -159,7 +173,20 @@ export function SlLeadDashboard() {
     : "bg-secondary text-secondary-foreground";
 
   return (
-    <AppShell title="Service Line Dashboard">
+    <AppShell
+      title={isLead ? "Service Line Dashboard" : "My Projects"}
+      actions={
+        canPickSl ? (
+          <Select value={slFilter} onValueChange={setSlFilter}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All my service lines</SelectItem>
+              {assignedSls.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        ) : undefined
+      }
+    >
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         <KpiCard label="Total Resources" value={loading ? "—" : activeResources.length} icon={Users} />
