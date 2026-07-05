@@ -4,6 +4,13 @@
 as of 2026-07-02. Where the code and this document disagree, treat it as a bug in one of them
 and reconcile. Sections marked **⚠ GAP** are known open items.
 
+**Scope:** This is a **management tool**. Its active users are the management roles — Governance
+Lead, Finance, Delivery/Service Line Lead, Project Manager (and Developer). **Resources (the
+allocated employees) do not use the system in v1.** The `resource` self-service role and its
+surface (My Profile, leave request/return, forced-password-change) are built and retained as a
+**future-expansion placeholder** — dormant by design — so the system is ready if resources are
+onboarded later. Nothing scopes to a resource today because none are linked.
+
 This document is written to double as a **test oracle** — §7 maps every rule to the exact DB
 object (policy / trigger / function) that enforces it, so each row can be asserted directly.
 
@@ -19,7 +26,7 @@ object (policy / trigger / function) that enforces it, so each row can be assert
 | L2 | `delivery_lead` | Operationally identical to SL Lead (unified). Scoped to assigned service line(s). |
 | L2 | `service_line_lead` | Validates drafts, manages allocations & resources within assigned service line(s). |
 | L3 | `project_manager` | Creates projects; manages allocations on the projects they own. Sees only their projects. |
-| L5 | `resource` | Self-service. Sees only their own profile + allocations. Requests leave. |
+| L5 | `resource` | **Future expansion — not used in v1.** Self-service view of own profile + allocations; requests leave. Retained but dormant (see Scope note above). |
 
 Notes:
 - **SL Lead = Delivery Lead**: the two enum roles are treated as one capability set (`is_dl()`
