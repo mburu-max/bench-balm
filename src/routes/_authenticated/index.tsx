@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAllocations, useCustomers, useProjects, useResources } from "@/lib/queries";
+import { useAllocations, useProjects, useResources } from "@/lib/queries";
 import { computeBench } from "@/lib/bench";
 import { isExtendedLeave, isCurrentLeave } from "@/lib/leave";
 import { SERVICE_LINES } from "@/lib/constants";
@@ -20,19 +20,23 @@ import { Link } from "@tanstack/react-router";
 import {
   Users,
   Briefcase,
-  Building2,
+  Gauge,
   Activity,
   AlertTriangle,
   Coffee,
   AlertOctagon,
   ArrowRight,
+  CheckCircle2,
+  UserX,
 } from "lucide-react";
 import {
   Bar,
-  BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
   Legend,
+  Line,
+  LineChart,
   Pie,
   PieChart,
   ReferenceLine,
@@ -41,17 +45,44 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ProjectStatusBadge } from "@/components/StatusBadge";
 
 export const Route = createFileRoute("/_authenticated/")({
   component: Dashboard,
 });
 
+const SL_COLORS: Record<string, string> = {
+  DLaaS: "var(--color-chart-1)",
+  CLM: "var(--color-chart-2)",
+  MS: "var(--color-chart-3)",
+  CCaaS: "var(--color-chart-4)",
+  Legacy: "var(--color-chart-5)",
+};
+
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const horizonStr = (days: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+function weekKey(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00Z");
+  const day = (d.getUTCDay() + 6) % 7; // Monday = 0
+  d.setUTCDate(d.getUTCDate() - day);
+  return d.toISOString().slice(0, 10);
+}
+
+type UtilView = "today" | "trend" | "both";
+
 function Dashboard() {
-  const customers = useCustomers();
   const projects = useProjects();
   const resources = useResources();
   const allocations = useAllocations();
+
+  const { data: role } = useCurrentRole();
+  const canFilter = !!(role?.isGovernanceLead || role?.isFinance);
+  const [slFilter, setSlFilter] = useState<string>("all");
+  const [utilView, setUtilView] = useState<UtilView>("today");
+  const matchesSl = (sl: string | null | undefined) => slFilter === "all" || sl === slFilter;
 
   const slTargets = useQuery({
     queryKey: ["sl-targets"],
@@ -70,22 +101,26 @@ function Dashboard() {
     },
   });
 
-  const { data: role } = useCurrentRole();
-  // Global-view roles can narrow the whole dashboard to one service line.
-  const canFilter = !!(role?.isGovernanceLead || role?.isFinance);
-  const [slFilter, setSlFilter] = useState<string>("all");
-  const matchesSl = (sl: string | null | undefined) => slFilter === "all" || sl === slFilter;
+  const snapTrend = useQuery({
+    queryKey: ["snap-trend"],
+    queryFn: async () => {
+      const since = new Date();
+      since.setDate(since.getDate() - 91);
+      const { data } = await supabase
+        .from("allocation_snapshots")
+        .select("snapshot_date, service_line, resource_id, allocation_pct, allocation_type")
+        .gte("snapshot_date", since.toISOString().slice(0, 10))
+        .order("snapshot_date");
+      return data ?? [];
+    },
+  });
 
-  const loading =
-    customers.isLoading || projects.isLoading || resources.isLoading || allocations.isLoading;
+  const loading = projects.isLoading || resources.isLoading || allocations.isLoading;
 
-  // Apply the optional service-line filter to every base dataset.
+  // ---- service-line filter applied to every base dataset ----
   const fProjects = (projects.data ?? []).filter((p) => matchesSl(p.service_line));
   const fResources = (resources.data ?? []).filter((r) => matchesSl(r.service_line));
   const fCliff = (cliffEdge.data ?? []).filter((r) => matchesSl(r.service_line));
-  const fCustomers = slFilter === "all"
-    ? (customers.data ?? [])
-    : (customers.data ?? []).filter((c) => fProjects.some((p) => p.customer_id === c.id));
   const fResourceIds = new Set(fResources.map((r) => r.id));
 
   const activeProjects = fProjects.filter((p) => p.status === "Active");
@@ -96,17 +131,33 @@ function Dashboard() {
   const overAllocated = bench.filter((b) => b.benchPct < 0).length;
   const onLeave = fResources.filter((r) => r.status === "On_Leave").length;
 
-  // Extended-leave escalation: resources currently on a Leave allocation longer than 5 days.
-  const extendedLeaveResourceIds = new Set(
+  // Blended utilization across all active resources (capped at 100% per person).
+  const avgUtil = activeResources.length > 0
+    ? Math.round(bench.reduce((s, b) => s + Math.min(100, b.totalPct), 0) / activeResources.length)
+    : 0;
+  const avgUtilAccent = avgUtil >= 75 ? "success" : avgUtil >= 60 ? "warning" : "destructive";
+
+  // Extended-leave escalation.
+  const extendedLeaveCount = new Set(
     (allocations.data ?? [])
       .filter((a) => fResourceIds.has(a.resource_id) && isExtendedLeave(a) && isCurrentLeave(a))
       .map((a) => a.resource_id),
-  );
-  const extendedLeaveCount = extendedLeaveResourceIds.size;
+  ).size;
 
-  const shownSls = slFilter === "all" ? SERVICE_LINES : SERVICE_LINES.filter((s) => s === slFilter);
+  const shownSls = slFilter === "all" ? [...SERVICE_LINES] : SERVICE_LINES.filter((s) => s === slFilter);
 
-  // Per service line stats with target bands
+  // Coverage: does a resource have a billable/non-billable allocation covering a horizon date?
+  const coveredAt = (resourceId: string, dateStr: string) =>
+    (allocations.data ?? []).some(
+      (a) =>
+        a.resource_id === resourceId &&
+        (a.allocation_type === "Billable" || a.allocation_type === "Non-Billable") &&
+        a.allocation_start_date <= dateStr &&
+        a.allocation_end_date >= dateStr,
+    );
+  const d30 = horizonStr(30), d60 = horizonStr(60), d90 = horizonStr(90);
+
+  // ---- Per service line stats (today) + coverage rate ----
   const slData = shownSls.map((sl) => {
     const slRes = activeResources.filter((r) => r.service_line === sl);
     const slBench = computeBench(slRes, allocations.data ?? []);
@@ -116,16 +167,61 @@ function Dashboard() {
     const target = slTargets.data?.[sl];
     const targetMin = target?.target_utilisation_min ?? 80;
     const targetMax = target?.target_utilisation_max ?? 95;
-    const inTarget = utilization >= targetMin;
+    const cov = (dateStr: string) =>
+      slRes.length ? Math.round((slRes.filter((r) => coveredAt(r.id, dateStr)).length / slRes.length) * 100) : 0;
     return {
       sl, resources: slRes.length, utilization,
       bench: slBench.filter((b) => b.benchPct > 0).length,
       fully: slBench.filter((b) => b.benchPct === 0).length,
-      targetMin, targetMax, inTarget,
+      targetMin, targetMax, inTarget: utilization >= targetMin,
+      coverage30: cov(d30), coverage60: cov(d60), coverage90: cov(d90),
     };
   });
 
-  // Cliff exposure per SL (30 / 60-90 day bands)
+  // ---- 13-week utilization trend from daily snapshots ----
+  const headcountBySl: Record<string, number> = {};
+  for (const r of activeResources) headcountBySl[r.service_line] = (headcountBySl[r.service_line] ?? 0) + 1;
+
+  const byDate: Record<string, Record<string, Record<string, number>>> = {};
+  for (const s of snapTrend.data ?? []) {
+    if (s.allocation_type === "Leave") continue;
+    const sl = s.service_line as string;
+    if (!matchesSl(sl)) continue;
+    (byDate[s.snapshot_date] ??= {});
+    (byDate[s.snapshot_date][sl] ??= {});
+    byDate[s.snapshot_date][sl][s.resource_id as string] =
+      (byDate[s.snapshot_date][sl][s.resource_id as string] ?? 0) + (s.allocation_pct ?? 0);
+  }
+  const weekBucket: Record<string, Record<string, number[]>> = {};
+  for (const [date, slMap] of Object.entries(byDate)) {
+    const wk = weekKey(date);
+    (weekBucket[wk] ??= {});
+    for (const [sl, resMap] of Object.entries(slMap)) {
+      const hc = headcountBySl[sl] ?? 0;
+      if (hc === 0) continue;
+      const allocated = Object.values(resMap).reduce((s, v) => s + Math.min(100, v), 0);
+      const util = Math.round((allocated / (hc * 100)) * 100);
+      (weekBucket[wk][sl] ??= []).push(util);
+    }
+  }
+  const trendWeeks = Object.keys(weekBucket).sort().slice(-13);
+  const trendSeries = trendWeeks.map((wk) => {
+    const row: Record<string, number | string> = { week: wk.slice(5) };
+    for (const sl of shownSls) {
+      const arr = weekBucket[wk]?.[sl];
+      if (arr?.length) row[sl] = Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
+    }
+    return row;
+  });
+  const avgBySl: Record<string, number> = {};
+  for (const sl of shownSls) {
+    const vals = trendWeeks.flatMap((wk) => weekBucket[wk]?.[sl] ?? []);
+    if (vals.length) avgBySl[sl] = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+  }
+  const slDataWithAvg = slData.map((d) => ({ ...d, avg13: avgBySl[d.sl] ?? null }));
+  const hasTrend = trendSeries.length > 0;
+
+  // ---- Cliff exposure per SL ----
   const cliffBySl = shownSls.map((sl) => {
     const rows = fCliff.filter((r) => r.service_line === sl);
     return {
@@ -136,20 +232,34 @@ function Dashboard() {
     };
   });
 
+  // ---- Projects by status donut ----
   const projectsByStatus = fProjects.reduce<Record<string, number>>((acc, p) => {
     acc[p.status] = (acc[p.status] ?? 0) + 1;
     return acc;
   }, {});
-  const projectPie = Object.entries(projectsByStatus).map(([name, value]) => ({ name, value }));
-
+  const projectPie = Object.entries(projectsByStatus).map(([name, value]) => ({ name: name.replace("_", " "), value }));
   const pieColors = [
-    "var(--color-chart-1)",
-    "var(--color-chart-2)",
-    "var(--color-chart-3)",
-    "var(--color-chart-4)",
-    "var(--color-chart-5)",
-    "var(--color-warning)",
-    "var(--color-destructive)",
+    "var(--color-chart-1)", "var(--color-chart-2)", "var(--color-chart-3)",
+    "var(--color-chart-4)", "var(--color-chart-5)", "var(--color-warning)", "var(--color-destructive)",
+  ];
+
+  // ---- Alerts / attention required (prioritized) ----
+  const projectsWithCurrentAlloc = new Set(
+    (allocations.data ?? [])
+      .filter((a) => a.project_id && a.allocation_type !== "Leave" && a.allocation_start_date <= todayStr() && a.allocation_end_date >= todayStr())
+      .map((a) => a.project_id),
+  );
+  type Alert = { key: string; label: string; sl: string; issue: string; tone: "destructive" | "warning" };
+  const alerts: Alert[] = [
+    ...bench
+      .filter((b) => b.benchPct < 0)
+      .map((b) => ({ key: `over-${b.resource.id}`, label: b.resource.full_name, sl: b.resource.service_line, issue: `Over-allocated at ${b.totalPct}%`, tone: "destructive" as const })),
+    ...activeProjects
+      .filter((p) => !projectsWithCurrentAlloc.has(p.id))
+      .map((p) => ({ key: `nores-${p.id}`, label: p.project_code, sl: p.service_line, issue: "Active project with no resources assigned", tone: "warning" as const })),
+    ...fCliff
+      .filter((r) => (r.cliff_band ?? 90) <= 30)
+      .map((r) => ({ key: `cliff-${r.resource_id}`, label: r.full_name ?? "—", sl: r.service_line ?? "—", issue: `Allocation ends ${r.last_covered_date} — no follow-on`, tone: "destructive" as const })),
   ];
 
   return (
@@ -158,14 +268,10 @@ function Dashboard() {
       actions={
         canFilter ? (
           <Select value={slFilter} onValueChange={setSlFilter}>
-            <SelectTrigger className="w-44">
-              <SelectValue />
-            </SelectTrigger>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All service lines</SelectItem>
-              {SERVICE_LINES.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
-              ))}
+              {SERVICE_LINES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
             </SelectContent>
           </Select>
         ) : undefined
@@ -179,8 +285,10 @@ function Dashboard() {
           Viewing a single service line — clear the filter to see the whole portfolio.
         </div>
       )}
+
+      {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-        <KpiCard label="Customers" value={loading ? "—" : fCustomers.length} icon={Building2} />
+        <KpiCard label="Avg Utilization" value={loading ? "—" : `${avgUtil}%`} icon={Gauge} accent={avgUtilAccent} hint="Blended, active resources" />
         <KpiCard label="Active Projects" value={loading ? "—" : activeProjects.length} icon={Briefcase} accent="info" />
         <KpiCard label="Total Resources" value={loading ? "—" : activeResources.length} icon={Users} />
         <KpiCard label="Fully Allocated" value={loading ? "—" : fullyAllocated} icon={Activity} accent="success" />
@@ -188,6 +296,7 @@ function Dashboard() {
         <KpiCard label="Over-allocated" value={loading ? "—" : overAllocated} icon={AlertTriangle} accent="destructive" hint={onLeave ? `${onLeave} on leave` : undefined} />
       </div>
 
+      {/* Cliff-edge alert banner */}
       {(() => {
         const cliffData = fCliff;
         const urgent = cliffData.filter((r) => (r.cliff_band ?? 90) <= 30).length;
@@ -226,50 +335,84 @@ function Dashboard() {
         </div>
       )}
 
+      {/* Upper charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
-        {/* Utilisation vs Target */}
+        {/* Utilisation vs Target + trend toggle */}
         <div className="rounded-xl border bg-card p-5">
-          <h2 className="font-display text-base font-semibold">Utilisation vs Target</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Today's blended util % per SL — green bars are on target, red are below
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="font-display text-base font-semibold">Utilisation vs Target</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Blended util % per SL vs target floor — green on target, red below
+              </p>
+            </div>
+            <div className="flex rounded-md border p-0.5 text-xs shrink-0">
+              {([["today", "Today"], ["trend", "13-Week"], ["both", "Both"]] as [UtilView, string][]).map(([v, label]) => (
+                <button
+                  key={v}
+                  onClick={() => setUtilView(v)}
+                  className={`px-2.5 py-1 rounded transition-colors ${utilView === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="h-64 mt-4">
-            <ResponsiveContainer>
-              <BarChart data={slData} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="sl" stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
-                <Tooltip
-                  contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }}
-                  formatter={(value: number, _: string, props: any) => {
-                    const d = props.payload;
-                    return [`${value}% (target ${d.targetMin}–${d.targetMax}%)`, "Utilisation"];
-                  }}
-                />
-                {/* Per-SL target min reference lines */}
-                {slData.map((d) => (
-                  <ReferenceLine key={`min-${d.sl}`} y={d.targetMin} stroke="var(--color-muted-foreground)" strokeDasharray="3 3" strokeOpacity={0.4} />
-                ))}
-                <Bar dataKey="utilization" radius={[6, 6, 0, 0]}>
-                  {slData.map((d) => (
-                    <Cell
-                      key={d.sl}
-                      fill={d.inTarget ? "var(--color-success, #22c55e)" : "var(--color-destructive)"}
-                      fillOpacity={0.85}
-                    />
+            {utilView === "trend" && !hasTrend ? (
+              <div className="h-full grid place-items-center text-center text-sm text-muted-foreground px-6">
+                Trend builds up as daily snapshots accumulate. Come back after a couple of weeks of history.
+              </div>
+            ) : utilView === "trend" ? (
+              <ResponsiveContainer>
+                <LineChart data={trendSeries} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                  <XAxis dataKey="week" stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
+                  <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  {shownSls.map((sl) => (
+                    <Line key={sl} type="monotone" dataKey={sl} stroke={SL_COLORS[sl]} strokeWidth={2} dot={{ r: 2 }} connectNulls />
                   ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <ResponsiveContainer>
+                <ComposedChart data={slDataWithAvg} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                  <XAxis dataKey="sl" stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
+                  <Tooltip
+                    contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }}
+                    formatter={(value: number, name: string, props: any) => {
+                      if (name === "avg13") return [`${value}%`, "13-wk avg"];
+                      const d = props.payload;
+                      return [`${value}% (target ${d.targetMin}–${d.targetMax}%)`, "Today"];
+                    }}
+                  />
+                  {slDataWithAvg.map((d) => (
+                    <ReferenceLine key={`min-${d.sl}`} y={d.targetMin} stroke="var(--color-muted-foreground)" strokeDasharray="3 3" strokeOpacity={0.4} />
+                  ))}
+                  <Bar dataKey="utilization" radius={[6, 6, 0, 0]}>
+                    {slDataWithAvg.map((d) => (
+                      <Cell key={d.sl} fill={d.inTarget ? "var(--color-success, #22c55e)" : "var(--color-destructive)"} fillOpacity={0.85} />
+                    ))}
+                  </Bar>
+                  {utilView === "both" && (
+                    <Line type="monotone" dataKey="avg13" stroke="var(--color-chart-1)" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                  )}
+                </ComposedChart>
+              </ResponsiveContainer>
+            )}
           </div>
           <div className="flex items-center gap-4 mt-2 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-success inline-block" /> On/above target</span>
             <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-destructive inline-block" /> Below target</span>
-            <span className="flex items-center gap-1.5"><span className="inline-block w-5 border-t border-dashed border-muted-foreground/50" /> Target floor</span>
+            {utilView === "both" && <span className="flex items-center gap-1.5"><span className="inline-block w-5 border-t-2" style={{ borderColor: "var(--color-chart-1)" }} /> 13-wk avg</span>}
           </div>
         </div>
 
-        {/* Cliff Exposure per SL */}
+        {/* Cliff exposure */}
         <div className="rounded-xl border bg-card p-5">
           <h2 className="font-display text-base font-semibold">30/60/90-Day Cliff Exposure</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -277,164 +420,122 @@ function Dashboard() {
           </p>
           <div className="h-64 mt-4">
             <ResponsiveContainer>
-              <BarChart data={cliffBySl} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
+              <ComposedChart data={cliffBySl} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                 <XAxis dataKey="sl" stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="≤30d" stackId="a" fill="var(--color-destructive)" fillOpacity={0.85} radius={[0, 0, 0, 0]} />
+                <Bar dataKey="≤30d" stackId="a" fill="var(--color-destructive)" fillOpacity={0.85} />
                 <Bar dataKey="31–60d" stackId="a" fill="var(--color-warning)" fillOpacity={0.85} />
-                <Bar dataKey="61–90d" stackId="a" fill="var(--color-chart-3)" fillOpacity={0.7} radius={[6, 6, 0, 0]} />
-              </BarChart>
+                <Bar dataKey="61–90d" stackId="a" fill="#3b82f6" fillOpacity={0.8} radius={[6, 6, 0, 0]} />
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
-        <div className="lg:col-span-2 rounded-xl border bg-card p-5">
-          <div className="flex items-baseline justify-between">
-            <div>
-              <h2 className="font-display text-base font-semibold">Service Line Utilization</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Avg allocation across active resources, today
-              </p>
-            </div>
-          </div>
-          <div className="h-72 mt-4">
-            <ResponsiveContainer>
-              <BarChart data={slData} margin={{ top: 10, right: 12, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="sl" stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} unit="%" />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--color-popover)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                  cursor={{ fill: "var(--color-muted)" }}
-                />
-                <Bar dataKey="utilization" radius={[6, 6, 0, 0]} fill="var(--color-chart-2)" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      {/* Service Line Summary (full width) */}
+      <div className="mt-6 rounded-xl border bg-card overflow-hidden">
+        <div className="p-5 border-b">
+          <h2 className="font-display text-base font-semibold">Service Line Summary</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Today's health plus forward coverage — % of each SL's resources with allocations reaching 30 / 60 / 90 days out
+          </p>
         </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
+              <tr>
+                <th className="text-left px-5 py-2.5 font-medium">Service Line</th>
+                <th className="text-right px-3 py-2.5 font-medium">Resources</th>
+                <th className="text-right px-3 py-2.5 font-medium">Fully Alloc.</th>
+                <th className="text-right px-3 py-2.5 font-medium">On Bench</th>
+                <th className="text-right px-3 py-2.5 font-medium">Util %</th>
+                <th className="text-right px-5 py-2.5 font-medium">Coverage 30 / 60 / 90</th>
+              </tr>
+            </thead>
+            <tbody>
+              {slData.map((r) => (
+                <tr key={r.sl} className="border-t">
+                  <td className="px-5 py-3 font-medium">{r.sl}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{r.resources}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{r.fully}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{r.bench}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">
+                    <span className={r.inTarget ? "text-success font-medium" : "text-destructive font-medium"}>
+                      {r.utilization}%
+                    </span>
+                  </td>
+                  <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">
+                    <span className="text-foreground font-medium">{r.coverage30}%</span>
+                    {" / "}{r.coverage60}%{" / "}{r.coverage90}%
+                  </td>
+                </tr>
+              ))}
+              {slData.length === 0 && (
+                <tr><td colSpan={6} className="px-5 py-10 text-center text-muted-foreground">No service lines to show.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
+      {/* Lower charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
+        {/* Projects by Status */}
         <div className="rounded-xl border bg-card p-5">
           <h2 className="font-display text-base font-semibold">Projects by Status</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Pipeline & workflow snapshot</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Portfolio distribution</p>
           <div className="h-72 mt-4">
             {projectPie.length === 0 ? (
-              <div className="h-full grid place-items-center text-sm text-muted-foreground">
-                No projects yet
-              </div>
+              <div className="h-full grid place-items-center text-sm text-muted-foreground">No projects yet</div>
             ) : (
               <ResponsiveContainer>
                 <PieChart>
-                  <Pie
-                    data={projectPie}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={50}
-                    outerRadius={85}
-                    paddingAngle={2}
-                  >
-                    {projectPie.map((_, i) => (
-                      <Cell key={i} fill={pieColors[i % pieColors.length]} />
-                    ))}
+                  <Pie data={projectPie} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2}>
+                    {projectPie.map((_, i) => <Cell key={i} fill={pieColors[i % pieColors.length]} />)}
                   </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--color-popover)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                  />
+                  <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                 </PieChart>
               </ResponsiveContainer>
             )}
           </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
-        <div className="rounded-xl border bg-card overflow-hidden">
+        {/* Alerts / Attention Required */}
+        <div className="rounded-xl border bg-card overflow-hidden flex flex-col">
           <div className="p-5 border-b">
-            <h2 className="font-display text-base font-semibold">Service Line Summary</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Live, computed from allocations</p>
+            <h2 className="font-display text-base font-semibold">Alerts / Attention Required</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Everything that needs action right now</p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
-                <tr>
-                  <th className="text-left px-5 py-2.5 font-medium">Service Line</th>
-                  <th className="text-right px-3 py-2.5 font-medium">Resources</th>
-                  <th className="text-right px-3 py-2.5 font-medium">Fully Alloc.</th>
-                  <th className="text-right px-3 py-2.5 font-medium">Bench</th>
-                  <th className="text-right px-5 py-2.5 font-medium">Util %</th>
-                </tr>
-              </thead>
-              <tbody>
-                {slData.map((r) => (
-                  <tr key={r.sl} className="border-t">
-                    <td className="px-5 py-3 font-medium">{r.sl}</td>
-                    <td className="px-3 py-3 text-right tabular-nums">{r.resources}</td>
-                    <td className="px-3 py-3 text-right tabular-nums">{r.fully}</td>
-                    <td className="px-3 py-3 text-right tabular-nums">{r.bench}</td>
-                    <td className="px-5 py-3 text-right tabular-nums">
-                      <span
-                        className={
-                          r.utilization > 100
-                            ? "text-destructive font-medium"
-                            : r.utilization >= 80
-                              ? "text-warning-foreground font-medium"
-                              : "text-success font-medium"
-                        }
-                      >
-                        {r.utilization}%
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="rounded-xl border bg-card overflow-hidden">
-          <div className="p-5 border-b">
-            <h2 className="font-display text-base font-semibold">Recent Projects</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Latest activity</p>
-          </div>
-          <div className="divide-y">
-            {fProjects.slice(0, 6).map((p) => (
-              <div key={p.id} className="px-5 py-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="font-medium text-sm truncate">
-                    <span className="font-mono text-xs text-muted-foreground mr-2">
-                      {p.project_code}
-                    </span>
-                    {p.project_description}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    {(p as any).customers?.customer_name ?? "—"} · {p.service_line}
+          {alerts.length === 0 ? (
+            <div className="flex-1 grid place-items-center p-10 text-center">
+              <div>
+                <CheckCircle2 className="size-10 mx-auto text-success" />
+                <div className="mt-2 text-sm font-medium">All clear</div>
+                <div className="text-xs text-muted-foreground mt-0.5">No over-allocations, unstaffed projects, or 30-day cliffs.</div>
+              </div>
+            </div>
+          ) : (
+            <div className="divide-y max-h-80 overflow-y-auto">
+              {alerts.map((a) => (
+                <div key={a.key} className="px-5 py-3 flex items-start gap-3">
+                  {a.tone === "destructive"
+                    ? <AlertTriangle className="size-4 text-destructive mt-0.5 shrink-0" />
+                    : <UserX className="size-4 text-warning-foreground mt-0.5 shrink-0" />}
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium truncate">
+                      {a.label}
+                      <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase tracking-wide">{a.sl}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{a.issue}</div>
                   </div>
                 </div>
-                <ProjectStatusBadge status={p.status} />
-              </div>
-            ))}
-            {fProjects.length === 0 && (
-              <div className="px-5 py-10 text-center text-sm text-muted-foreground">
-                {slFilter === "all" ? "No projects yet. Create one from the Projects screen." : `No ${slFilter} projects.`}
-              </div>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </AppShell>
