@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -21,20 +20,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Pencil, Trash2, ArrowRight, XCircle, Lock } from "lucide-react";
-import { useCustomers, useProjects } from "@/lib/queries";
+import { Plus, Pencil, Trash2, ArrowRight, XCircle, Lock, ClipboardCheck } from "lucide-react";
+import { useCustomers, useProjects, useAllocations } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SERVICE_LINES, type ServiceLine, type ProjectStatus, PROJECT_STATUSES } from "@/lib/constants";
-
-const PROJECT_TYPES = [
-  { value: "Billable_Delivery", label: "Billable Delivery" },
-  { value: "Non_Billable", label: "Non-Billable" },
-  { value: "Bench_Available", label: "Bench / Available" },
-  { value: "Training", label: "Training" },
-  { value: "Internal_Operations", label: "Internal Operations" },
-] as const;
 import { ProjectStatusBadge } from "@/components/StatusBadge";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 
@@ -49,11 +39,8 @@ type Form = {
   project_description: string;
   customer_id: string;
   service_line: ServiceLine | "";
-  project_type: string;
-  delivery_center: string;
   start_date: string;
   end_date: string;
-  contract_signed: boolean;
 };
 
 const empty: Form = {
@@ -62,16 +49,16 @@ const empty: Form = {
   project_description: "",
   customer_id: "",
   service_line: "",
-  project_type: "",
-  delivery_center: "",
   start_date: "",
   end_date: "",
-  contract_signed: false,
 };
+
+const todayStr = () => new Date().toISOString().slice(0, 10);
 
 function ProjectsPage() {
   const projects = useProjects();
   const customers = useCustomers();
+  const allocations = useAllocations();
   const qc = useQueryClient();
   const { data: role } = useCurrentRole();
   const [open, setOpen] = useState(false);
@@ -80,19 +67,26 @@ function ProjectsPage() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  // Finance is read-only (tracker RBAC-03). Project creation/verify = PM + SL/Delivery Lead;
-  // activation + contract confirmation = Governance Lead only.
-  const canCreate = !!(role?.isPm || role?.isDl || role?.isDeveloper);
-  const canVerify = !!(role?.isDl || role?.isDeveloper);
+  // Project creation = PM + Governance (Step 1). SL/Delivery Leads validate (Step 2), they
+  // don't create. Activation = Governance only. Edit = Governance + SL/Delivery Lead (not PM).
+  const canCreate = !!(role?.isGovernanceLead || role?.isPm || role?.isDeveloper);
+  const canVerify = !!(role?.isDl || role?.isGovernanceLead || role?.isDeveloper);
   const canActivate = !!(role?.isGovernanceLead || role?.isDeveloper);
-  const canConfirmContract = !!(role?.isGovernanceLead || role?.isDeveloper);
   const canDelete = !!(role?.isGovernanceLead || role?.isDeveloper);
+  const canEditProject = (p: any) =>
+    !!(role?.isDeveloper || role?.isGovernanceLead || role?.isDl);
 
-  const canEditProject = (p: any) => {
-    if (role?.isDeveloper || role?.isGovernanceLead || role?.isDl) return true;
-    if (role?.isPm && p.status === "Draft" && p.project_manager_user_id === role.userId) return true;
-    return false;
-  };
+  // Current resource count per project (distinct, in-effect, non-Leave).
+  const resCountByProject = useMemo(() => {
+    const today = todayStr();
+    const m: Record<string, Set<string>> = {};
+    for (const a of allocations.data ?? []) {
+      if (a.project_id && a.allocation_type !== "Leave" && a.allocation_start_date <= today && a.allocation_end_date >= today) {
+        (m[a.project_id] ??= new Set()).add(a.resource_id);
+      }
+    }
+    return m;
+  }, [allocations.data]);
 
   const startNew = () => {
     if (!canCreate) return toast.error("You don't have permission to create projects");
@@ -108,70 +102,71 @@ function ProjectsPage() {
       project_description: p.project_description,
       customer_id: p.customer_id,
       service_line: p.service_line,
-      project_type: (p as any).project_type ?? "",
-      delivery_center: p.delivery_center ?? "",
       start_date: p.start_date,
       end_date: p.end_date,
-      contract_signed: p.contract_signed,
     });
     setOpen(true);
   };
 
-  const save = async () => {
-    if (!form.project_code.trim()) return toast.error("Project code required");
-    const code = form.project_code.trim().toUpperCase();
-    if (!/^(CLM|MS|DLAAS|CCAAS|LEGACY|INT|NB)-\d{4}-\d{3}$/.test(code)) {
-      return toast.error("Project code must be [SL|INT|NB]-YYYY-NNN (e.g. CLM-2026-001)");
+  // On new projects, generate the code server-side when a service line is picked.
+  const onServiceLineChange = async (v: string) => {
+    const sl = v as ServiceLine;
+    if (form.id) {
+      setForm((f) => ({ ...f, service_line: sl }));
+      return;
     }
+    setForm((f) => ({ ...f, service_line: sl, project_code: "" }));
+    const { data } = await (supabase.rpc as any)("next_project_code", { _sl: sl });
+    setForm((f) => (f.service_line === sl ? { ...f, project_code: (data as string) ?? "" } : f));
+  };
+
+  const save = async () => {
     if (!form.customer_id) return toast.error("Customer required");
     if (!form.service_line) return toast.error("Service line required");
     if (!form.start_date || !form.end_date) return toast.error("Start and end dates required");
+    if (!form.id && !form.project_code) return toast.error("Pick a service line to generate the project code");
     setSaving(true);
     const { data: userData } = await supabase.auth.getUser();
     const uid = userData.user?.id ?? null;
-    const payload: any = {
-      project_code: code,
+    const base = {
       hubspot_deal_id: form.hubspot_deal_id || null,
       project_description: form.project_description,
       customer_id: form.customer_id,
       service_line: form.service_line as ServiceLine,
-      project_type: form.project_type || null,
-      delivery_center: form.delivery_center || null,
       start_date: form.start_date,
       end_date: form.end_date,
-      contract_signed: form.contract_signed,
     };
     let error;
     if (form.id) {
-      ({ error } = await supabase.from("projects").update(payload).eq("id", form.id));
+      ({ error } = await supabase.from("projects").update(base).eq("id", form.id));
     } else {
       ({ error } = await supabase
         .from("projects")
-        .insert({ ...payload, status: "Draft" as ProjectStatus, project_manager_user_id: uid, created_by: uid }));
+        .insert({ ...base, project_code: form.project_code, status: "Draft" as ProjectStatus, project_manager_user_id: uid, created_by: uid } as any));
     }
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success(form.id ? "Project updated" : "Project created as Draft");
+    toast.success(form.id ? "Project updated" : "Draft created — pending SL Lead validation");
     setOpen(false);
     qc.invalidateQueries({ queryKey: ["projects"] });
   };
 
   const updateStatus = async (p: any, status: ProjectStatus) => {
     if (status === "Verified" && !canVerify) return toast.error("Only SL / Delivery Lead can verify");
-    if (status === "Active") {
-      if (!canActivate) return toast.error("Only Governance Lead can activate");
-      if (!p.contract_signed) return toast.error("Signed contract required before activation");
-    }
+    if (status === "Active" && !canActivate) return toast.error("Only Governance Lead can activate");
     const { error } = await supabase.from("projects").update({ status }).eq("id", p.id);
     if (error) return toast.error(error.message);
     toast.success(`Status → ${status.replace("_", " ")}`);
     qc.invalidateQueries({ queryKey: ["projects"] });
   };
 
-  const remove = async (id: string) => {
+  const remove = async (p: any) => {
     if (!canDelete) return toast.error("Only Governance Lead can delete projects");
-    if (!confirm("Delete this project? Allocations will be removed.")) return;
-    const { error } = await supabase.from("projects").delete().eq("id", id);
+    if ((allocations.data ?? []).some((a) => a.project_id === p.id)) {
+      return toast.error("This project has allocations. Remove all allocations before deleting it.");
+    }
+    if (!confirm(`Delete project ${p.project_code}?`)) return;
+    const { error } = await supabase.from("projects").delete().eq("id", p.id);
     if (error) return toast.error(error.message);
     toast.success("Project deleted");
     qc.invalidateQueries({ queryKey: ["projects"] });
@@ -185,32 +180,32 @@ function ProjectsPage() {
     return matchesQ && matchesStatus;
   });
 
+  const draftsPending = (projects.data ?? []).filter((p) => p.status === "Draft");
+
   return (
     <AppShell
       title="Project Registry"
       actions={
         canCreate ? (
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={startNew}>
-                <Plus className="size-4 mr-1.5" /> New Project
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-2xl">
+          <Button onClick={startNew}>
+            <Plus className="size-4 mr-1.5" /> New Project
+          </Button>
+        ) : undefined
+      }
+    >
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-2xl">
               <DialogHeader>
                 <DialogTitle>{form.id ? "Edit Project" : "New Draft Project"}</DialogTitle>
               </DialogHeader>
               <div className="grid grid-cols-2 gap-4 py-2">
                 <div className="space-y-1.5">
-                  <Label>Project Code *</Label>
-                  <Input
-                    value={form.project_code}
-                    onChange={(e) => setForm({ ...form, project_code: e.target.value })}
-                    placeholder="CLM-2026-001"
-                    className="font-mono uppercase"
-                  />
+                  <Label>Project Code</Label>
+                  <div className="h-9 flex items-center rounded-md border bg-muted/40 px-3 font-mono text-sm">
+                    {form.project_code || <span className="text-muted-foreground font-sans text-xs">Auto-generated from service line</span>}
+                  </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Format: <span className="font-mono">[SL|INT|NB]-YYYY-NNN</span> · SL ∈ CLM, MS, DLAAS, CCAAS, LEGACY · use <span className="font-mono">INT-</span> for internal, <span className="font-mono">NB-</span> for non-billable
+                    {form.id ? "Locked — the code is the primary key and can't change." : "Generated as [SL]-YYYY-NNN when you pick a service line."}
                   </p>
                 </div>
                 <div className="space-y-1.5">
@@ -218,7 +213,7 @@ function ProjectsPage() {
                   <Input
                     value={form.hubspot_deal_id}
                     onChange={(e) => setForm({ ...form, hubspot_deal_id: e.target.value })}
-                    placeholder="Manual entry"
+                    placeholder="Optional reference"
                   />
                 </div>
                 <div className="col-span-2 space-y-1.5">
@@ -231,120 +226,71 @@ function ProjectsPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Customer *</Label>
-                  <Select
-                    value={form.customer_id}
-                    onValueChange={(v) => setForm({ ...form, customer_id: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
+                  <Select value={form.customer_id} onValueChange={(v) => setForm({ ...form, customer_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
                       {(customers.data ?? []).map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.customer_name}
-                        </SelectItem>
+                        <SelectItem key={c.id} value={c.id}>{c.customer_name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Service Line *</Label>
-                  <Select
-                    value={form.service_line}
-                    onValueChange={(v) => setForm({ ...form, service_line: v as ServiceLine })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
+                  <Select value={form.service_line} onValueChange={onServiceLineChange}>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
-                      {SERVICE_LINES.map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {s}
-                        </SelectItem>
-                      ))}
+                      {SERVICE_LINES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Project Type</Label>
-                  <Select
-                    value={form.project_type}
-                    onValueChange={(v) => setForm({ ...form, project_type: v })}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                    <SelectContent>
-                      {PROJECT_TYPES.map((t) => (
-                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Delivery Center</Label>
-                  <Input
-                    value={form.delivery_center}
-                    onChange={(e) => setForm({ ...form, delivery_center: e.target.value })}
-                    placeholder="e.g. Nairobi"
-                  />
-                </div>
-                <div className="space-y-1.5 flex items-end">
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox
-                      checked={form.contract_signed}
-                      onCheckedChange={(v) => setForm({ ...form, contract_signed: !!v })}
-                      disabled={!canConfirmContract}
-                    />
-                    Signed contract on file (required to activate)
-                  </label>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Start Date *</Label>
-                  <Input
-                    type="date"
-                    value={form.start_date}
-                    onChange={(e) => setForm({ ...form, start_date: e.target.value })}
-                  />
+                  <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
                 </div>
                 <div className="space-y-1.5">
                   <Label>End Date *</Label>
-                  <Input
-                    type="date"
-                    value={form.end_date}
-                    onChange={(e) => setForm({ ...form, end_date: e.target.value })}
-                  />
+                  <Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} />
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="ghost" onClick={() => setOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={save} disabled={saving}>
-                  {saving ? "Saving…" : "Save"}
-                </Button>
+                <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+                <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
               </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        ) : null
-      }
-    >
+        </DialogContent>
+      </Dialog>
+
+      {/* Draft handoff queue — Step 1 → Step 2 bridge for validators */}
+      {canVerify && draftsPending.length > 0 && (
+        <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <ClipboardCheck className="size-4 text-primary" />
+            {draftsPending.length} draft project{draftsPending.length === 1 ? "" : "s"} pending your validation
+          </div>
+          <div className="mt-3 space-y-1.5">
+            {draftsPending.map((p) => (
+              <div key={p.id} className="flex items-center justify-between gap-3 text-sm">
+                <div className="min-w-0">
+                  <span className="font-mono text-xs text-muted-foreground mr-2">{p.project_code}</span>
+                  {p.project_description}
+                  <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase tracking-wide">{p.service_line}</span>
+                </div>
+                <Button size="sm" onClick={() => updateStatus(p, "Verified")}>
+                  Verify <ArrowRight className="size-3.5 ml-1" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-3 mb-4">
-        <Input
-          placeholder="Search code or description…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="max-w-xs"
-        />
+        <Input placeholder="Search code or description…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
+          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
-            {PROJECT_STATUSES.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s.replace("_", " ")}
-              </SelectItem>
-            ))}
+            {PROJECT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>)}
           </SelectContent>
         </Select>
         <div className="text-sm text-muted-foreground">{filtered.length} total</div>
@@ -360,6 +306,7 @@ function ProjectsPage() {
                 <th className="text-left px-3 py-2.5 font-medium">Customer</th>
                 <th className="text-left px-3 py-2.5 font-medium">SL</th>
                 <th className="text-left px-3 py-2.5 font-medium">Dates</th>
+                <th className="text-right px-3 py-2.5 font-medium">Resources</th>
                 <th className="text-left px-3 py-2.5 font-medium">Status</th>
                 <th className="px-5 py-2.5"></th>
               </tr>
@@ -367,22 +314,22 @@ function ProjectsPage() {
             <tbody>
               {filtered.map((p: any) => {
                 const canEdit = canEditProject(p);
+                const resCount = resCountByProject[p.id]?.size ?? 0;
                 return (
                   <tr key={p.id} className="border-t hover:bg-muted/30">
-                    <td className="px-5 py-3 font-mono text-xs">{p.project_code}</td>
+                    <td className="px-5 py-3 font-mono text-xs">
+                      <Link to="/projects/$projectId" params={{ projectId: p.id }} className="text-primary hover:underline">{p.project_code}</Link>
+                    </td>
                     <td className="px-3 py-3">{p.project_description}</td>
                     <td className="px-3 py-3">{p.customers?.customer_name ?? "—"}</td>
                     <td className="px-3 py-3">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase tracking-wide">
-                        {p.service_line}
-                      </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase tracking-wide">{p.service_line}</span>
                     </td>
-                    <td className="px-3 py-3 text-xs text-muted-foreground tabular-nums">
-                      {p.start_date} → {p.end_date}
+                    <td className="px-3 py-3 text-xs text-muted-foreground tabular-nums">{p.start_date} → {p.end_date}</td>
+                    <td className="px-3 py-3 text-right tabular-nums">
+                      <Link to="/projects/$projectId" params={{ projectId: p.id }} className="text-primary hover:underline">{resCount}</Link>
                     </td>
-                    <td className="px-3 py-3">
-                      <ProjectStatusBadge status={p.status} />
-                    </td>
+                    <td className="px-3 py-3"><ProjectStatusBadge status={p.status} /></td>
                     <td className="px-5 py-3 text-right whitespace-nowrap">
                       {p.status === "Draft" && canVerify && (
                         <Button size="sm" variant="secondary" className="mr-1" onClick={() => updateStatus(p, "Verified")}>
@@ -390,21 +337,9 @@ function ProjectsPage() {
                         </Button>
                       )}
                       {p.status === "Verified" && canActivate && (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          className="mr-1"
-                          disabled={!p.contract_signed}
-                          title={p.contract_signed ? "Lock & activate" : "Signed contract required"}
-                          onClick={() => updateStatus(p, "Active")}
-                        >
+                        <Button size="sm" variant="secondary" className="mr-1" title="Lock & activate" onClick={() => updateStatus(p, "Active")}>
                           <Lock className="size-3.5 mr-1" /> Lock to Active
                         </Button>
-                      )}
-                      {p.status === "Verified" && !p.contract_signed && (
-                        <span className="text-xs text-warning-foreground bg-warning/30 px-2 py-1 rounded mr-2">
-                          Awaiting signed contract
-                        </span>
                       )}
                       {(p.status === "Draft" || p.status === "Verified") && (role?.isDl || role?.isGovernanceLead || role?.isDeveloper) && (
                         <Button size="sm" variant="ghost" className="mr-1" onClick={() => updateStatus(p, "Rejected")}>
@@ -422,7 +357,7 @@ function ProjectsPage() {
                         </Button>
                       )}
                       {canDelete && p.status !== "Closed" && (
-                        <Button variant="ghost" size="icon" onClick={() => remove(p.id)}>
+                        <Button variant="ghost" size="icon" onClick={() => remove(p)}>
                           <Trash2 className="size-4 text-destructive" />
                         </Button>
                       )}
@@ -432,16 +367,13 @@ function ProjectsPage() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-5 py-10 text-center text-muted-foreground">
-                    No projects match.
-                  </td>
+                  <td colSpan={8} className="px-5 py-10 text-center text-muted-foreground">No projects match.</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
-
     </AppShell>
   );
 }
