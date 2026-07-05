@@ -24,6 +24,7 @@ import { Route as AuthenticatedBenchRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
 import { Route as AuthenticatedAllocationsRouteImport } from './routes/_authenticated/allocations'
 import { Route as AuthenticatedCustomersCustomerIdRouteImport } from './routes/_authenticated/customers.$customerId'
+import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
 
 const AuthRoute = AuthRouteImport.update({
@@ -103,6 +104,12 @@ const AuthenticatedCustomersCustomerIdRoute =
     path: '/$customerId',
     getParentRoute: () => AuthenticatedCustomersRoute,
   } as any)
+const AuthenticatedProjectsProjectIdRoute =
+  AuthenticatedProjectsProjectIdRouteImport.update({
+    id: '/$projectId',
+    path: '/$projectId',
+    getParentRoute: () => AuthenticatedProjectsRoute,
+  } as any)
 const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
@@ -120,11 +127,12 @@ export interface FileRoutesByFullPath {
   '/kpis': typeof AuthenticatedKpisRoute
   '/my-profile': typeof AuthenticatedMyProfileRoute
   '/project-allocations': typeof AuthenticatedProjectAllocationsRoute
-  '/projects': typeof AuthenticatedProjectsRoute
+  '/projects': typeof AuthenticatedProjectsRouteWithChildren
   '/resources': typeof AuthenticatedResourcesRoute
   '/snapshots': typeof AuthenticatedSnapshotsRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/customers/$customerId': typeof AuthenticatedCustomersCustomerIdRoute
+  '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -136,12 +144,13 @@ export interface FileRoutesByTo {
   '/kpis': typeof AuthenticatedKpisRoute
   '/my-profile': typeof AuthenticatedMyProfileRoute
   '/project-allocations': typeof AuthenticatedProjectAllocationsRoute
-  '/projects': typeof AuthenticatedProjectsRoute
+  '/projects': typeof AuthenticatedProjectsRouteWithChildren
   '/resources': typeof AuthenticatedResourcesRoute
   '/snapshots': typeof AuthenticatedSnapshotsRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/users': typeof AuthenticatedAdminUsersRoute
   '/customers/$customerId': typeof AuthenticatedCustomersCustomerIdRoute
+  '/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -155,12 +164,13 @@ export interface FileRoutesById {
   '/_authenticated/kpis': typeof AuthenticatedKpisRoute
   '/_authenticated/my-profile': typeof AuthenticatedMyProfileRoute
   '/_authenticated/project-allocations': typeof AuthenticatedProjectAllocationsRoute
-  '/_authenticated/projects': typeof AuthenticatedProjectsRoute
+  '/_authenticated/projects': typeof AuthenticatedProjectsRouteWithChildren
   '/_authenticated/resources': typeof AuthenticatedResourcesRoute
   '/_authenticated/snapshots': typeof AuthenticatedSnapshotsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/users': typeof AuthenticatedAdminUsersRoute
   '/_authenticated/customers/$customerId': typeof AuthenticatedCustomersCustomerIdRoute
+  '/_authenticated/projects/$projectId': typeof AuthenticatedProjectsProjectIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
     | '/snapshots'
     | '/admin/users'
     | '/customers/$customerId'
+    | '/projects/$projectId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin/users'
     | '/customers/$customerId'
+    | '/projects/$projectId'
   id:
     | '__root__'
     | '/_authenticated'
@@ -215,6 +227,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/_authenticated/admin/users'
     | '/_authenticated/customers/$customerId'
+    | '/_authenticated/projects/$projectId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -329,6 +342,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCustomersCustomerIdRouteImport
       parentRoute: typeof AuthenticatedCustomersRoute
     }
+    '/_authenticated/projects/$projectId': {
+      id: '/_authenticated/projects/$projectId'
+      path: '/$projectId'
+      fullPath: '/projects/$projectId'
+      preLoaderRoute: typeof AuthenticatedProjectsProjectIdRouteImport
+      parentRoute: typeof AuthenticatedProjectsRoute
+    }
     '/_authenticated/admin/users': {
       id: '/_authenticated/admin/users'
       path: '/admin/users'
@@ -354,6 +374,17 @@ const AuthenticatedCustomersRouteWithChildren =
     AuthenticatedCustomersRouteChildren,
   )
 
+interface AuthenticatedProjectsRouteChildren {
+  AuthenticatedProjectsProjectIdRoute: typeof AuthenticatedProjectsProjectIdRoute
+}
+
+const AuthenticatedProjectsRouteChildren: AuthenticatedProjectsRouteChildren = {
+  AuthenticatedProjectsProjectIdRoute: AuthenticatedProjectsProjectIdRoute,
+}
+
+const AuthenticatedProjectsRouteWithChildren =
+  AuthenticatedProjectsRoute._addFileChildren(AuthenticatedProjectsRouteChildren)
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAllocationsRoute: typeof AuthenticatedAllocationsRoute
   AuthenticatedAuditRoute: typeof AuthenticatedAuditRoute
@@ -363,7 +394,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedKpisRoute: typeof AuthenticatedKpisRoute
   AuthenticatedMyProfileRoute: typeof AuthenticatedMyProfileRoute
   AuthenticatedProjectAllocationsRoute: typeof AuthenticatedProjectAllocationsRoute
-  AuthenticatedProjectsRoute: typeof AuthenticatedProjectsRoute
+  AuthenticatedProjectsRoute: typeof AuthenticatedProjectsRouteWithChildren
   AuthenticatedResourcesRoute: typeof AuthenticatedResourcesRoute
   AuthenticatedSnapshotsRoute: typeof AuthenticatedSnapshotsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
@@ -379,7 +410,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedKpisRoute: AuthenticatedKpisRoute,
   AuthenticatedMyProfileRoute: AuthenticatedMyProfileRoute,
   AuthenticatedProjectAllocationsRoute: AuthenticatedProjectAllocationsRoute,
-  AuthenticatedProjectsRoute: AuthenticatedProjectsRoute,
+  AuthenticatedProjectsRoute: AuthenticatedProjectsRouteWithChildren,
   AuthenticatedResourcesRoute: AuthenticatedResourcesRoute,
   AuthenticatedSnapshotsRoute: AuthenticatedSnapshotsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,

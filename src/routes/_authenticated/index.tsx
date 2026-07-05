@@ -14,6 +14,8 @@ import { computeBench } from "@/lib/bench";
 import { isExtendedLeave, isCurrentLeave } from "@/lib/leave";
 import { SERVICE_LINES } from "@/lib/constants";
 import { useCurrentRole } from "@/lib/useCurrentRole";
+import { SlLeadDashboard } from "@/components/SlLeadDashboard";
+import { SL_COLORS, todayStr, horizonStr, computeUtilTrend, type UtilView } from "@/lib/dashboard";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "@tanstack/react-router";
@@ -50,30 +52,22 @@ export const Route = createFileRoute("/_authenticated/")({
   component: Dashboard,
 });
 
-const SL_COLORS: Record<string, string> = {
-  DLaaS: "var(--color-chart-1)",
-  CLM: "var(--color-chart-2)",
-  MS: "var(--color-chart-3)",
-  CCaaS: "var(--color-chart-4)",
-  Legacy: "var(--color-chart-5)",
-};
-
-const todayStr = () => new Date().toISOString().slice(0, 10);
-const horizonStr = (days: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-};
-function weekKey(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00Z");
-  const day = (d.getUTCDay() + 6) % 7; // Monday = 0
-  d.setUTCDate(d.getUTCDate() - day);
-  return d.toISOString().slice(0, 10);
+// Role-adaptive dashboard: SL / Delivery Leads get their service-line view;
+// Governance / Finance / Developer get the company-wide operational view.
+function Dashboard() {
+  const { data: role, isLoading } = useCurrentRole();
+  if (isLoading) {
+    return (
+      <AppShell title="Dashboard">
+        <div className="h-64 grid place-items-center text-sm text-muted-foreground">Loading…</div>
+      </AppShell>
+    );
+  }
+  const slVariant = !!role && (role.isSlLead || role.isDl) && !role.isGovernanceLead && !role.isFinance;
+  return slVariant ? <SlLeadDashboard /> : <GovernanceDashboard />;
 }
 
-type UtilView = "today" | "trend" | "both";
-
-function Dashboard() {
+function GovernanceDashboard() {
   const projects = useProjects();
   const resources = useResources();
   const allocations = useAllocations();
@@ -181,45 +175,8 @@ function Dashboard() {
   // ---- 13-week utilization trend from daily snapshots ----
   const headcountBySl: Record<string, number> = {};
   for (const r of activeResources) headcountBySl[r.service_line] = (headcountBySl[r.service_line] ?? 0) + 1;
-
-  const byDate: Record<string, Record<string, Record<string, number>>> = {};
-  for (const s of snapTrend.data ?? []) {
-    if (s.allocation_type === "Leave") continue;
-    const sl = s.service_line as string;
-    if (!matchesSl(sl)) continue;
-    (byDate[s.snapshot_date] ??= {});
-    (byDate[s.snapshot_date][sl] ??= {});
-    byDate[s.snapshot_date][sl][s.resource_id as string] =
-      (byDate[s.snapshot_date][sl][s.resource_id as string] ?? 0) + (s.allocation_pct ?? 0);
-  }
-  const weekBucket: Record<string, Record<string, number[]>> = {};
-  for (const [date, slMap] of Object.entries(byDate)) {
-    const wk = weekKey(date);
-    (weekBucket[wk] ??= {});
-    for (const [sl, resMap] of Object.entries(slMap)) {
-      const hc = headcountBySl[sl] ?? 0;
-      if (hc === 0) continue;
-      const allocated = Object.values(resMap).reduce((s, v) => s + Math.min(100, v), 0);
-      const util = Math.round((allocated / (hc * 100)) * 100);
-      (weekBucket[wk][sl] ??= []).push(util);
-    }
-  }
-  const trendWeeks = Object.keys(weekBucket).sort().slice(-13);
-  const trendSeries = trendWeeks.map((wk) => {
-    const row: Record<string, number | string> = { week: wk.slice(5) };
-    for (const sl of shownSls) {
-      const arr = weekBucket[wk]?.[sl];
-      if (arr?.length) row[sl] = Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
-    }
-    return row;
-  });
-  const avgBySl: Record<string, number> = {};
-  for (const sl of shownSls) {
-    const vals = trendWeeks.flatMap((wk) => weekBucket[wk]?.[sl] ?? []);
-    if (vals.length) avgBySl[sl] = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
-  }
+  const { trendSeries, avgBySl, hasTrend } = computeUtilTrend(snapTrend.data ?? [], headcountBySl, shownSls);
   const slDataWithAvg = slData.map((d) => ({ ...d, avg13: avgBySl[d.sl] ?? null }));
-  const hasTrend = trendSeries.length > 0;
 
   // ---- Cliff exposure per SL ----
   const cliffBySl = shownSls.map((sl) => {
