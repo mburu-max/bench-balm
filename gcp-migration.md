@@ -263,3 +263,36 @@ PostgREST replicates the data API you already use. The only genuinely new code i
 service (token exchange + admin create-user, ~150 lines). The rest is data migration + config +
 swapping the auth SDK. Realistic effort for the MVP cutover: **~1–2 weeks**. Everything organization-
 specific (Google Workspace SSO, domain lock, GCP-native ops) lands cleanly.
+
+---
+
+## Appendix A — Clean rebuild / de-Lovable checklist
+
+The real system will live in your work account/GitHub. **Scaffold a fresh TanStack Start project and
+port `src/` into it — don't clone this repo.** That gives a clean git history (no Lovable commits, no
+`Co-Authored-By` trailers), no `@lovable.dev` deps from the start, and a codebase that reads as a
+plain TanStack + Firebase + PostgREST app. Renaming files *in this repo* wouldn't achieve that — the
+old commits would still show it.
+
+Most Lovable pieces are removed by the migration itself (auth wrapper → Firebase, vite config →
+standard, error reporting → your own). Full inventory to strip:
+
+| Touchpoint | What it is | Action |
+|---|---|---|
+| `.lovable/` (project.json, plan.md) | Lovable project metadata | **Delete** — not created in a fresh scaffold |
+| `src/integrations/lovable/` | Google OAuth wrapper (`@lovable.dev/cloud-auth-js`) | **Replaced** by Firebase Auth (Phase 5.2) |
+| `src/lib/lovable-error-reporting.ts` | Lovable error telemetry | **Delete/replace** (own logger or Cloud Error Reporting) |
+| dep `@lovable.dev/vite-tanstack-config` + `vite.config.ts` | Vite config wrapper | **Replace** with the standard `@tanstack/react-start` Vite plugin config |
+| dep `@lovable.dev/cloud-auth-js` | Auth dep | **Remove** |
+| `src/routes/auth.tsx` | Uses the Lovable OAuth wrapper | **Rewrite** to Firebase `signInWithPopup({ hd })` |
+| `src/routes/__root.tsx` | Wires Lovable error reporting | Remove those lines |
+| `src/integrations/supabase/{client,client.server,auth-middleware}.ts` | Comments + Lovable env handling | **Rewritten** anyway when repointed at PostgREST + Firebase |
+
+Rebuild steps:
+1. `npm create @tanstack/start@latest` (or the current scaffold) in the new work repo.
+2. Copy `src/routes`, `src/lib`, `src/components`, `src/integrations/supabase` (→ rename to a neutral
+   name like `src/lib/db`), and `supabase/migrations` (→ `db/migrations`).
+3. Delete the three Lovable files/dirs above; drop both `@lovable.dev/*` deps.
+4. Replace `vite.config.ts`, `auth.tsx`, `__root.tsx`, and the data client per Phase 5.
+5. Grep to confirm zero hits: `grep -ri lovable src/ vite.config.ts package.json` → empty.
+6. First commit in the fresh repo — clean slate.
