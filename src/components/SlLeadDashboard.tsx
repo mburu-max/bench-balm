@@ -122,6 +122,20 @@ export function SlLeadDashboard() {
   }
   const billTotal = billablePctSum + nonBillablePctSum;
   const billablePct = billTotal ? Math.round((billablePctSum / billTotal) * 100) : 0;
+  // Billable share split by employment cohort — are contractors kept on revenue work?
+  const empOf = new Map(activeResources.map((r) => [r.id, r.employment_type]));
+  let fteBill = 0, fteTot = 0, conBill = 0, conTot = 0;
+  for (const a of currentAllocs) {
+    const pct = a.allocation_pct ?? 0;
+    if (empOf.get(a.resource_id) === "FTE") { fteTot += pct; if (a.allocation_type === "Billable") fteBill += pct; }
+    else { conTot += pct; if (a.allocation_type === "Billable") conBill += pct; }
+  }
+  const fteBillShare = fteTot ? Math.round((fteBill / fteTot) * 100) : null;
+  const conBillShare = conTot ? Math.round((conBill / conTot) * 100) : null;
+  const cohortBillLine = [
+    fteBillShare != null ? `FTE ${fteBillShare}%` : null,
+    conBillShare != null ? `Contractor ${conBillShare}%` : null,
+  ].filter(Boolean).join(" · ");
 
   // Pending validations: draft projects awaiting the SL Lead's Step-2 verification.
   const pendingDrafts = allProjects.filter((p) => p.status === "Draft");
@@ -375,6 +389,7 @@ export function SlLeadDashboard() {
                 <div className="bg-warning h-full" style={{ width: `${100 - billablePct}%` }} />
               </div>
               <div className="text-xs text-muted-foreground mt-3">≈{Math.round(billablePctSum / 100)} FTE billable · ≈{Math.round(nonBillablePctSum / 100)} non-billable / bench / internal</div>
+              {cohortBillLine && <div className="text-xs text-muted-foreground mt-1">{cohortBillLine} billable</div>}
             </div>
           )}
         </div>
