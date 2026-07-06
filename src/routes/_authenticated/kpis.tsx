@@ -8,7 +8,7 @@ import { computeBench } from "@/lib/bench";
 import { horizonStr } from "@/lib/dashboard";
 import {
   TrendingUp, AlertTriangle, Coffee, Clock, CheckSquare,
-  RefreshCw, BarChart2, Target, CalendarClock, Scale,
+  RefreshCw, BarChart2, Target, CalendarClock, Scale, Network,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/kpis")({
@@ -84,6 +84,23 @@ function KpisPage() {
     ? Math.round((currentEngaged.reduce((s, a) => s + Math.max(0, (new Date(a.allocation_end_date).getTime() - new Date(_today).getTime()) / 86400000), 0) / currentEngaged.length / 7) * 10) / 10
     : 0;
 
+  // Resources per manager (span of control) — from the manager-of-record on allocations.
+  // The app's PM role/accounts aren't populated yet, so this uses the imported manager field.
+  const spanByManager: Record<string, Set<string>> = {};
+  for (const a of allocations.data ?? []) {
+    if (!a.manager || !activeIds.has(a.resource_id)) continue;
+    (spanByManager[a.manager] ??= new Set()).add(a.resource_id);
+  }
+  const managerSpans = Object.entries(spanByManager)
+    .map(([manager, set]) => ({ manager, count: set.size }))
+    .sort((x, y) => y.count - x.count);
+  const managerCount = managerSpans.length;
+  const avgPerManager = managerCount
+    ? Math.round((managerSpans.reduce((s, m) => s + m.count, 0) / managerCount) * 10) / 10
+    : 0;
+  const busiestManager = managerSpans[0];
+  const maxSpan = busiestManager?.count ?? 0;
+
   const coverage = useQuery({
     queryKey: ["kpi-coverage"],
     queryFn: async () => {
@@ -124,7 +141,7 @@ function KpisPage() {
   return (
     <AppShell title="KPI Dashboard">
       <p className="text-sm text-muted-foreground mb-6">
-        The 8 core KPIs from RA §6.1 (RAG thresholds applied automatically), plus contractor roll-off, portfolio-variance, and allocation-horizon watches.
+        The 8 core KPIs from RA §6.1 (RAG thresholds applied automatically), plus a set of margin, structural, and management watch metrics.
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -225,6 +242,16 @@ function KpisPage() {
           icon={CalendarClock}
           accent={currentEngaged.length === 0 ? "info" : avgHorizonWeeks <= 3 ? "destructive" : avgHorizonWeeks <= 6 ? "warning" : "success"}
           hint="Mean weeks left on current allocations"
+        />
+
+        {/* Span of control (not a §6.1 KPI): resources per manager-of-record. Colour keys off
+            the busiest manager so a healthy average still flags an overloaded one. */}
+        <KpiCard
+          label="Resources / Manager"
+          value={managerCount ? avgPerManager : "—"}
+          icon={Network}
+          accent={managerCount === 0 ? "info" : maxSpan > 12 ? "destructive" : maxSpan >= 9 ? "warning" : "success"}
+          hint={managerCount ? `${managerCount} managers · busiest ${busiestManager.manager} (${maxSpan})` : undefined}
         />
       </div>
     </AppShell>
