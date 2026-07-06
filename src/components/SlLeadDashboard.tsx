@@ -15,7 +15,7 @@ import { SL_COLORS, todayStr, computeUtilTrend, type UtilView } from "@/lib/dash
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
-  Users, Briefcase, Activity, Coffee, AlertTriangle, UserMinus, AlertOctagon, ArrowRight, CheckCircle2, ClipboardCheck, ArrowLeftRight, BatteryMedium,
+  Users, Briefcase, Activity, Coffee, AlertTriangle, UserMinus, AlertOctagon, ArrowRight, CheckCircle2, ClipboardCheck, BatteryMedium,
 } from "lucide-react";
 import {
   Bar, CartesianGrid, Cell, ComposedChart, Legend, Line, LineChart, Pie, PieChart,
@@ -102,7 +102,6 @@ export function SlLeadDashboard() {
   const fullyAllocated = activeResources.filter((r) => loadOf(r.id) === 100).length;
   // On Bench = genuinely idle (0% total load), i.e. who needs work now — not merely under 100%.
   const benchCount = activeResources.filter((r) => loadOf(r.id) === 0).length;
-  const onLoanCount = activeResources.filter((r) => (loadMap.get(r.id)?.other_sl_pct ?? 0) > 0).length;
   // On leave = temporarily unavailable (returning). Exited are departed, not a capacity signal.
   const inactiveCount = allResources.filter((r) => r.status === "On_Leave").length;
   // Partially allocated (1–99% total load) — has spare capacity but isn't idle; shown on none
@@ -358,8 +357,8 @@ export function SlLeadDashboard() {
         </div>
       </div>
 
-      {/* Practice composition — billable mix, margin exposure, cross-SL loans */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
+      {/* Practice composition — billable mix, margin exposure */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
         <div className="rounded-xl border bg-card p-5">
           <h2 className="font-display text-base font-semibold">Billable Mix</h2>
           <p className="text-xs text-muted-foreground mt-0.5">Current allocations driving revenue</p>
@@ -393,18 +392,6 @@ export function SlLeadDashboard() {
               <div className="bg-warning h-full" style={{ width: `${contractorPct}%` }} />
             </div>
             <div className="text-xs text-muted-foreground mt-3">{contractorPct}% external — watch margin if bench sits idle</div>
-          </div>
-        </div>
-
-        <div className="rounded-xl border bg-card p-5">
-          <h2 className="font-display text-base font-semibold">Cross-SL Loans</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Your resources lent to other divisions</p>
-          <div className="mt-6 flex items-center gap-3">
-            <ArrowLeftRight className={`size-8 ${onLoanCount > 0 ? "text-warning-foreground" : "text-muted-foreground"}`} />
-            <div>
-              <div className="font-display text-3xl font-semibold">{onLoanCount}</div>
-              <div className="text-xs text-muted-foreground">counted as unavailable in your utilisation</div>
-            </div>
           </div>
         </div>
       </div>

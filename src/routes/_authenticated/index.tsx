@@ -33,7 +33,6 @@ import {
   CheckCircle2,
   UserX,
   BatteryMedium,
-  ArrowLeftRight,
 } from "lucide-react";
 import {
   Bar,
@@ -185,14 +184,6 @@ function GovernanceDashboard() {
   const billablePct = billTotal ? Math.round((billablePctSum / billTotal) * 100) : 0;
   const contractorHeads = activeResources.filter((r) => r.employment_type !== "FTE").length;
   const contractorPct = activeResources.length ? Math.round((contractorHeads / activeResources.length) * 100) : 0;
-  // Cross-SL loans: resources currently allocated to work in an SL other than their home.
-  const homeSlOf = new Map(activeResources.map((r) => [r.id, r.service_line]));
-  const loanedIds = new Set<string>();
-  for (const a of currentAllocs) {
-    const home = homeSlOf.get(a.resource_id);
-    if (home && a.service_line && a.service_line !== home) loanedIds.add(a.resource_id);
-  }
-  const crossSlLoans = loanedIds.size;
 
   // ---- Per service line stats (today) + coverage rate ----
   const slData = shownSls.map((sl) => {
@@ -527,8 +518,8 @@ function GovernanceDashboard() {
         </div>
       </div>
 
-      {/* Practice composition — billable mix, margin exposure, cross-SL loans */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
+      {/* Practice composition — billable mix, margin exposure */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
         <div className="rounded-xl border bg-card p-5">
           <h2 className="font-display text-base font-semibold">Billable Mix</h2>
           <p className="text-xs text-muted-foreground mt-0.5">Current allocations driving revenue</p>
@@ -562,18 +553,6 @@ function GovernanceDashboard() {
               <div className="bg-warning h-full" style={{ width: `${contractorPct}%` }} />
             </div>
             <div className="text-xs text-muted-foreground mt-3">{contractorPct}% external — watch margin if bench sits idle</div>
-          </div>
-        </div>
-
-        <div className="rounded-xl border bg-card p-5">
-          <h2 className="font-display text-base font-semibold">Cross-SL Loans</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Resources deployed outside their home division</p>
-          <div className="mt-6 flex items-center gap-3">
-            <ArrowLeftRight className={`size-8 ${crossSlLoans > 0 ? "text-warning-foreground" : "text-muted-foreground"}`} />
-            <div>
-              <div className="font-display text-3xl font-semibold">{crossSlLoans}</div>
-              <div className="text-xs text-muted-foreground">currently working across service lines</div>
-            </div>
           </div>
         </div>
       </div>
