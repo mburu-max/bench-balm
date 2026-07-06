@@ -22,12 +22,12 @@ export function UtilBullets({ data, showAvg }: { data: Row[]; showAvg: boolean }
               <span className="text-muted-foreground ml-1.5">target {d.targetMin}–{d.targetMax}%</span>
             </span>
           </div>
-          <div className="relative h-1 rounded-full bg-muted/50 overflow-hidden" title={`${d.utilization}% — target ${d.targetMin}–${d.targetMax}%`}>
+          <div className="relative h-5 rounded bg-muted/50 overflow-hidden" title={`${d.utilization}% — target ${d.targetMin}–${d.targetMax}%`}>
             {/* full target band */}
             <div className="absolute inset-y-0 bg-foreground/10" style={{ left: `${d.targetMin}%`, width: `${Math.max(0, d.targetMax - d.targetMin)}%` }} />
-            {/* actual measure */}
+            {/* actual measure (thinner so the band shows above/below) */}
             <div
-              className={`absolute inset-y-0 left-0 ${d.inTarget ? "bg-success" : "bg-destructive"}`}
+              className={`absolute top-1 bottom-1 left-0 rounded-r-sm ${d.inTarget ? "bg-success" : "bg-destructive"}`}
               style={{ width: `${Math.min(100, Math.max(0, d.utilization))}%` }}
             />
             {/* target floor marker */}
