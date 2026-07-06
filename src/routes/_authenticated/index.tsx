@@ -131,10 +131,9 @@ function GovernanceDashboard() {
   const fullyAllocated = bench.filter((b) => b.benchPct === 0).length;
   const overAllocated = bench.filter((b) => b.benchPct < 0).length;
   const onLeave = fResources.filter((r) => r.status === "On_Leave").length;
-  // Partially allocated (1–99%) show on none of the capacity cards above — surface their
-  // unused time as deployable FTE-equivalents so "Bench = 0" doesn't read as "no slack".
+  // Partially allocated (1–99%) — has spare capacity but isn't idle; shown on none of the
+  // other capacity cards, so surface it directly (bench already means genuinely idle).
   const partiallyAllocated = bench.filter((b) => b.benchPct > 0 && b.benchPct < 100).length;
-  const spareFte = Math.round(bench.reduce((s, b) => s + Math.max(0, b.benchPct), 0) / 10) / 10;
 
   // Blended utilization across all active resources (capped at 100% per person).
   const avgUtil = activeResources.length > 0
@@ -261,7 +260,7 @@ function GovernanceDashboard() {
         <KpiCard label="Total Resources" value={loading ? "—" : activeResources.length} icon={Users} />
         <KpiCard label="Fully Allocated" value={loading ? "—" : fullyAllocated} icon={Activity} accent="success" />
         <KpiCard label="On Bench" value={loading ? "—" : benchCount} icon={Coffee} accent="warning" />
-        <KpiCard label="Spare Capacity" value={loading ? "—" : `${spareFte} FTE`} icon={BatteryMedium} accent="info" hint={loading ? undefined : `${partiallyAllocated} partially allocated${benchCount ? ` · ${benchCount} idle` : ""}`} />
+        <KpiCard label="Partially Allocated" value={loading ? "—" : partiallyAllocated} icon={BatteryMedium} accent="info" hint="1–99% allocated" />
         <KpiCard label="Over-allocated" value={loading ? "—" : overAllocated} icon={AlertTriangle} accent="destructive" hint={onLeave ? `${onLeave} on leave` : undefined} />
       </div>
 
