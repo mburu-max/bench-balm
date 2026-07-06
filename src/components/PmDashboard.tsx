@@ -16,6 +16,7 @@ const pieColors = [
   "var(--color-chart-4)", "var(--color-chart-5)", "var(--color-warning)", "var(--color-destructive)",
 ];
 const STATUS_ORDER: Record<string, number> = { Active: 0, Draft: 1, Verified: 2, On_Hold: 3, Rejected: 4, Closed: 5 };
+const PREVIEW_CAP = 5; // dashboard is a preview — deep-dive lives on the full pages
 
 // A PM only sees allocations on their own projects, so resource-level utilisation/bench would be
 // computed from partial data and mislead. This view is project- and continuity-focused instead.
@@ -69,7 +70,13 @@ export function PmDashboard() {
     .map(([id, v]) => ({ id, ...v }))
     .sort((a, b) => (a.nextEnd ?? "").localeCompare(b.nextEnd ?? ""));
 
-  const projectRows = [...myProjects].sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9));
+  // Surface risk first: unstaffed-active, then active by fewest resources, then by status.
+  const projectRows = [...myProjects].sort((a, b) => {
+    const ca = resByProject[a.id]?.size ?? 0, cb = resByProject[b.id]?.size ?? 0;
+    const ra = a.status === "Active" && ca === 0 ? -1 : (STATUS_ORDER[a.status] ?? 9);
+    const rb = b.status === "Active" && cb === 0 ? -1 : (STATUS_ORDER[b.status] ?? 9);
+    return ra - rb || ca - cb;
+  });
 
   const projectsByStatus = myProjects.reduce<Record<string, number>>((acc, p) => {
     acc[p.status] = (acc[p.status] ?? 0) + 1; return acc;
@@ -108,9 +115,14 @@ export function PmDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
         {/* Unstaffed active projects */}
         <div className="rounded-xl border bg-card overflow-hidden flex flex-col">
-          <div className="p-5 border-b">
-            <h2 className="font-display text-base font-semibold">Needs attention</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Active projects with no resources assigned today</p>
+          <div className="p-5 border-b flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-display text-base font-semibold">Needs attention</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Active projects with no resources assigned today</p>
+            </div>
+            {unstaffedActive.length > PREVIEW_CAP && (
+              <Link to="/projects" className="text-xs text-primary hover:underline shrink-0">View all {unstaffedActive.length} →</Link>
+            )}
           </div>
           {unstaffedActive.length === 0 ? (
             <div className="flex-1 grid place-items-center p-10 text-center">
@@ -120,8 +132,8 @@ export function PmDashboard() {
               </div>
             </div>
           ) : (
-            <div className="divide-y max-h-80 overflow-y-auto">
-              {unstaffedActive.map((p: any) => (
+            <div className="divide-y">
+              {unstaffedActive.slice(0, PREVIEW_CAP).map((p: any) => (
                 <Link key={p.id} to="/projects/$projectId" params={{ projectId: p.id }} className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-muted/40">
                   <div className="min-w-0">
                     <div className="text-sm font-medium truncate">
@@ -138,9 +150,14 @@ export function PmDashboard() {
 
         {/* Upcoming gaps ≤30d */}
         <div className="rounded-xl border bg-card overflow-hidden flex flex-col">
-          <div className="p-5 border-b">
-            <h2 className="font-display text-base font-semibold">Upcoming Gaps</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Allocations ending within 30 days, no follow-on</p>
+          <div className="p-5 border-b flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-display text-base font-semibold">Upcoming Gaps</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Allocations ending within 30 days, no follow-on</p>
+            </div>
+            {gaps.length > PREVIEW_CAP && (
+              <Link to="/cliff-edge" className="text-xs text-primary hover:underline shrink-0">View all {gaps.length} →</Link>
+            )}
           </div>
           {gaps.length === 0 ? (
             <div className="flex-1 grid place-items-center p-10 text-center">
@@ -150,8 +167,8 @@ export function PmDashboard() {
               </div>
             </div>
           ) : (
-            <div className="divide-y max-h-80 overflow-y-auto">
-              {gaps.map((g) => (
+            <div className="divide-y">
+              {gaps.slice(0, PREVIEW_CAP).map((g) => (
                 <div key={g.resource_id} className="px-5 py-3 flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="text-sm font-medium truncate">{g.full_name}</div>
@@ -171,9 +188,14 @@ export function PmDashboard() {
 
       {/* My Projects table */}
       <div className="mt-6 rounded-xl border bg-card overflow-hidden">
-        <div className="p-5 border-b">
-          <h2 className="font-display text-base font-semibold">Projects</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Your portfolio — active first, then pending (Draft/Verified), then the rest</p>
+        <div className="p-5 border-b flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-display text-base font-semibold">Projects</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Top {PREVIEW_CAP} needing attention — unstaffed & active first</p>
+          </div>
+          {myProjects.length > PREVIEW_CAP && (
+            <Link to="/projects" className="text-xs text-primary hover:underline shrink-0">View all {myProjects.length} →</Link>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -188,7 +210,7 @@ export function PmDashboard() {
               </tr>
             </thead>
             <tbody>
-              {projectRows.map((p: any) => {
+              {projectRows.slice(0, PREVIEW_CAP).map((p: any) => {
                 const count = resByProject[p.id]?.size ?? 0;
                 const unstaffed = p.status === "Active" && count === 0;
                 return (
@@ -215,9 +237,14 @@ export function PmDashboard() {
       {/* My Team + Projects by status */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
         <div className="lg:col-span-2 rounded-xl border bg-card overflow-hidden">
-          <div className="p-5 border-b">
-            <h2 className="font-display text-base font-semibold">My Team</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Everyone on your projects today, soonest roll-off first</p>
+          <div className="p-5 border-b flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-display text-base font-semibold">My Team</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Top {PREVIEW_CAP} by soonest roll-off</p>
+            </div>
+            {team.length > PREVIEW_CAP && (
+              <Link to="/project-allocations" className="text-xs text-primary hover:underline shrink-0">View all {team.length} →</Link>
+            )}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -230,7 +257,7 @@ export function PmDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {team.map((t) => (
+                {team.slice(0, PREVIEW_CAP).map((t) => (
                   <tr key={t.id} className="border-t hover:bg-muted/30">
                     <td className="px-5 py-3">
                       <div className="font-medium">{t.name}</div>
