@@ -5,9 +5,10 @@ import { KpiCard } from "@/components/KpiCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useResources, useAllocations } from "@/lib/queries";
 import { computeBench } from "@/lib/bench";
+import { horizonStr } from "@/lib/dashboard";
 import {
   TrendingUp, AlertTriangle, Coffee, Clock, CheckSquare,
-  RefreshCw, BarChart2, Target,
+  RefreshCw, BarChart2, Target, CalendarClock,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/kpis")({
@@ -41,6 +42,19 @@ function KpisPage() {
     : 0;
   const benchRate = active.length > 0 ? Math.round((benchCount / active.length) * 100) : 0;
   const overAllocRate = active.length > 0 ? Math.round((overAllocatedCount / active.length) * 100) : 0;
+
+  // Contractor / vendor allocations rolling off soon — margin-exposure early warning.
+  const _today = new Date().toISOString().slice(0, 10);
+  const in30 = horizonStr(30);
+  const in60 = horizonStr(60);
+  const externalIds = new Set(active.filter((r) => r.employment_type !== "FTE").map((r) => r.id));
+  const externalExpiring = (allocations.data ?? []).filter(
+    (a) => externalIds.has(a.resource_id)
+      && (a.allocation_type === "Billable" || a.allocation_type === "Non-Billable")
+      && a.allocation_end_date >= _today && a.allocation_end_date <= in60,
+  );
+  const rollOff60 = new Set(externalExpiring.map((a) => a.resource_id)).size;
+  const rollOff30 = new Set(externalExpiring.filter((a) => a.allocation_end_date <= in30).map((a) => a.resource_id)).size;
 
   const coverage = useQuery({
     queryKey: ["kpi-coverage"],
@@ -82,7 +96,7 @@ function KpisPage() {
   return (
     <AppShell title="KPI Dashboard">
       <p className="text-sm text-muted-foreground mb-6">
-        All 8 core KPIs from RA Standard Requirements §6.1 — RAG thresholds applied automatically.
+        The 8 core KPIs from RA §6.1 (RAG thresholds applied automatically), plus a contractor roll-off watch for margin planning.
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -156,6 +170,15 @@ function KpisPage() {
           icon={Target}
           accent="info"
           hint="Populate headcount targets in headcount_forecast table to enable"
+        />
+
+        {/* Margin watch (not a §6.1 KPI): external allocations rolling off soon */}
+        <KpiCard
+          label="Contractor Roll-offs"
+          value={rollOff60}
+          icon={CalendarClock}
+          accent={rollOff30 > 0 ? "warning" : rollOff60 > 0 ? "info" : "success"}
+          hint={`External (Contractor/Vendor) rolling off ≤60d · ${rollOff30} within 30d`}
         />
       </div>
     </AppShell>
