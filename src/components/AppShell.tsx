@@ -224,13 +224,13 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
                         key={n.to}
                         to={n.to}
                         className={cn(
-                          "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors",
+                          "flex items-center gap-3 rounded-md px-3 py-2 text-[15px] transition-colors",
                           active
                             ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                             : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
                         )}
                       >
-                        <Icon className="size-4" />
+                        <Icon className="size-[17px]" />
                         {n.label}
                       </Link>
                     );
