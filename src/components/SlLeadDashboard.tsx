@@ -102,7 +102,8 @@ export function SlLeadDashboard() {
   // On Bench = genuinely idle (0% total load), i.e. who needs work now — not merely under 100%.
   const benchCount = activeResources.filter((r) => loadOf(r.id) === 0).length;
   const onLoanCount = activeResources.filter((r) => (loadMap.get(r.id)?.other_sl_pct ?? 0) > 0).length;
-  const inactiveCount = allResources.filter((r) => r.status !== "Active").length;
+  // On leave = temporarily unavailable (returning). Exited are departed, not a capacity signal.
+  const inactiveCount = allResources.filter((r) => r.status === "On_Leave").length;
 
   // Practice composition
   const contractorHeads = activeResources.filter((r) => r.employment_type !== "FTE").length;
@@ -110,10 +111,14 @@ export function SlLeadDashboard() {
   const currentAllocs = allAllocations.filter(
     (a) => a.allocation_type !== "Leave" && a.allocation_start_date <= today && a.allocation_end_date >= today,
   );
-  let billable = 0, nonBillable = 0;
-  for (const a of currentAllocs) (a.allocation_type === "Billable" ? billable++ : nonBillable++);
-  const billTotal = billable + nonBillable;
-  const billablePct = billTotal ? Math.round((billable / billTotal) * 100) : 0;
+  // Capacity-weighted by allocation % (not a raw row count) — the real revenue mix.
+  let billablePctSum = 0, nonBillablePctSum = 0;
+  for (const a of currentAllocs) {
+    const pct = a.allocation_pct ?? 0;
+    if (a.allocation_type === "Billable") billablePctSum += pct; else nonBillablePctSum += pct;
+  }
+  const billTotal = billablePctSum + nonBillablePctSum;
+  const billablePct = billTotal ? Math.round((billablePctSum / billTotal) * 100) : 0;
 
   // Pending validations: draft projects awaiting the SL Lead's Step-2 verification.
   const pendingDrafts = allProjects.filter((p) => p.status === "Draft");
@@ -179,7 +184,7 @@ export function SlLeadDashboard() {
         <KpiCard label="Active Projects" value={loading ? "—" : activeProjects.length} icon={Briefcase} accent="info" />
         <KpiCard label="Fully Allocated" value={loading ? "—" : fullyAllocated} icon={Activity} accent="success" />
         <KpiCard label="On Bench" value={loading ? "—" : benchCount} icon={Coffee} accent="warning" />
-        <KpiCard label="On Leave / Inactive" value={loading ? "—" : inactiveCount} icon={UserMinus} />
+        <KpiCard label="On Leave" value={loading ? "—" : inactiveCount} icon={UserMinus} />
         <KpiCard label="Over-allocated" value={loading ? "—" : overAllocated} icon={AlertTriangle} accent="destructive" />
       </div>
 
@@ -374,7 +379,7 @@ export function SlLeadDashboard() {
                 <div className="bg-success h-full" style={{ width: `${billablePct}%` }} />
                 <div className="bg-warning h-full" style={{ width: `${100 - billablePct}%` }} />
               </div>
-              <div className="text-xs text-muted-foreground mt-3">{billable} billable · {nonBillable} non-billable / bench / internal</div>
+              <div className="text-xs text-muted-foreground mt-3">{(billablePctSum / 100).toFixed(1)} FTE billable · {(nonBillablePctSum / 100).toFixed(1)} non-billable / bench / internal</div>
             </div>
           )}
         </div>
