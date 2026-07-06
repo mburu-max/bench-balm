@@ -190,6 +190,7 @@ Each guarantee → the object that enforces it. A regression = any of these not 
 | Audit trail | triggers `trg_audit_*` → `audit_row_change()` |
 | Project code generation | function `next_project_code()` |
 | PM staffing pool | function `allocatable_resources()` |
+| Cross-SL-accurate load (bench/utilisation) | function `resource_current_load()` — totals across the whole ledger so loaned-out resources count as unavailable |
 | Role/SL resolution | `is_developer/is_governance_lead/is_finance/is_dl/is_sl_lead/is_pm/is_resource_role/has_sl_access` |
 | Provisioning | edge function `admin-create-user` (developer-gated) |
 | Force password change | `ForcePasswordGate` + `user_metadata.must_change_password` |

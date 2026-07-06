@@ -1,19 +1,20 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { KpiCard } from "@/components/KpiCard";
+import { Button } from "@/components/ui/button";
 import { useAllocations, useProjects, useResources } from "@/lib/queries";
-import { computeBench } from "@/lib/bench";
 import { SERVICE_LINES } from "@/lib/constants";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { SL_COLORS, computeUtilTrend, type UtilView } from "@/lib/dashboard";
+import { SL_COLORS, todayStr, computeUtilTrend, type UtilView } from "@/lib/dashboard";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
-  Users, Briefcase, Activity, Coffee, AlertTriangle, UserMinus, AlertOctagon, ArrowRight, CheckCircle2,
+  Users, Briefcase, Activity, Coffee, AlertTriangle, UserMinus, AlertOctagon, ArrowRight, CheckCircle2, ClipboardCheck, ArrowLeftRight,
 } from "lucide-react";
 import {
   Bar, CartesianGrid, Cell, ComposedChart, Legend, Line, LineChart, Pie, PieChart,
@@ -65,8 +66,28 @@ export function SlLeadDashboard() {
       return data ?? [];
     },
   });
+  // Cross-SL-accurate load per resource (total across the WHOLE ledger, not just this SL).
+  const loadQ = useQuery({
+    queryKey: ["resource-load"],
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)("resource_current_load");
+      if (error) throw error;
+      return (data ?? []) as { resource_id: string; home_sl: string; total_pct: number; other_sl_pct: number }[];
+    },
+  });
+  const loadMap = new Map((loadQ.data ?? []).map((l) => [l.resource_id, l]));
+  const loadOf = (id: string) => loadMap.get(id)?.total_pct ?? 0;
+
+  const qc = useQueryClient();
+  const verify = async (p: any) => {
+    const { error } = await supabase.from("projects").update({ status: "Verified" }).eq("id", p.id);
+    if (error) return toast.error(error.message);
+    toast.success(`${p.project_code} verified`);
+    qc.invalidateQueries({ queryKey: ["projects"] });
+  };
 
   const loading = projects.isLoading || resources.isLoading || allocations.isLoading;
+  const today = todayStr();
 
   // RLS already scopes to the lead's service line(s) / the PM's projects; this optional
   // filter lets a multi-SL lead slice between their own service lines.
@@ -75,11 +96,26 @@ export function SlLeadDashboard() {
   const allAllocations = (allocations.data ?? []).filter((a) => matchesSl(a.service_line));
   const activeProjects = allProjects.filter((p) => p.status === "Active");
   const activeResources = allResources.filter((r) => r.status === "Active");
-  const bench = computeBench(activeResources, allAllocations);
-  const benchCount = bench.filter((b) => b.benchPct > 0).length;
-  const fullyAllocated = bench.filter((b) => b.benchPct === 0).length;
-  const overAllocated = bench.filter((b) => b.benchPct < 0).length;
+  // Load-based (cross-SL accurate): counts a loaned-out resource as genuinely unavailable.
+  const overAllocated = activeResources.filter((r) => loadOf(r.id) > 100).length;
+  const fullyAllocated = activeResources.filter((r) => loadOf(r.id) === 100).length;
+  const benchCount = activeResources.filter((r) => loadOf(r.id) < 100).length;
+  const onLoanCount = activeResources.filter((r) => (loadMap.get(r.id)?.other_sl_pct ?? 0) > 0).length;
   const inactiveCount = allResources.filter((r) => r.status !== "Active").length;
+
+  // Practice composition
+  const contractorHeads = activeResources.filter((r) => r.employment_type !== "FTE").length;
+  const contractorPct = activeResources.length ? Math.round((contractorHeads / activeResources.length) * 100) : 0;
+  const currentAllocs = allAllocations.filter(
+    (a) => a.allocation_type !== "Leave" && a.allocation_start_date <= today && a.allocation_end_date >= today,
+  );
+  let billable = 0, nonBillable = 0;
+  for (const a of currentAllocs) (a.allocation_type === "Billable" ? billable++ : nonBillable++);
+  const billTotal = billable + nonBillable;
+  const billablePct = billTotal ? Math.round((billable / billTotal) * 100) : 0;
+
+  // Pending validations: draft projects awaiting the SL Lead's Step-2 verification.
+  const pendingDrafts = allProjects.filter((p) => p.status === "Draft");
 
   const shownSls = SERVICE_LINES.filter(
     (sl) => allResources.some((r) => r.service_line === sl) || allProjects.some((p) => p.service_line === sl),
@@ -90,8 +126,7 @@ export function SlLeadDashboard() {
 
   const slData = shownSls.map((sl) => {
     const slRes = activeResources.filter((r) => r.service_line === sl);
-    const slBench = computeBench(slRes, allAllocations);
-    const allocated = slBench.reduce((s, b) => s + Math.min(100, b.totalPct), 0);
+    const allocated = slRes.reduce((s, r) => s + Math.min(100, loadOf(r.id)), 0);
     const total = slRes.length * 100;
     const utilization = total > 0 ? Math.round((allocated / total) * 100) : 0;
     const target = slTargets.data?.[sl];
@@ -166,6 +201,31 @@ export function SlLeadDashboard() {
           </Link>
         );
       })()}
+
+      {/* Pending Line Verifications — PM-created drafts awaiting your Step-2 validation */}
+      {isLead && pendingDrafts.length > 0 && (
+        <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 overflow-hidden">
+          <div className="px-5 py-3 border-b border-primary/20 flex items-center gap-2">
+            <ClipboardCheck className="size-4 text-primary" />
+            <span className="text-sm font-medium">{pendingDrafts.length} draft project{pendingDrafts.length === 1 ? "" : "s"} pending your validation</span>
+          </div>
+          <div className="divide-y">
+            {pendingDrafts.slice(0, 5).map((p: any) => (
+              <div key={p.id} className="px-5 py-2.5 flex items-center justify-between gap-3">
+                <div className="min-w-0 text-sm">
+                  <Link to="/projects/$projectId" params={{ projectId: p.id }} className="font-mono text-xs text-primary hover:underline mr-2">{p.project_code}</Link>
+                  {p.project_description}
+                  <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase tracking-wide">{p.service_line}</span>
+                </div>
+                <Button size="sm" onClick={() => verify(p)}>Verify <ArrowRight className="size-3.5 ml-1" /></Button>
+              </div>
+            ))}
+          </div>
+          {pendingDrafts.length > 5 && (
+            <Link to="/projects" className="block px-5 py-2 text-xs text-primary hover:underline border-t border-primary/20">View all {pendingDrafts.length} in Projects →</Link>
+          )}
+        </div>
+      )}
 
       {/* Upper charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
@@ -274,8 +334,8 @@ export function SlLeadDashboard() {
               </div>
             </div>
           ) : (
-            <div className="divide-y max-h-80 overflow-y-auto">
-              {gaps.map((g) => (
+            <div className="divide-y">
+              {gaps.slice(0, 5).map((g) => (
                 <div key={g.resource_id} className="px-5 py-3 flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="text-sm font-medium truncate">{g.full_name}</div>
@@ -288,11 +348,64 @@ export function SlLeadDashboard() {
                   </span>
                 </div>
               ))}
+              {gaps.length > 5 && (
+                <Link to="/cliff-edge" className="block px-5 py-2 text-xs text-primary hover:underline">View all {gaps.length} →</Link>
+              )}
             </div>
           )}
         </div>
       </div>
 
+      {/* Practice composition — billable mix, margin exposure, cross-SL loans */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
+        <div className="rounded-xl border bg-card p-5">
+          <h2 className="font-display text-base font-semibold">Billable Mix</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Current allocations driving revenue</p>
+          {billTotal === 0 ? (
+            <div className="h-24 grid place-items-center text-sm text-muted-foreground">No current allocations</div>
+          ) : (
+            <div className="mt-5">
+              <div className="flex items-end justify-between mb-2">
+                <div><div className="font-display text-3xl font-semibold text-success">{billablePct}%</div><div className="text-xs text-muted-foreground">Billable</div></div>
+                <div className="text-right"><div className="font-display text-3xl font-semibold text-muted-foreground">{100 - billablePct}%</div><div className="text-xs text-muted-foreground">Non-billable</div></div>
+              </div>
+              <div className="h-3 rounded-full overflow-hidden bg-muted flex">
+                <div className="bg-success h-full" style={{ width: `${billablePct}%` }} />
+                <div className="bg-warning h-full" style={{ width: `${100 - billablePct}%` }} />
+              </div>
+              <div className="text-xs text-muted-foreground mt-3">{billable} billable · {nonBillable} non-billable / bench / internal</div>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border bg-card p-5">
+          <h2 className="font-display text-base font-semibold">FTE vs Contractor</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Headcount mix — margin exposure</p>
+          <div className="mt-5">
+            <div className="flex items-end justify-between mb-2">
+              <div><div className="font-display text-3xl font-semibold">{activeResources.length - contractorHeads}</div><div className="text-xs text-muted-foreground">FTE</div></div>
+              <div className="text-right"><div className={`font-display text-3xl font-semibold ${contractorPct > 30 ? "text-warning-foreground" : ""}`}>{contractorHeads}</div><div className="text-xs text-muted-foreground">Contractor / Vendor</div></div>
+            </div>
+            <div className="h-3 rounded-full overflow-hidden bg-muted flex">
+              <div className="h-full" style={{ width: `${100 - contractorPct}%`, background: "var(--color-chart-2)" }} />
+              <div className="bg-warning h-full" style={{ width: `${contractorPct}%` }} />
+            </div>
+            <div className="text-xs text-muted-foreground mt-3">{contractorPct}% external — watch margin if bench sits idle</div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-card p-5">
+          <h2 className="font-display text-base font-semibold">Cross-SL Loans</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Your resources lent to other divisions</p>
+          <div className="mt-6 flex items-center gap-3">
+            <ArrowLeftRight className={`size-8 ${onLoanCount > 0 ? "text-warning-foreground" : "text-muted-foreground"}`} />
+            <div>
+              <div className="font-display text-3xl font-semibold">{onLoanCount}</div>
+              <div className="text-xs text-muted-foreground">counted as unavailable in your utilisation</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </AppShell>
   );
 }
