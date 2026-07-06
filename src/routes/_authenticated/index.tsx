@@ -25,7 +25,6 @@ import {
   Users,
   Briefcase,
   Gauge,
-  Activity,
   AlertTriangle,
   Coffee,
   AlertOctagon,
@@ -129,7 +128,6 @@ function GovernanceDashboard() {
   const bench = computeBench(activeResources, allocations.data ?? []);
   // On Bench = genuinely idle (0% allocated), not merely under 100%.
   const benchCount = bench.filter((b) => b.benchPct === 100).length;
-  const fullyAllocated = bench.filter((b) => b.benchPct === 0).length;
   const overAllocated = bench.filter((b) => b.benchPct < 0).length;
   const onLeave = fResources.filter((r) => r.status === "On_Leave").length;
   // Partially allocated (1–99%) — has spare capacity but isn't idle; shown on none of the
@@ -288,12 +286,11 @@ function GovernanceDashboard() {
       )}
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4">
         <KpiCard label="Avg Utilization" value={loading ? "—" : `${avgUtil}%`} icon={Gauge} accent={avgUtilAccent} />
         <KpiCard label="Utilisation Variance" value={loading || utilRanked.length < 2 ? "—" : `${utilVariance}pp`} icon={Scale} accent={utilVariance >= 30 ? "destructive" : utilVariance >= 15 ? "warning" : "info"} hint={!loading && utilRanked.length >= 2 ? `${utilHi.sl} ${utilHi.utilization}% ↔ ${utilLo.sl} ${utilLo.utilization}%` : undefined} />
         <KpiCard label="Active Projects" value={loading ? "—" : activeProjects.length} icon={Briefcase} accent="info" />
         <KpiCard label="Total Resources" value={loading ? "—" : activeResources.length} icon={Users} />
-        <KpiCard label="Fully Allocated" value={loading ? "—" : fullyAllocated} icon={Activity} accent="success" />
         <KpiCard label="On Bench" value={loading ? "—" : benchCount} icon={Coffee} accent="warning" />
         <KpiCard label="Partially Allocated" value={loading ? "—" : partiallyAllocated} icon={BatteryMedium} accent="info" />
         <KpiCard label="Over-allocated" value={loading ? "—" : overAllocated} icon={AlertTriangle} accent="destructive" hint={onLeave ? `${onLeave} on leave` : undefined} />
