@@ -8,7 +8,7 @@ import { computeBench } from "@/lib/bench";
 import { horizonStr } from "@/lib/dashboard";
 import {
   TrendingUp, AlertTriangle, Coffee, Clock, CheckSquare,
-  RefreshCw, BarChart2, Target, CalendarClock,
+  RefreshCw, BarChart2, Target, CalendarClock, Scale,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/kpis")({
@@ -56,6 +56,23 @@ function KpisPage() {
   const rollOff60 = new Set(externalExpiring.map((a) => a.resource_id)).size;
   const rollOff30 = new Set(externalExpiring.filter((a) => a.allocation_end_date <= in30).map((a) => a.resource_id)).size;
 
+  // Portfolio utilisation variance — spread between the hottest and coolest service line.
+  // Company-wide by nature (needs ≥2 SLs), so a single-SL viewer sees "—".
+  const utilBySl: Record<string, { alloc: number; count: number }> = {};
+  for (const b of bench) {
+    const sl = b.resource.service_line;
+    (utilBySl[sl] ??= { alloc: 0, count: 0 });
+    utilBySl[sl].alloc += Math.min(100, b.totalPct);
+    utilBySl[sl].count += 1;
+  }
+  const slUtils = Object.entries(utilBySl)
+    .filter(([, s]) => s.count > 0)
+    .map(([sl, s]) => ({ sl, util: Math.round((s.alloc / (s.count * 100)) * 100) }))
+    .sort((a, b) => b.util - a.util);
+  const varHi = slUtils[0];
+  const varLo = slUtils[slUtils.length - 1];
+  const utilVariance = slUtils.length >= 2 ? varHi.util - varLo.util : 0;
+
   const coverage = useQuery({
     queryKey: ["kpi-coverage"],
     queryFn: async () => {
@@ -96,7 +113,7 @@ function KpisPage() {
   return (
     <AppShell title="KPI Dashboard">
       <p className="text-sm text-muted-foreground mb-6">
-        The 8 core KPIs from RA §6.1 (RAG thresholds applied automatically), plus a contractor roll-off watch for margin planning.
+        The 8 core KPIs from RA §6.1 (RAG thresholds applied automatically), plus contractor roll-off and portfolio-variance watches.
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -179,6 +196,15 @@ function KpisPage() {
           icon={CalendarClock}
           accent={rollOff30 > 0 ? "warning" : rollOff60 > 0 ? "info" : "success"}
           hint={`External (Contractor/Vendor) rolling off ≤60d · ${rollOff30} within 30d`}
+        />
+
+        {/* Structural watch (not a §6.1 KPI): utilisation spread across service lines */}
+        <KpiCard
+          label="Utilisation Variance"
+          value={slUtils.length < 2 ? "—" : `${utilVariance}pp`}
+          icon={Scale}
+          accent={utilVariance >= 30 ? "destructive" : utilVariance >= 15 ? "warning" : "info"}
+          hint={slUtils.length >= 2 ? `${varHi.sl} ${varHi.util}% ↔ ${varLo.sl} ${varLo.util}%` : "needs ≥2 service lines"}
         />
       </div>
     </AppShell>

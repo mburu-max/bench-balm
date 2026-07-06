@@ -32,7 +32,6 @@ import {
   CheckCircle2,
   UserX,
   BatteryMedium,
-  Scale,
 } from "lucide-react";
 import {
   Bar,
@@ -214,12 +213,6 @@ function GovernanceDashboard() {
   const { trendSeries, avgBySl, hasTrend } = computeUtilTrend(snapTrend.data ?? [], headcountBySl, shownSls);
   const slDataWithAvg = slData.map((d) => ({ ...d, avg13: avgBySl[d.sl] ?? null }));
 
-  // Portfolio utilisation variance — spread between the hottest and coolest service line.
-  const utilRanked = slData.filter((d) => d.resources > 0).sort((a, b) => b.utilization - a.utilization);
-  const utilHi = utilRanked[0];
-  const utilLo = utilRanked[utilRanked.length - 1];
-  const utilVariance = utilRanked.length >= 2 ? utilHi.utilization - utilLo.utilization : 0;
-
   // ---- Cliff exposure per SL ----
   const cliffBySl = shownSls.map((sl) => {
     const rows = fCliff.filter((r) => r.service_line === sl);
@@ -286,9 +279,8 @@ function GovernanceDashboard() {
       )}
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
         <KpiCard label="Avg Utilization" value={loading ? "—" : `${avgUtil}%`} icon={Gauge} accent={avgUtilAccent} />
-        <KpiCard label="Utilisation Variance" value={loading || utilRanked.length < 2 ? "—" : `${utilVariance}pp`} icon={Scale} accent={utilVariance >= 30 ? "destructive" : utilVariance >= 15 ? "warning" : "info"} hint={!loading && utilRanked.length >= 2 ? `${utilHi.sl} ${utilHi.utilization}% ↔ ${utilLo.sl} ${utilLo.utilization}%` : undefined} />
         <KpiCard label="Active Projects" value={loading ? "—" : activeProjects.length} icon={Briefcase} accent="info" />
         <KpiCard label="Total Resources" value={loading ? "—" : activeResources.length} icon={Users} />
         <KpiCard label="On Bench" value={loading ? "—" : benchCount} icon={Coffee} accent="warning" />
