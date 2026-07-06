@@ -540,7 +540,7 @@ function GovernanceDashboard() {
                 <div className="bg-success h-full" style={{ width: `${billablePct}%` }} />
                 <div className="bg-warning h-full" style={{ width: `${100 - billablePct}%` }} />
               </div>
-              <div className="text-xs text-muted-foreground mt-3">{(billablePctSum / 100).toFixed(1)} FTE billable · {(nonBillablePctSum / 100).toFixed(1)} non-billable / bench / internal</div>
+              <div className="text-xs text-muted-foreground mt-3">≈{Math.round(billablePctSum / 100)} FTE billable · ≈{Math.round(nonBillablePctSum / 100)} non-billable / bench / internal</div>
             </div>
           )}
         </div>
