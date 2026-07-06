@@ -17,6 +17,7 @@ import {
   AlertOctagon,
   ChevronDown,
   Eye,
+  MonitorPlay,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -30,9 +31,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { setViewAs } from "@/lib/impersonation";
+import { getHiddenPages, setHiddenPages } from "@/lib/demo-visibility";
 import { ROLE_LABEL, type AppRole } from "@/lib/constants";
 
 // Roles a developer can preview via the "view as" switcher.
@@ -123,6 +134,18 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
     navigate({ to: val === "resource" ? "/my-profile" : "/" });
   };
 
+  // Developer-only demo control: hide chosen pages from the sidebar for a presentation.
+  const [demoOpen, setDemoOpen] = useState(false);
+  const [hidden, setHidden] = useState<string[]>(() => getHiddenPages());
+  const hiddenSet = new Set(hidden);
+  const allNav = NAV_GROUPS.flatMap((g) => g.items);
+  const applyHidden = (next: string[]) => {
+    setHidden(next);
+    setHiddenPages(next);
+  };
+  const togglePage = (to: string) =>
+    applyHidden(hidden.includes(to) ? hidden.filter((x) => x !== to) : [...hidden, to]);
+
   const signOut = async () => {
     await supabase.auth.signOut();
     navigate({ to: "/auth" });
@@ -144,7 +167,7 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
         </div>
         <nav className="flex-1 px-3 overflow-y-auto min-h-0 py-2 space-y-1">
           {NAV_GROUPS.map((group, gi) => {
-            const visibleItems = group.items.filter((n) => n.show(role.data));
+            const visibleItems = group.items.filter((n) => n.show(role.data) && !hiddenSet.has(n.to));
             if (visibleItems.length === 0) return null;
             const isOpen = group.label === null || openGroups[group.label];
             return (
@@ -220,6 +243,55 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
                 </SelectContent>
               </Select>
             </div>
+          )}
+          {role.data?.realIsDeveloper && (
+            <Dialog open={demoOpen} onOpenChange={setDemoOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+                >
+                  <MonitorPlay className="size-4 mr-2" /> Demo pages
+                  {hidden.length > 0 && (
+                    <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-warning/30 text-warning-foreground">
+                      {hidden.length} hidden
+                    </span>
+                  )}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Pages visible in the sidebar</DialogTitle>
+                </DialogHeader>
+                <p className="text-xs text-muted-foreground -mt-1">
+                  Untick a page to hide it from the menu during your demo. This only affects what
+                  shows here — it doesn't change anyone's access.
+                </p>
+                <div className="flex gap-2 py-1">
+                  <Button size="sm" variant="outline" onClick={() => applyHidden([])}>Show all</Button>
+                  <Button size="sm" variant="outline" onClick={() => applyHidden(allNav.map((n) => n.to).filter((to) => to !== "/"))}>
+                    Dashboard only
+                  </Button>
+                </div>
+                <div className="max-h-80 overflow-y-auto space-y-0.5">
+                  {allNav.map((n) => {
+                    const Icon = n.icon;
+                    const visible = !hiddenSet.has(n.to);
+                    return (
+                      <label key={n.to} className="flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted cursor-pointer">
+                        <Checkbox checked={visible} onCheckedChange={() => togglePage(n.to)} />
+                        <Icon className="size-4 text-muted-foreground" />
+                        {n.label}
+                        <span className="ml-auto text-[10px] font-mono text-muted-foreground">{n.to}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <DialogFooter>
+                  <Button onClick={() => setDemoOpen(false)}>Done</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           )}
           <Button
             variant="ghost"
