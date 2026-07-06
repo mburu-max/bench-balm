@@ -261,12 +261,7 @@ export function SlLeadDashboard() {
                   <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
                   <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
-                  {/* one blended trend line… */}
-                  <Line type="monotone" dataKey="_blended" name="Blended" stroke="var(--color-foreground)" strokeWidth={2} dot={false} connectNulls />
-                  {/* …with each service line kept as its own coloured point */}
-                  {shownSls.map((sl) => (
-                    <Line key={sl} type="monotone" dataKey={sl} name={sl} stroke="transparent" strokeWidth={0} legendType="circle" dot={{ r: 3, fill: SL_COLORS[sl], stroke: SL_COLORS[sl] }} activeDot={{ r: 4 }} connectNulls isAnimationActive={false} />
-                  ))}
+                  {shownSls.map((sl) => <Line key={sl} type="monotone" dataKey={sl} stroke={SL_COLORS[sl]} strokeWidth={2} dot={{ r: 2 }} connectNulls />)}
                 </LineChart>
               </ResponsiveContainer>
             ) : (

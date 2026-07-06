@@ -67,10 +67,6 @@ export function computeUtilTrend(
       const arr = weekBucket[wk]?.[sl];
       if (arr?.length) row[sl] = Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
     }
-    // Blended weekly util across the shown SLs — the single trend line; each SL still
-    // shows as its own coloured point at its own value for that week.
-    const vals = shownSls.map((sl) => row[sl]).filter((v): v is number => typeof v === "number");
-    if (vals.length) row._blended = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
     return row;
   });
   const avgBySl: Record<string, number> = {};
