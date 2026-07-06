@@ -53,7 +53,7 @@ export const Route = createFileRoute("/_authenticated/")({
   component: Dashboard,
 });
 
-// Role-adaptive dashboard: SL / Delivery Leads get their service-line view;
+// Role-adaptive dashboard: SL Leads get their service-line view;
 // Governance / Finance / Developer get the company-wide operational view.
 function Dashboard() {
   const { data: role, isLoading } = useCurrentRole();
@@ -65,7 +65,7 @@ function Dashboard() {
     );
   }
   // Governance / Finance / Developer → company-wide view.
-  // Project Manager → project-centric PM view. SL/Delivery Lead + Resource → scoped SL view.
+  // Project Manager → project-centric PM view. SL Lead + Resource → scoped SL view.
   if (role?.isGovernanceLead || role?.isFinance) return <GovernanceDashboard />;
   if (role?.isPm) return <PmDashboard />;
   return <SlLeadDashboard />;

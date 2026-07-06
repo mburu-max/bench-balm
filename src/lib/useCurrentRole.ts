@@ -25,7 +25,6 @@ const RANK: Record<string, number> = {
   admin: 2,
   governance_lead: 3,
   finance: 4,
-  delivery_lead: 5,
   service_line_lead: 6,
   project_manager: 7,
   resource: 8,
@@ -66,9 +65,10 @@ export function useCurrentRole() {
       // isFinance = read-only visibility only (audit, snapshots, dashboards). Finance has
       // ZERO edit rights per tracker RBAC-03; governance_lead keeps the same visibility.
       const isFinance = isGovernanceLead || src.includes("finance");
-      // SL Lead = Delivery Lead: the two roles are operationally equivalent (tracker Sheet 3).
-      const isDl = isDeveloper || src.includes("delivery_lead") || src.includes("service_line_lead");
-      const isSlLead = isDeveloper || src.includes("service_line_lead") || src.includes("delivery_lead");
+      // Delivery Lead role cut (July sync) — validation sits entirely with the Service Line Lead.
+      // isDl is kept as an alias of the SL-Lead validator capability so existing gates still read.
+      const isDl = isDeveloper || src.includes("service_line_lead");
+      const isSlLead = isDeveloper || src.includes("service_line_lead");
       const isPm = isDeveloper || src.includes("project_manager");
       const isResource = src.includes("resource");
       const hasAnyOtherRole = isDeveloper || isGovernanceLead || isFinance || isDl || isSlLead || isPm;

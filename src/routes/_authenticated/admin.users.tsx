@@ -34,7 +34,6 @@ const ASSIGNABLE_ROLES = [
   "developer",
   "governance_lead",
   "finance",
-  "delivery_lead",
   "service_line_lead",
   "project_manager",
   "resource",
@@ -86,7 +85,7 @@ function AdminUsersPage() {
     const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: newRole as any });
     if (error) return toast.error(error.message);
     // SL membership only applies to the SL-scoped roles; clear it otherwise.
-    if (newRole !== "service_line_lead" && newRole !== "delivery_lead") {
+    if (newRole !== "service_line_lead") {
       await supabase.from("user_service_lines").delete().eq("user_id", userId);
     }
     toast.success("Role updated");
@@ -97,7 +96,7 @@ function AdminUsersPage() {
   const [creating, setCreating] = useState(false);
   const emptyForm = { email: "", password: "", full_name: "", role: "resource", service_lines: [] as string[] };
   const [form, setForm] = useState(emptyForm);
-  const formShowsSl = form.role === "service_line_lead" || form.role === "delivery_lead";
+  const formShowsSl = form.role === "service_line_lead";
 
   const createUser = async () => {
     if (!form.email.trim() || !form.password) return toast.error("Email and password required");
@@ -215,7 +214,7 @@ function AdminUsersPage() {
           <h2 className="font-display text-base font-semibold">All users</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
             Assign exactly one effective role per user. Backend enforces all access via RLS.
-            SL Leads / Delivery Leads see only the service line(s) toggled below; PMs see only
+            SL Leads see only the service line(s) toggled below; PMs see only
             projects they own; Resources see only themselves.
           </p>
         </div>
@@ -232,7 +231,7 @@ function AdminUsersPage() {
             <tbody>
               {(users.data ?? []).map((u: any) => {
                 const primary = u.roles[0] ?? "resource";
-                const showSlToggle = primary === "service_line_lead" || primary === "delivery_lead";
+                const showSlToggle = primary === "service_line_lead";
                 return (
                   <tr key={u.id} className="border-t">
                     <td className="px-5 py-3 font-medium">{u.full_name ?? "—"}</td>

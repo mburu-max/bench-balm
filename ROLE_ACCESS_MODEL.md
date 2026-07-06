@@ -5,7 +5,7 @@ as of 2026-07-02. Where the code and this document disagree, treat it as a bug i
 and reconcile. Sections marked **⚠ GAP** are known open items.
 
 **Scope:** This is a **management tool**. Its active users are the management roles — Governance
-Lead, Finance, Delivery/Service Line Lead, Project Manager (and Developer). **Resources (the
+Lead, Finance, Service Line Lead, Project Manager (and Developer). **Resources (the
 allocated employees) do not use the system in v1.** The `resource` self-service role and its
 surface (My Profile, leave request/return, forced-password-change) are built and retained as a
 **future-expansion placeholder** — dormant by design — so the system is ready if resources are
@@ -23,14 +23,16 @@ object (policy / trigger / function) that enforces it, so each row can be assert
 | L0 | `developer` (`admin` legacy) | Full access to everything. Superuser. Manages users/roles. |
 | L1 | `governance_lead` | Owns master data + dashboard; final gate on project activation. Sees everything. |
 | L1r | `finance` | **Read-only** everywhere. No write under any circumstance. |
-| L2 | `delivery_lead` | Operationally identical to SL Lead (unified). Scoped to assigned service line(s). |
-| L2 | `service_line_lead` | Validates drafts, manages allocations & resources within assigned service line(s). |
+| L2 | `service_line_lead` | Validates drafts, manages allocations & resources within assigned service line(s). Sole validator (Delivery Lead cut). |
 | L3 | `project_manager` | Creates projects; manages allocations on the projects they own. Sees only their projects. |
 | L5 | `resource` | **Future expansion — not used in v1.** Self-service view of own profile + allocations; requests leave. Retained but dormant (see Scope note above). |
 
 Notes:
-- **SL Lead = Delivery Lead**: the two enum roles are treated as one capability set (`is_dl()`
-  matches both; `is_sl_lead(sl)` grants Delivery Lead cross-SL and SL Lead their owned SLs).
+- **Decision (ruled, July sync):** the **Delivery Lead role is cut** — validation sits entirely
+  with the Service Line Lead. The `delivery_lead` enum value stays in the DB (Postgres can't drop
+  it) but grants **nothing**: `is_dl()` and `is_sl_lead()` no longer match it, and it can't be
+  assigned or previewed in the UI. `is_dl()` is retained only as an internal alias of the SL-Lead
+  validator capability so existing policy gates still read.
 - **Developer** implies every capability below it; assume "Developer" in every "yes" cell.
 - **Governance Lead** in the UI includes Developer; in DB policies it is written
   `is_developer() OR is_governance_lead()`.
@@ -43,7 +45,7 @@ Notes:
 
 `R` = read, `W` = write. Scope in parentheses. Blank = no access.
 
-| Entity | Developer | Governance Lead | Finance | SL / Delivery Lead | Project Manager | Resource |
+| Entity | Developer | Governance Lead | Finance | SL Lead | Project Manager | Resource |
 |---|---|---|---|---|---|---|
 | **Customer Master** | R·W | R·W | R (all) | R (all) | R (all) | R (all) |
 | **Project Registry** | R·W | R·W | R (all) | R (own SLs) · W (edit own SLs) | R (own projects) · W (create only) | R (allocated projects) |
@@ -72,7 +74,7 @@ and exports. Verified 2026-07-02 by simulating each role's real session:
 | Role | Projects / Resources / Allocations they can read |
 |---|---|
 | Developer / Governance / Finance | **Everything** (global). |
-| SL / Delivery Lead | Only rows in their **assigned service line(s)** (`user_service_lines`). *Verified: a CLM+DLaaS lead saw only CLM/DLaaS and none of MS/CCaaS/Legacy.* |
+| SL Lead | Only rows in their **assigned service line(s)** (`user_service_lines`). *Verified: a CLM+DLaaS lead saw only CLM/DLaaS and none of MS/CCaaS/Legacy.* |
 | Project Manager | Only their **own projects** + the resources/allocations on them. *Verified: a PM owning one project saw exactly that project, its 2 resources, its 2 allocations.* |
 | Resource | Only **themselves** + their own allocations + projects they're allocated to. *Verified: saw 1 resource (self), 1 allocation, 1 project.* |
 
@@ -84,7 +86,7 @@ several project codes, and they see the union.
 | Role | Dashboard | Service-line filter |
 |---|---|---|
 | Governance / Finance / Developer | Company-wide operational view | All 5 SLs; defaults to company-wide |
-| Multi-SL / Delivery Lead | Service-line view | Dropdown limited to **their** assigned SLs |
+| Multi-SL Lead | Service-line view | Dropdown limited to **their** assigned SLs |
 | Single-SL Lead | Service-line view | No dropdown (locked to their one SL by RLS) |
 | Project Manager | "My Projects" view | No dropdown |
 | Resource | My Profile only | — |
@@ -98,18 +100,18 @@ from Draft/Verified.
 
 | Transition | Who may perform it | Notes |
 |---|---|---|
-| *(create)* → **Draft** | PM, Governance, Developer | Step 1. SL/Delivery Lead **cannot** create. |
-| Draft → **Verified** | SL / Delivery Lead, Governance, Developer | Step 2 (validation gate). Surfaced via the draft-handoff queue. |
+| *(create)* → **Draft** | PM, Governance, Developer | Step 1. SL Lead **cannot** create. |
+| Draft → **Verified** | SL Lead, Governance, Developer | Step 2 (validation gate). Surfaced via the draft-handoff queue. |
 | Verified → **Active** | Governance, Developer | Step 4 (final gate). **No contract gate** (Finance gate deferred, June 30). |
-| Active → **On_Hold** | Governance, Developer *(UI)* | Trigger also permits SL/Delivery Lead. Hold button shows on Active rows only. |
-| Draft/Verified → **Rejected** | SL/Delivery Lead, Governance, Developer | |
-| → **Closed** | Governance, SL/Delivery Lead *(trigger)* | **⚠ GAP** — no UI action exposes "Close" yet. |
+| Active → **On_Hold** | Governance, Developer *(UI)* | Trigger also permits SL Lead. Hold button shows on Active rows only. |
+| Draft/Verified → **Rejected** | SL Lead, Governance, Developer | |
+| → **Closed** | Governance, SL Lead *(trigger)* | **⚠ GAP** — no UI action exposes "Close" yet. |
 | *(delete)* | Governance, Developer | Blocked if the project has allocations, or is Closed (retention). |
 
 Other actions:
-- **Edit project fields** (description/customer/SL/dates/HubSpot): Governance + SL/Delivery Lead
+- **Edit project fields** (description/customer/SL/dates/HubSpot): Governance + SL Lead
   (scoped to their SLs). **PM cannot edit** (UI). Project code is auto-generated and locked.
-- **Allocate a resource** (create/edit/delete allocation rows): Governance, SL/Delivery Lead (own SL),
+- **Allocate a resource** (create/edit/delete allocation rows): Governance, SL Lead (own SL),
   PM (own projects). Finance/Resource cannot.
 - **Resource status** Active/On_Leave/Exited: Resource-Master writers. A Resource self-serves
   leave via `request_leave` / `return_from_leave`.
@@ -120,12 +122,12 @@ Other actions:
 
 ### 5.1 Project Activation Lifecycle
 1. **PM** creates a project → saved as **Draft** (code auto-generated `[SL]-YYYY-NNN`).
-2. Draft appears in the **"pending your validation" queue** for the SL/Delivery Lead of that SL.
-3. **SL/Delivery Lead** verifies → **Verified**.
+2. Draft appears in the **"pending your validation" queue** for the SL Lead of that SL.
+3. **SL Lead** verifies → **Verified**.
 4. **Governance Lead** activates → **Active** (now selectable for allocation).
 
 ### 5.2 Direct Resource Allocation
-- **PM or SL/Delivery Lead** allocates directly (no demand-raising step — removed June 30).
+- **PM or SL Lead** allocates directly (no demand-raising step — removed June 30).
 - **Decision (ruled):** the design doc's "PM raises a demand request (Day 0)" and the "Day-30
   check" are **superseded by Sharad's decision** — direct ledger submission, no intermediate
   approval/review steps. Not built, by design.

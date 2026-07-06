@@ -52,7 +52,6 @@ const VIEW_AS_ROLES: AppRole[] = [
   "developer",
   "governance_lead",
   "finance",
-  "delivery_lead",
   "service_line_lead",
   "project_manager",
   "resource",

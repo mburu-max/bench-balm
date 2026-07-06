@@ -67,8 +67,8 @@ function ProjectsPage() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  // Project creation = PM + Governance (Step 1). SL/Delivery Leads validate (Step 2), they
-  // don't create. Activation = Governance only. Edit = Governance + SL/Delivery Lead (not PM).
+  // Project creation = PM + Governance (Step 1). SL Leads validate (Step 2), they don't
+  // create. Activation = Governance only. Edit = Governance + SL Lead (not PM).
   const canCreate = !!(role?.isGovernanceLead || role?.isPm || role?.isDeveloper);
   const canVerify = !!(role?.isDl || role?.isGovernanceLead || role?.isDeveloper);
   const canActivate = !!(role?.isGovernanceLead || role?.isDeveloper);
@@ -152,7 +152,7 @@ function ProjectsPage() {
   };
 
   const updateStatus = async (p: any, status: ProjectStatus) => {
-    if (status === "Verified" && !canVerify) return toast.error("Only SL / Delivery Lead can verify");
+    if (status === "Verified" && !canVerify) return toast.error("Only a Service Line Lead can verify");
     if (status === "Active" && !canActivate) return toast.error("Only Governance Lead can activate");
     const { error } = await supabase.from("projects").update({ status }).eq("id", p.id);
     if (error) return toast.error(error.message);
