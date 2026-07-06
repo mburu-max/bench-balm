@@ -15,7 +15,7 @@ import { SL_COLORS, todayStr, computeUtilTrend, type UtilView } from "@/lib/dash
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
-  Users, Briefcase, Activity, Coffee, AlertTriangle, UserMinus, AlertOctagon, ArrowRight, CheckCircle2, ClipboardCheck, ArrowLeftRight,
+  Users, Briefcase, Activity, Coffee, AlertTriangle, UserMinus, AlertOctagon, ArrowRight, CheckCircle2, ClipboardCheck, ArrowLeftRight, BatteryMedium,
 } from "lucide-react";
 import {
   Bar, CartesianGrid, Cell, ComposedChart, Legend, Line, LineChart, Pie, PieChart,
@@ -105,6 +105,10 @@ export function SlLeadDashboard() {
   const onLoanCount = activeResources.filter((r) => (loadMap.get(r.id)?.other_sl_pct ?? 0) > 0).length;
   // On leave = temporarily unavailable (returning). Exited are departed, not a capacity signal.
   const inactiveCount = allResources.filter((r) => r.status === "On_Leave").length;
+  // Partially allocated (1–99% total load) show on none of the capacity cards; surface their
+  // unused time as deployable FTE-equivalents so "On Bench = 0" doesn't read as "no slack".
+  const partiallyAllocated = activeResources.filter((r) => { const l = loadOf(r.id); return l > 0 && l < 100; }).length;
+  const spareFte = Math.round(activeResources.reduce((s, r) => s + Math.max(0, 100 - loadOf(r.id)), 0) / 10) / 10;
 
   // Practice composition
   const contractorHeads = activeResources.filter((r) => r.employment_type !== "FTE").length;
@@ -180,11 +184,12 @@ export function SlLeadDashboard() {
       }
     >
       {/* KPI cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4">
         <KpiCard label="Total Resources" value={loading ? "—" : activeResources.length} icon={Users} />
         <KpiCard label="Active Projects" value={loading ? "—" : activeProjects.length} icon={Briefcase} accent="info" />
         <KpiCard label="Fully Allocated" value={loading ? "—" : fullyAllocated} icon={Activity} accent="success" />
         <KpiCard label="On Bench" value={loading ? "—" : benchCount} icon={Coffee} accent="warning" />
+        <KpiCard label="Spare Capacity" value={loading ? "—" : `${spareFte} FTE`} icon={BatteryMedium} accent="info" hint={loading ? undefined : `${partiallyAllocated} partially allocated${benchCount ? ` · ${benchCount} idle` : ""}`} />
         <KpiCard label="On Leave" value={loading ? "—" : inactiveCount} icon={UserMinus} />
         <KpiCard label="Over-allocated" value={loading ? "—" : overAllocated} icon={AlertTriangle} accent="destructive" />
       </div>
