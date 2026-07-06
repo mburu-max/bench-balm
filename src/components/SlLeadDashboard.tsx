@@ -99,7 +99,8 @@ export function SlLeadDashboard() {
   // Load-based (cross-SL accurate): counts a loaned-out resource as genuinely unavailable.
   const overAllocated = activeResources.filter((r) => loadOf(r.id) > 100).length;
   const fullyAllocated = activeResources.filter((r) => loadOf(r.id) === 100).length;
-  const benchCount = activeResources.filter((r) => loadOf(r.id) < 100).length;
+  // On Bench = genuinely idle (0% total load), i.e. who needs work now — not merely under 100%.
+  const benchCount = activeResources.filter((r) => loadOf(r.id) === 0).length;
   const onLoanCount = activeResources.filter((r) => (loadMap.get(r.id)?.other_sl_pct ?? 0) > 0).length;
   const inactiveCount = allResources.filter((r) => r.status !== "Active").length;
 

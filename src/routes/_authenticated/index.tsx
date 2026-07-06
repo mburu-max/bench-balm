@@ -124,7 +124,8 @@ function GovernanceDashboard() {
   const activeProjects = fProjects.filter((p) => p.status === "Active");
   const activeResources = fResources.filter((r) => r.status === "Active");
   const bench = computeBench(activeResources, allocations.data ?? []);
-  const benchCount = bench.filter((b) => b.benchPct > 0).length;
+  // On Bench = genuinely idle (0% allocated), not merely under 100%.
+  const benchCount = bench.filter((b) => b.benchPct === 100).length;
   const fullyAllocated = bench.filter((b) => b.benchPct === 0).length;
   const overAllocated = bench.filter((b) => b.benchPct < 0).length;
   const onLeave = fResources.filter((r) => r.status === "On_Leave").length;
@@ -169,7 +170,7 @@ function GovernanceDashboard() {
       slRes.length ? Math.round((slRes.filter((r) => coveredAt(r.id, dateStr)).length / slRes.length) * 100) : 0;
     return {
       sl, resources: slRes.length, utilization,
-      bench: slBench.filter((b) => b.benchPct > 0).length,
+      bench: slBench.filter((b) => b.benchPct === 100).length,
       fully: slBench.filter((b) => b.benchPct === 0).length,
       targetMin, targetMax, inTarget: utilization >= targetMin,
       coverage30: cov(d30), coverage60: cov(d60), coverage90: cov(d90),

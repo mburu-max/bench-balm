@@ -34,7 +34,8 @@ function KpisPage() {
   const active = (resources.data ?? []).filter((r) => r.status === "Active");
   const bench = computeBench(active, allocations.data ?? []);
   const overAllocatedCount = bench.filter((b) => b.benchPct < 0).length;
-  const benchCount = bench.filter((b) => b.benchPct > 0).length;
+  // Bench Rate = unallocated (idle) resources / total (RA §6.1), not merely under 100%.
+  const benchCount = bench.filter((b) => b.benchPct === 100).length;
   const billableUtilisation = active.length > 0
     ? Math.round(bench.reduce((s, b) => s + Math.min(100, b.totalPct), 0) / active.length)
     : 0;
