@@ -33,6 +33,7 @@ import {
   CheckCircle2,
   UserX,
   BatteryMedium,
+  ArrowLeftRight,
 } from "lucide-react";
 import {
   Bar,
@@ -168,6 +169,30 @@ function GovernanceDashboard() {
       .filter((a) => a.allocation_type !== "Leave" && a.project_id && a.allocation_start_date <= nowStr && a.allocation_end_date >= nowStr)
       .map((a) => a.project_id),
   );
+
+  // ---- Practice composition (billable mix, FTE/contractor, cross-SL loans) ----
+  // Respects the SL filter via activeResources; capacity-weighted by allocation %.
+  const activeResIds = new Set(activeResources.map((r) => r.id));
+  const currentAllocs = (allocations.data ?? []).filter(
+    (a) => activeResIds.has(a.resource_id) && a.allocation_type !== "Leave" && a.allocation_start_date <= nowStr && a.allocation_end_date >= nowStr,
+  );
+  let billablePctSum = 0, nonBillablePctSum = 0;
+  for (const a of currentAllocs) {
+    const pct = a.allocation_pct ?? 0;
+    if (a.allocation_type === "Billable") billablePctSum += pct; else nonBillablePctSum += pct;
+  }
+  const billTotal = billablePctSum + nonBillablePctSum;
+  const billablePct = billTotal ? Math.round((billablePctSum / billTotal) * 100) : 0;
+  const contractorHeads = activeResources.filter((r) => r.employment_type !== "FTE").length;
+  const contractorPct = activeResources.length ? Math.round((contractorHeads / activeResources.length) * 100) : 0;
+  // Cross-SL loans: resources currently allocated to work in an SL other than their home.
+  const homeSlOf = new Map(activeResources.map((r) => [r.id, r.service_line]));
+  const loanedIds = new Set<string>();
+  for (const a of currentAllocs) {
+    const home = homeSlOf.get(a.resource_id);
+    if (home && a.service_line && a.service_line !== home) loanedIds.add(a.resource_id);
+  }
+  const crossSlLoans = loanedIds.size;
 
   // ---- Per service line stats (today) + coverage rate ----
   const slData = shownSls.map((sl) => {
@@ -499,6 +524,57 @@ function GovernanceDashboard() {
               ))}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Practice composition — billable mix, margin exposure, cross-SL loans */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
+        <div className="rounded-xl border bg-card p-5">
+          <h2 className="font-display text-base font-semibold">Billable Mix</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Current allocations driving revenue</p>
+          {billTotal === 0 ? (
+            <div className="h-24 grid place-items-center text-sm text-muted-foreground">No current allocations</div>
+          ) : (
+            <div className="mt-5">
+              <div className="flex items-end justify-between mb-2">
+                <div><div className="font-display text-3xl font-semibold text-success">{billablePct}%</div><div className="text-xs text-muted-foreground">Billable</div></div>
+                <div className="text-right"><div className="font-display text-3xl font-semibold text-muted-foreground">{100 - billablePct}%</div><div className="text-xs text-muted-foreground">Non-billable</div></div>
+              </div>
+              <div className="h-3 rounded-full overflow-hidden bg-muted flex">
+                <div className="bg-success h-full" style={{ width: `${billablePct}%` }} />
+                <div className="bg-warning h-full" style={{ width: `${100 - billablePct}%` }} />
+              </div>
+              <div className="text-xs text-muted-foreground mt-3">{(billablePctSum / 100).toFixed(1)} FTE billable · {(nonBillablePctSum / 100).toFixed(1)} non-billable / bench / internal</div>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border bg-card p-5">
+          <h2 className="font-display text-base font-semibold">FTE vs Contractor</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Headcount mix — margin exposure</p>
+          <div className="mt-5">
+            <div className="flex items-end justify-between mb-2">
+              <div><div className="font-display text-3xl font-semibold">{activeResources.length - contractorHeads}</div><div className="text-xs text-muted-foreground">FTE</div></div>
+              <div className="text-right"><div className={`font-display text-3xl font-semibold ${contractorPct > 30 ? "text-warning-foreground" : ""}`}>{contractorHeads}</div><div className="text-xs text-muted-foreground">Contractor / Vendor</div></div>
+            </div>
+            <div className="h-3 rounded-full overflow-hidden bg-muted flex">
+              <div className="h-full" style={{ width: `${100 - contractorPct}%`, background: "var(--color-chart-2)" }} />
+              <div className="bg-warning h-full" style={{ width: `${contractorPct}%` }} />
+            </div>
+            <div className="text-xs text-muted-foreground mt-3">{contractorPct}% external — watch margin if bench sits idle</div>
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-card p-5">
+          <h2 className="font-display text-base font-semibold">Cross-SL Loans</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Resources deployed outside their home division</p>
+          <div className="mt-6 flex items-center gap-3">
+            <ArrowLeftRight className={`size-8 ${crossSlLoans > 0 ? "text-warning-foreground" : "text-muted-foreground"}`} />
+            <div>
+              <div className="font-display text-3xl font-semibold">{crossSlLoans}</div>
+              <div className="text-xs text-muted-foreground">currently working across service lines</div>
+            </div>
+          </div>
         </div>
       </div>
     </AppShell>
