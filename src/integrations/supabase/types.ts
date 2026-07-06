@@ -774,6 +774,15 @@ export type Database = {
         }
         Returns: string
       }
+      resource_current_load: {
+        Args: never
+        Returns: {
+          home_sl: string
+          other_sl_pct: number
+          resource_id: string
+          total_pct: number
+        }[]
+      }
       return_from_leave: { Args: { _resource_id: string }; Returns: undefined }
       take_allocation_snapshot: { Args: { _d?: string }; Returns: number }
     }
