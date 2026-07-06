@@ -161,9 +161,18 @@ function GovernanceDashboard() {
     );
   const d30 = horizonStr(30), d60 = horizonStr(60), d90 = horizonStr(90);
 
+  // Projects that currently have someone allocated (non-Leave allocation overlapping today).
+  const nowStr = todayStr();
+  const staffedProjectIds = new Set(
+    (allocations.data ?? [])
+      .filter((a) => a.allocation_type !== "Leave" && a.project_id && a.allocation_start_date <= nowStr && a.allocation_end_date >= nowStr)
+      .map((a) => a.project_id),
+  );
+
   // ---- Per service line stats (today) + coverage rate ----
   const slData = shownSls.map((sl) => {
     const slRes = activeResources.filter((r) => r.service_line === sl);
+    const slActiveProjects = activeProjects.filter((p) => p.service_line === sl);
     const slBench = computeBench(slRes, allocations.data ?? []);
     const allocated = slBench.reduce((s, b) => s + Math.min(100, b.totalPct), 0);
     const total = slRes.length * 100;
@@ -175,6 +184,8 @@ function GovernanceDashboard() {
       slRes.length ? Math.round((slRes.filter((r) => coveredAt(r.id, dateStr)).length / slRes.length) * 100) : 0;
     return {
       sl, resources: slRes.length, utilization,
+      projects: slActiveProjects.length,
+      unstaffed: slActiveProjects.filter((p) => !staffedProjectIds.has(p.id)).length,
       bench: slBench.filter((b) => b.benchPct === 100).length,
       fully: slBench.filter((b) => b.benchPct === 0).length,
       targetMin, targetMax, inTarget: utilization >= targetMin,
@@ -384,7 +395,7 @@ function GovernanceDashboard() {
         <div className="p-5 border-b">
           <h2 className="font-display text-base font-semibold">Service Line Summary</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Today's health plus forward coverage — % of each SL's resources with allocations reaching 30 / 60 / 90 days out
+            Today's health plus forward coverage — Unstaffed = active projects with nobody allocated today; Coverage = % of resources with allocations reaching 30 / 60 / 90 days out
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -393,6 +404,8 @@ function GovernanceDashboard() {
               <tr>
                 <th className="text-left px-5 py-2.5 font-medium">Service Line</th>
                 <th className="text-right px-3 py-2.5 font-medium">Resources</th>
+                <th className="text-right px-3 py-2.5 font-medium">Projects</th>
+                <th className="text-right px-3 py-2.5 font-medium">Unstaffed</th>
                 <th className="text-right px-3 py-2.5 font-medium">Fully Alloc.</th>
                 <th className="text-right px-3 py-2.5 font-medium">On Bench</th>
                 <th className="text-right px-3 py-2.5 font-medium">Util %</th>
@@ -404,6 +417,12 @@ function GovernanceDashboard() {
                 <tr key={r.sl} className="border-t">
                   <td className="px-5 py-3 font-medium">{r.sl}</td>
                   <td className="px-3 py-3 text-right tabular-nums">{r.resources}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{r.projects}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">
+                    {r.unstaffed > 0
+                      ? <span className="text-destructive font-medium">{r.unstaffed}</span>
+                      : <span className="text-muted-foreground">0</span>}
+                  </td>
                   <td className="px-3 py-3 text-right tabular-nums">{r.fully}</td>
                   <td className="px-3 py-3 text-right tabular-nums">{r.bench}</td>
                   <td className="px-3 py-3 text-right tabular-nums">
@@ -418,7 +437,7 @@ function GovernanceDashboard() {
                 </tr>
               ))}
               {slData.length === 0 && (
-                <tr><td colSpan={6} className="px-5 py-10 text-center text-muted-foreground">No service lines to show.</td></tr>
+                <tr><td colSpan={8} className="px-5 py-10 text-center text-muted-foreground">No service lines to show.</td></tr>
               )}
             </tbody>
           </table>
