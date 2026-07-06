@@ -15,6 +15,7 @@ import { isExtendedLeave, isCurrentLeave } from "@/lib/leave";
 import { SERVICE_LINES } from "@/lib/constants";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { SlLeadDashboard } from "@/components/SlLeadDashboard";
+import { PmDashboard } from "@/components/PmDashboard";
 import { SL_COLORS, todayStr, horizonStr, computeUtilTrend, type UtilView } from "@/lib/dashboard";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,10 +64,11 @@ function Dashboard() {
       </AppShell>
     );
   }
-  // Governance / Finance / Developer get the company-wide view; everyone else
-  // (SL Lead, Delivery Lead, PM, Resource) gets the scoped view — RLS decides the data.
-  const scopedVariant = !!role && !role.isGovernanceLead && !role.isFinance;
-  return scopedVariant ? <SlLeadDashboard /> : <GovernanceDashboard />;
+  // Governance / Finance / Developer → company-wide view.
+  // Project Manager → project-centric PM view. SL/Delivery Lead + Resource → scoped SL view.
+  if (role?.isGovernanceLead || role?.isFinance) return <GovernanceDashboard />;
+  if (role?.isPm) return <PmDashboard />;
+  return <SlLeadDashboard />;
 }
 
 function GovernanceDashboard() {
