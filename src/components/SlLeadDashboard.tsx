@@ -10,7 +10,7 @@ import { useCurrentRole } from "@/lib/useCurrentRole";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { SL_COLORS, todayStr, computeUtilTrend, type UtilView } from "@/lib/dashboard";
+import { SL_COLORS, computeUtilTrend, type UtilView } from "@/lib/dashboard";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Users, Briefcase, Activity, Coffee, AlertTriangle, UserMinus, AlertOctagon, ArrowRight, CheckCircle2,
@@ -20,19 +20,6 @@ import {
   ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 
-const STATUS_META: Record<string, { rank: number; label: string; cls: string }> = {
-  over: { rank: 0, label: "Over-Allocated", cls: "bg-destructive/15 text-destructive" },
-  below: { rank: 1, label: "Below Target", cls: "bg-warning/20 text-warning-foreground" },
-  full: { rank: 2, label: "Fully Allocated", cls: "bg-success/15 text-success" },
-  bench: { rank: 3, label: "On Bench", cls: "bg-muted text-muted-foreground" },
-};
-function resStatus(totalPct: number) {
-  if (totalPct > 100) return "over";
-  if (totalPct === 100) return "full";
-  if (totalPct > 0) return "below";
-  return "bench";
-}
-const PROJECT_ORDER: Record<string, number> = { Active: 0, On_Hold: 1, Closed: 2 };
 const pieColors = [
   "var(--color-chart-1)", "var(--color-chart-2)", "var(--color-chart-3)",
   "var(--color-chart-4)", "var(--color-chart-5)", "var(--color-warning)", "var(--color-destructive)",
@@ -80,7 +67,6 @@ export function SlLeadDashboard() {
   });
 
   const loading = projects.isLoading || resources.isLoading || allocations.isLoading;
-  const today = todayStr();
 
   // RLS already scopes to the lead's service line(s) / the PM's projects; this optional
   // filter lets a multi-SL lead slice between their own service lines.
@@ -127,30 +113,6 @@ export function SlLeadDashboard() {
     };
   });
 
-  // ---- Resource Allocation Breakdown ----
-  const breakdown = bench.map((b) => {
-    const projRows = b.rows.filter((a: any) => a.allocation_type !== "Leave" && a.project_id);
-    const projMap = new Map<string, string>();
-    for (const a of projRows) projMap.set(a.project_id as string, (a as any).projects?.project_code ?? a.project_id);
-    const endDate = projRows.length ? projRows.map((a) => a.allocation_end_date).sort().slice(-1)[0] : null;
-    const st = resStatus(b.totalPct);
-    return {
-      id: b.resource.id, name: b.resource.full_name, role: (b.resource as any).position ?? "—",
-      pct: b.totalPct, projects: [...projMap.entries()].map(([id, code]) => ({ id, code })),
-      endDate, status: st,
-    };
-  }).sort((a, b) => STATUS_META[a.status].rank - STATUS_META[b.status].rank || b.pct - a.pct);
-
-  // ---- Active Projects table + current resource counts ----
-  const currentAllocs = allAllocations.filter(
-    (a) => a.allocation_type !== "Leave" && a.allocation_start_date <= today && a.allocation_end_date >= today,
-  );
-  const resByProject: Record<string, Set<string>> = {};
-  for (const a of currentAllocs) if (a.project_id) (resByProject[a.project_id] ??= new Set()).add(a.resource_id);
-  const projectRows = [...allProjects].sort(
-    (a, b) => (PROJECT_ORDER[a.status] ?? 9) - (PROJECT_ORDER[b.status] ?? 9),
-  );
-
   // ---- Upcoming gaps (≤30 days) ----
   const gaps = cliff.filter((r) => (r.cliff_band ?? 90) <= 30);
 
@@ -159,18 +121,6 @@ export function SlLeadDashboard() {
     acc[p.status] = (acc[p.status] ?? 0) + 1; return acc;
   }, {});
   const projectPie = Object.entries(projectsByStatus).map(([name, value]) => ({ name: name.replace("_", " "), value }));
-
-  // ---- Billable vs Non-billable (current allocations) ----
-  let billable = 0, nonBillable = 0;
-  for (const a of currentAllocs) (a.allocation_type === "Billable" ? billable++ : nonBillable++);
-  const billTotal = billable + nonBillable;
-  const billablePct = billTotal ? Math.round((billable / billTotal) * 100) : 0;
-
-  const projStatusCls = (s: string) =>
-    s === "Active" ? "bg-success/15 text-success"
-    : s === "On_Hold" ? "bg-warning/20 text-warning-foreground"
-    : s === "Closed" ? "bg-muted text-muted-foreground"
-    : "bg-secondary text-secondary-foreground";
 
   return (
     <AppShell
@@ -288,51 +238,6 @@ export function SlLeadDashboard() {
         </div>
       </div>
 
-      {/* Resource Allocation Breakdown */}
-      <div className="mt-6 rounded-xl border bg-card overflow-hidden">
-        <div className="p-5 border-b">
-          <h2 className="font-display text-base font-semibold">Resource Allocation Breakdown</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Every resource — over-allocated first, then below target, fully allocated, bench</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
-              <tr>
-                <th className="text-left px-5 py-2.5 font-medium">Resource</th>
-                <th className="text-left px-3 py-2.5 font-medium">Role</th>
-                <th className="text-right px-3 py-2.5 font-medium">Allocation %</th>
-                <th className="text-left px-3 py-2.5 font-medium">Projects</th>
-                <th className="text-left px-3 py-2.5 font-medium">Alloc. End</th>
-                <th className="text-left px-5 py-2.5 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {breakdown.map((r) => (
-                <tr key={r.id} className="border-t hover:bg-muted/30">
-                  <td className="px-5 py-3 font-medium">{r.name}</td>
-                  <td className="px-3 py-3 text-muted-foreground">{r.role}</td>
-                  <td className="px-3 py-3 text-right tabular-nums font-medium">{r.pct}%</td>
-                  <td className="px-3 py-3">
-                    {r.projects.length === 0 ? <span className="text-muted-foreground">—</span> : (
-                      <div className="flex flex-wrap gap-1">
-                        {r.projects.map((p) => (
-                          <Link key={p.id} to="/projects/$projectId" params={{ projectId: p.id }} className="font-mono text-xs text-primary hover:underline">{p.code}</Link>
-                        ))}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-3 py-3 text-xs tabular-nums text-muted-foreground">{r.endDate ?? "—"}</td>
-                  <td className="px-5 py-3">
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${STATUS_META[r.status].cls}`}>{STATUS_META[r.status].label}</span>
-                  </td>
-                </tr>
-              ))}
-              {breakdown.length === 0 && <tr><td colSpan={6} className="px-5 py-10 text-center text-muted-foreground">No resources.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
       {/* Lower: Projects by Status + Upcoming Gaps */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
         <div className="rounded-xl border bg-card p-5">
@@ -388,71 +293,6 @@ export function SlLeadDashboard() {
         </div>
       </div>
 
-      {/* Bottom: Active Projects + Billable split */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
-        <div className="lg:col-span-2 rounded-xl border bg-card overflow-hidden">
-          <div className="p-5 border-b">
-            <h2 className="font-display text-base font-semibold">Projects</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Active first, then On Hold, then Closed</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
-                <tr>
-                  <th className="text-left px-5 py-2.5 font-medium">Code</th>
-                  <th className="text-left px-3 py-2.5 font-medium">Project</th>
-                  <th className="text-left px-3 py-2.5 font-medium">Customer</th>
-                  <th className="text-left px-3 py-2.5 font-medium">Status</th>
-                  <th className="text-right px-3 py-2.5 font-medium">Resources</th>
-                  <th className="text-left px-5 py-2.5 font-medium">End</th>
-                </tr>
-              </thead>
-              <tbody>
-                {projectRows.map((p: any) => {
-                  const count = resByProject[p.id]?.size ?? 0;
-                  return (
-                    <tr key={p.id} className="border-t hover:bg-muted/30">
-                      <td className="px-5 py-3 font-mono text-xs">
-                        <Link to="/projects/$projectId" params={{ projectId: p.id }} className="text-primary hover:underline">{p.project_code}</Link>
-                      </td>
-                      <td className="px-3 py-3">{p.project_description}</td>
-                      <td className="px-3 py-3 text-muted-foreground">{p.customers?.customer_name ?? "—"}</td>
-                      <td className="px-3 py-3">
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${projStatusCls(p.status)}`}>{p.status.replace("_", " ")}</span>
-                      </td>
-                      <td className="px-3 py-3 text-right tabular-nums">
-                        <Link to="/projects/$projectId" params={{ projectId: p.id }} className="text-primary hover:underline">{count}</Link>
-                      </td>
-                      <td className="px-5 py-3 text-xs tabular-nums text-muted-foreground">{p.end_date}</td>
-                    </tr>
-                  );
-                })}
-                {projectRows.length === 0 && <tr><td colSpan={6} className="px-5 py-10 text-center text-muted-foreground">No projects.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="rounded-xl border bg-card p-5">
-          <h2 className="font-display text-base font-semibold">Billable vs Non-Billable</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Current allocations by billing type</p>
-          {billTotal === 0 ? (
-            <div className="h-40 grid place-items-center text-sm text-muted-foreground">No current allocations</div>
-          ) : (
-            <div className="mt-6">
-              <div className="flex items-end justify-between mb-2">
-                <div><div className="font-display text-3xl font-semibold">{billablePct}%</div><div className="text-xs text-muted-foreground">Billable</div></div>
-                <div className="text-right"><div className="font-display text-3xl font-semibold text-muted-foreground">{100 - billablePct}%</div><div className="text-xs text-muted-foreground">Non-billable</div></div>
-              </div>
-              <div className="h-3 rounded-full overflow-hidden bg-muted flex">
-                <div className="bg-success h-full" style={{ width: `${billablePct}%` }} />
-                <div className="bg-warning h-full" style={{ width: `${100 - billablePct}%` }} />
-              </div>
-              <div className="text-xs text-muted-foreground mt-3">{billable} billable · {nonBillable} non-billable / internal / bench allocations</div>
-            </div>
-          )}
-        </div>
-      </div>
     </AppShell>
   );
 }
