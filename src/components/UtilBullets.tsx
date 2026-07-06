@@ -22,7 +22,7 @@ export function UtilBullets({ data, showAvg }: { data: Row[]; showAvg: boolean }
               <span className="text-muted-foreground ml-1.5">target {d.targetMin}–{d.targetMax}%</span>
             </span>
           </div>
-          <div className="relative h-[1.2rem] rounded bg-muted/50 overflow-hidden" title={`${d.utilization}% — target ${d.targetMin}–${d.targetMax}%`}>
+          <div className="relative h-[1.1rem] rounded bg-muted/50 overflow-hidden" title={`${d.utilization}% — target ${d.targetMin}–${d.targetMax}%`}>
             {/* full target band */}
             <div className="absolute inset-y-0 bg-foreground/10" style={{ left: `${d.targetMin}%`, width: `${Math.max(0, d.targetMax - d.targetMin)}%` }} />
             {/* actual measure (thinner so the band shows above/below) */}
