@@ -126,6 +126,9 @@ Other actions:
 
 ### 5.2 Direct Resource Allocation
 - **PM or SL/Delivery Lead** allocates directly (no demand-raising step — removed June 30).
+- **Decision (ruled):** the design doc's "PM raises a demand request (Day 0)" and the "Day-30
+  check" are **superseded by Sharad's decision** — direct ledger submission, no intermediate
+  approval/review steps. Not built, by design.
 - The resource picker draws from an **allocatable pool** (`allocatable_resources()`): global/SL-lead
   see their normal scope; a **PM can pull from the bench in their projects' service line(s)** even
   though their dashboard stays limited to their own project team.
