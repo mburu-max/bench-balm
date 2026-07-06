@@ -79,7 +79,7 @@ function GovernanceDashboard() {
   const { data: role } = useCurrentRole();
   const canFilter = !!(role?.isGovernanceLead || role?.isFinance);
   const [slFilter, setSlFilter] = useState<string>("all");
-  const [utilView, setUtilView] = useState<UtilView>("today");
+  const [utilView, setUtilView] = useState<UtilView>("both");
   const matchesSl = (sl: string | null | undefined) => slFilter === "all" || sl === slFilter;
 
   const slTargets = useQuery({
@@ -359,7 +359,7 @@ function GovernanceDashboard() {
                       <Cell key={d.sl} fill={d.inTarget ? "var(--color-success, #22c55e)" : "var(--color-destructive)"} fillOpacity={0.85} />
                     ))}
                   </Bar>
-                  {utilView === "both" && (
+                  {utilView === "both" && hasTrend && (
                     <Line type="monotone" dataKey="avg13" stroke="var(--color-chart-1)" strokeWidth={2} dot={{ r: 3 }} connectNulls />
                   )}
                 </ComposedChart>
@@ -369,7 +369,7 @@ function GovernanceDashboard() {
           <div className="flex items-center gap-4 mt-2 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-success inline-block" /> On/above target</span>
             <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-destructive inline-block" /> Below target</span>
-            {utilView === "both" && <span className="flex items-center gap-1.5"><span className="inline-block w-5 border-t-2" style={{ borderColor: "var(--color-chart-1)" }} /> 13-wk avg</span>}
+            {utilView === "both" && hasTrend && <span className="flex items-center gap-1.5"><span className="inline-block w-5 border-t-2" style={{ borderColor: "var(--color-chart-1)" }} /> 13-wk avg</span>}
           </div>
         </div>
 

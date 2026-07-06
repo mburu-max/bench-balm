@@ -74,5 +74,6 @@ export function computeUtilTrend(
     const vals = trendWeeks.flatMap((wk) => weekBucket[wk]?.[sl] ?? []);
     if (vals.length) avgBySl[sl] = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
   }
-  return { trendSeries, avgBySl, hasTrend: trendSeries.length > 0 };
+  // Need at least 2 weekly points for a line to mean anything — one flat point is not a trend.
+  return { trendSeries, avgBySl, hasTrend: trendSeries.length >= 2 };
 }

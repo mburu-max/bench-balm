@@ -31,7 +31,7 @@ export function SlLeadDashboard() {
   const resources = useResources();
   const allocations = useAllocations();
   const { data: role } = useCurrentRole();
-  const [utilView, setUtilView] = useState<UtilView>("today");
+  const [utilView, setUtilView] = useState<UtilView>("both");
 
   // A multi-SL lead can slice between their OWN assigned service lines; a single-SL lead
   // (or a PM) has no dropdown — their scope is fixed by RLS.
@@ -271,7 +271,7 @@ export function SlLeadDashboard() {
                   <Bar dataKey="utilization" radius={[6, 6, 0, 0]}>
                     {slDataWithAvg.map((d) => <Cell key={d.sl} fill={d.inTarget ? "var(--color-success, #22c55e)" : "var(--color-destructive)"} fillOpacity={0.85} />)}
                   </Bar>
-                  {utilView === "both" && <Line type="monotone" dataKey="avg13" stroke="var(--color-chart-1)" strokeWidth={2} dot={{ r: 3 }} connectNulls />}
+                  {utilView === "both" && hasTrend && <Line type="monotone" dataKey="avg13" stroke="var(--color-chart-1)" strokeWidth={2} dot={{ r: 3 }} connectNulls />}
                 </ComposedChart>
               </ResponsiveContainer>
             )}
