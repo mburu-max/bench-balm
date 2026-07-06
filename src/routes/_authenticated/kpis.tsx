@@ -73,6 +73,17 @@ function KpisPage() {
   const varLo = slUtils[slUtils.length - 1];
   const utilVariance = slUtils.length >= 2 ? varHi.util - varLo.util : 0;
 
+  // Avg allocation horizon — mean weeks left on current billable/non-billable allocations.
+  const activeIds = new Set(active.map((r) => r.id));
+  const currentEngaged = (allocations.data ?? []).filter(
+    (a) => activeIds.has(a.resource_id)
+      && (a.allocation_type === "Billable" || a.allocation_type === "Non-Billable")
+      && a.allocation_start_date <= _today && a.allocation_end_date >= _today,
+  );
+  const avgHorizonWeeks = currentEngaged.length
+    ? Math.round((currentEngaged.reduce((s, a) => s + Math.max(0, (new Date(a.allocation_end_date).getTime() - new Date(_today).getTime()) / 86400000), 0) / currentEngaged.length / 7) * 10) / 10
+    : 0;
+
   const coverage = useQuery({
     queryKey: ["kpi-coverage"],
     queryFn: async () => {
@@ -113,7 +124,7 @@ function KpisPage() {
   return (
     <AppShell title="KPI Dashboard">
       <p className="text-sm text-muted-foreground mb-6">
-        The 8 core KPIs from RA §6.1 (RAG thresholds applied automatically), plus contractor roll-off and portfolio-variance watches.
+        The 8 core KPIs from RA §6.1 (RAG thresholds applied automatically), plus contractor roll-off, portfolio-variance, and allocation-horizon watches.
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -205,6 +216,15 @@ function KpisPage() {
           icon={Scale}
           accent={utilVariance >= 30 ? "destructive" : utilVariance >= 15 ? "warning" : "info"}
           hint={slUtils.length >= 2 ? `${varHi.sl} ${varHi.util}% ↔ ${varLo.sl} ${varLo.util}%` : "needs ≥2 service lines"}
+        />
+
+        {/* Forward watch (not a §6.1 KPI): avg booked runway across current allocations */}
+        <KpiCard
+          label="Avg Horizon"
+          value={currentEngaged.length ? `${avgHorizonWeeks} wk` : "—"}
+          icon={CalendarClock}
+          accent={currentEngaged.length === 0 ? "info" : avgHorizonWeeks <= 3 ? "destructive" : avgHorizonWeeks <= 6 ? "warning" : "success"}
+          hint="Mean weeks left on current allocations"
         />
       </div>
     </AppShell>
