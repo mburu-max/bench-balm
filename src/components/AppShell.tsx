@@ -146,6 +146,10 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
   const togglePage = (to: string) =>
     applyHidden(hidden.includes(to) ? hidden.filter((x) => x !== to) : [...hidden, to]);
 
+  // Developer chrome (View-as + Demo pages) hides while previewing another role, so the
+  // presented sidebar looks like that role's. Return to developer via the "Exit preview" banner.
+  const showDevControls = !!(role.data?.realIsDeveloper && !role.data?.impersonating);
+
   const signOut = async () => {
     await supabase.auth.signOut();
     navigate({ to: "/auth" });
@@ -222,15 +226,12 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
               <div className="font-medium mt-0.5">{ROLE_LABEL[role.data.role as string] ?? role.data.role}</div>
             </div>
           )}
-          {role.data?.realIsDeveloper && (
-            <div className={cn(
-              "px-3 py-2 rounded-md text-[11px] space-y-1.5",
-              role.data.impersonating ? "bg-warning/15 ring-1 ring-warning/40" : "bg-sidebar-accent/30",
-            )}>
+          {showDevControls && (
+            <div className="px-3 py-2 rounded-md text-[11px] space-y-1.5 bg-sidebar-accent/30">
               <div className="flex items-center gap-1.5 uppercase tracking-widest text-sidebar-foreground/60">
                 <Eye className="size-3" /> View as
               </div>
-              <Select value={role.data.impersonating ?? "developer"} onValueChange={changeViewAs}>
+              <Select value="developer" onValueChange={changeViewAs}>
                 <SelectTrigger className="h-8 text-xs bg-sidebar text-sidebar-foreground border-sidebar-border">
                   <SelectValue />
                 </SelectTrigger>
@@ -244,7 +245,7 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
               </Select>
             </div>
           )}
-          {role.data?.realIsDeveloper && (
+          {showDevControls && (
             <Dialog open={demoOpen} onOpenChange={setDemoOpen}>
               <DialogTrigger asChild>
                 <Button
