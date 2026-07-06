@@ -16,6 +16,7 @@ import { SERVICE_LINES } from "@/lib/constants";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { SlLeadDashboard } from "@/components/SlLeadDashboard";
 import { PmDashboard } from "@/components/PmDashboard";
+import { UtilBullets } from "@/components/UtilBullets";
 import { SL_COLORS, todayStr, horizonStr, computeUtilTrend, type UtilView } from "@/lib/dashboard";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -305,7 +306,7 @@ function GovernanceDashboard() {
             <div>
               <h2 className="font-display text-base font-semibold">Utilisation vs Target</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Blended util % per SL vs target floor — green on target, red below
+                Blended util % per SL vs the target band — green on target, red below
               </p>
             </div>
             <div className="flex rounded-md border p-0.5 text-xs shrink-0">
@@ -339,38 +340,14 @@ function GovernanceDashboard() {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <ResponsiveContainer>
-                <ComposedChart data={slDataWithAvg} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                  <XAxis dataKey="sl" stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} unit="%" domain={[0, 100]} />
-                  <Tooltip
-                    contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }}
-                    formatter={(value: number, name: string, props: any) => {
-                      if (name === "avg13") return [`${value}%`, "13-wk avg"];
-                      const d = props.payload;
-                      return [`${value}% (target ${d.targetMin}–${d.targetMax}%)`, "Today"];
-                    }}
-                  />
-                  {slDataWithAvg.map((d) => (
-                    <ReferenceLine key={`min-${d.sl}`} y={d.targetMin} stroke="var(--color-muted-foreground)" strokeDasharray="3 3" strokeOpacity={0.4} />
-                  ))}
-                  <Bar dataKey="utilization" radius={[6, 6, 0, 0]}>
-                    {slDataWithAvg.map((d) => (
-                      <Cell key={d.sl} fill={d.inTarget ? "var(--color-success, #22c55e)" : "var(--color-destructive)"} fillOpacity={0.85} />
-                    ))}
-                  </Bar>
-                  {utilView === "both" && hasTrend && (
-                    <Line type="monotone" dataKey="avg13" stroke="var(--color-chart-1)" strokeWidth={2} dot={{ r: 3 }} connectNulls />
-                  )}
-                </ComposedChart>
-              </ResponsiveContainer>
+              <UtilBullets data={slDataWithAvg} showAvg={utilView === "both" && hasTrend} />
             )}
           </div>
-          <div className="flex items-center gap-4 mt-2 text-[11px] text-muted-foreground">
+          <div className="flex items-center gap-4 mt-1 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-success inline-block" /> On/above target</span>
             <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-destructive inline-block" /> Below target</span>
-            {utilView === "both" && hasTrend && <span className="flex items-center gap-1.5"><span className="inline-block w-5 border-t-2" style={{ borderColor: "var(--color-chart-1)" }} /> 13-wk avg</span>}
+            <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-sm bg-foreground/10 inline-block" /> Target band</span>
+            {utilView === "both" && hasTrend && <span className="flex items-center gap-1.5"><span className="inline-block w-3 border-l-2" style={{ borderColor: "var(--color-chart-1)" }} /> 13-wk avg</span>}
           </div>
         </div>
 
