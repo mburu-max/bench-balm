@@ -15,7 +15,7 @@ import { SL_COLORS, todayStr, computeUtilTrend, type UtilView } from "@/lib/dash
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
-  Users, Briefcase, Activity, Coffee, AlertTriangle, UserMinus, AlertOctagon, ArrowRight, CheckCircle2, ClipboardCheck, BatteryMedium, CalendarClock,
+  Users, Briefcase, Activity, Coffee, AlertTriangle, UserMinus, AlertOctagon, ArrowRight, CheckCircle2, ClipboardCheck, BatteryMedium,
 } from "lucide-react";
 import {
   Bar, CartesianGrid, Cell, ComposedChart, Legend, Line, LineChart, Pie, PieChart,
@@ -107,14 +107,6 @@ export function SlLeadDashboard() {
   // Partially allocated (1–99% total load) — has spare capacity but isn't idle; shown on none
   // of the other capacity cards, so surface it directly (bench already means genuinely idle).
   const partiallyAllocated = activeResources.filter((r) => { const l = loadOf(r.id); return l > 0 && l < 100; }).length;
-  // Allocation horizon — avg weeks left on the team's current allocations (roll-off radar).
-  const teamActiveAllocs = allAllocations.filter(
-    (a) => a.allocation_type !== "Leave" && a.allocation_type !== "Bench"
-      && a.allocation_start_date <= today && a.allocation_end_date >= today,
-  );
-  const avgHorizonWeeks = teamActiveAllocs.length
-    ? Math.round((teamActiveAllocs.reduce((s, a) => s + Math.max(0, (new Date(a.allocation_end_date).getTime() - new Date(today).getTime()) / 86400000), 0) / teamActiveAllocs.length / 7) * 10) / 10
-    : 0;
 
   // Practice composition
   const contractorHeads = activeResources.filter((r) => r.employment_type !== "FTE").length;
@@ -190,7 +182,7 @@ export function SlLeadDashboard() {
       }
     >
       {/* KPI cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4">
         <KpiCard label="Total Resources" value={loading ? "—" : activeResources.length} icon={Users} />
         <KpiCard label="Active Projects" value={loading ? "—" : activeProjects.length} icon={Briefcase} accent="info" />
         <KpiCard label="Fully Allocated" value={loading ? "—" : fullyAllocated} icon={Activity} accent="success" />
@@ -198,7 +190,6 @@ export function SlLeadDashboard() {
         <KpiCard label="Partially Allocated" value={loading ? "—" : partiallyAllocated} icon={BatteryMedium} accent="info" />
         <KpiCard label="On Leave" value={loading ? "—" : inactiveCount} icon={UserMinus} />
         <KpiCard label="Over-allocated" value={loading ? "—" : overAllocated} icon={AlertTriangle} accent="destructive" />
-        <KpiCard label="Avg Horizon" value={loading || teamActiveAllocs.length === 0 ? "—" : `${avgHorizonWeeks} wk`} icon={CalendarClock} accent={teamActiveAllocs.length === 0 ? "info" : avgHorizonWeeks <= 3 ? "destructive" : avgHorizonWeeks <= 6 ? "warning" : "success"} />
       </div>
 
       {/* Cliff banner */}
