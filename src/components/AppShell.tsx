@@ -20,7 +20,8 @@ import {
   MonitorPlay,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
@@ -132,7 +133,27 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
     qc.invalidateQueries({ queryKey: ["current-role"] });
     // Land somewhere the previewed role can actually see.
     navigate({ to: val === "resource" ? "/my-profile" : "/" });
+    if (val !== "developer") {
+      toast(`Previewing as ${ROLE_LABEL[val] ?? val} — press Ctrl+Shift+X to return to Developer`);
+    }
   };
+
+  // Hidden escape hatch: while previewing a role there is no visible dev chrome, so
+  // Ctrl/Cmd+Shift+X pops back to Developer. Sign-out also clears the preview.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyX") {
+        if (role.data?.realIsDeveloper && role.data?.impersonating) {
+          e.preventDefault();
+          changeViewAs("developer");
+          toast.success("Back to Developer");
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role.data?.realIsDeveloper, role.data?.impersonating]);
 
   // Developer-only demo control: hide chosen pages from the sidebar for a presentation.
   const [demoOpen, setDemoOpen] = useState(false);
@@ -151,6 +172,7 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
   const showDevControls = !!(role.data?.realIsDeveloper && !role.data?.impersonating);
 
   const signOut = async () => {
+    setViewAs(null); // reset any role preview on the way out
     await supabase.auth.signOut();
     navigate({ to: "/auth" });
   };
@@ -314,23 +336,7 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
             <ThemeToggle />
           </div>
         </header>
-        <main className="flex-1 p-6 overflow-auto">
-          {role.data?.impersonating && (
-            <div className="mb-4 rounded-lg border border-warning/50 bg-warning/10 px-4 py-2.5 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm">
-                <Eye className="size-4 text-warning-foreground shrink-0" />
-                <span>
-                  <span className="font-medium">Preview mode</span> — viewing as{" "}
-                  {ROLE_LABEL[role.data.impersonating]}. Your data access is still the developer account.
-                </span>
-              </div>
-              <Button size="sm" variant="outline" onClick={() => changeViewAs("developer")}>
-                Exit preview
-              </Button>
-            </div>
-          )}
-          {children}
-        </main>
+        <main className="flex-1 p-6 overflow-auto">{children}</main>
       </div>
     </div>
   );
