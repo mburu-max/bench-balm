@@ -297,18 +297,28 @@ export function SlLeadDashboard() {
           <h2 className="font-display text-base font-semibold">30/60/90-Day Cliff Exposure</h2>
           <p className="text-xs text-muted-foreground mt-0.5">Resources with no follow-on allocation, by urgency band</p>
           <div className="h-64 mt-4">
-            <ResponsiveContainer>
-              <ComposedChart data={cliffBySl} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="sl" stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="≤30d" stackId="a" fill="var(--color-destructive)" fillOpacity={0.85} />
-                <Bar dataKey="31–60d" stackId="a" fill="var(--color-warning)" fillOpacity={0.85} />
-                <Bar dataKey="61–90d" stackId="a" fill="#3b82f6" fillOpacity={0.8} radius={[6, 6, 0, 0]} />
-              </ComposedChart>
-            </ResponsiveContainer>
+            {!cliffEdge.isLoading && cliff.length === 0 ? (
+              <div className="h-full grid place-items-center text-center">
+                <div>
+                  <CheckCircle2 className="size-10 mx-auto text-success" />
+                  <div className="mt-2 text-sm font-medium">All clear</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">No resources roll off without follow-on in the next 90 days.</div>
+                </div>
+              </div>
+            ) : (
+              <ResponsiveContainer>
+                <ComposedChart data={cliffBySl} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                  <XAxis dataKey="sl" stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={{ background: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="≤30d" stackId="a" fill="var(--color-destructive)" fillOpacity={0.85} />
+                  <Bar dataKey="31–60d" stackId="a" fill="var(--color-warning)" fillOpacity={0.85} />
+                  <Bar dataKey="61–90d" stackId="a" fill="#3b82f6" fillOpacity={0.8} radius={[6, 6, 0, 0]} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
       </div>
