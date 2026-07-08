@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   ALLOCATION_TYPES,
+  ALLOCATION_TYPE_OPTION,
   type AllocationType,
   ALLOCATION_MODELS,
   ALLOCATION_MODEL_LABEL,
@@ -203,7 +204,7 @@ function ProjectAllocationsPage() {
                 <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
                   <tr>
                     <th className="text-left px-3 py-2.5 font-medium min-w-[200px]">Resource</th>
-                    <th className="text-left px-3 py-2.5 font-medium">Type</th>
+                    <th className="text-left px-3 py-2.5 font-medium">Cost / Opex</th>
                     <th className="text-left px-3 py-2.5 font-medium min-w-[150px]">Model</th>
                     <th className="text-left px-3 py-2.5 font-medium">Start</th>
                     <th className="text-left px-3 py-2.5 font-medium">End</th>
@@ -232,7 +233,7 @@ function ProjectAllocationsPage() {
                           <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             {ALLOCATION_TYPES.filter((t) => t !== "Leave").map((t) => (
-                              <SelectItem key={t} value={t}>{t}</SelectItem>
+                              <SelectItem key={t} value={t}>{ALLOCATION_TYPE_OPTION[t]}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -285,7 +286,7 @@ function ProjectAllocationsPage() {
                   <tr>
                     <th className="text-left px-5 py-2.5 font-medium">Resource</th>
                     <th className="text-left px-3 py-2.5 font-medium">Role</th>
-                    <th className="text-left px-3 py-2.5 font-medium">Type</th>
+                    <th className="text-left px-3 py-2.5 font-medium">Cost / Opex</th>
                     <th className="text-left px-3 py-2.5 font-medium">Model</th>
                     <th className="text-left px-3 py-2.5 font-medium">Dates</th>
                     <th className="text-right px-3 py-2.5 font-medium">%</th>

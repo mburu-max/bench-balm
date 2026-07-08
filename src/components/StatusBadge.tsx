@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import type { AllocationType, ProjectStatus, ResourceStatus } from "@/lib/constants";
-import { PROJECT_STATUS_LABEL } from "@/lib/constants";
+import { PROJECT_STATUS_LABEL, ALLOCATION_TYPE_LABEL } from "@/lib/constants";
 
 const tone = {
   success: "bg-success/15 text-success border-success/30",
@@ -53,7 +53,7 @@ export function AllocationTypeBadge({ type }: { type: AllocationType }) {
     Bench: "warning",
     Leave: "muted",
   };
-  return <Pill tone={map[type]}>{type}</Pill>;
+  return <Pill tone={map[type]}>{ALLOCATION_TYPE_LABEL[type]}</Pill>;
 }
 
 export function BenchBandBadge({ pct }: { pct: number }) {

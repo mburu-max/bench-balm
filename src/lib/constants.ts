@@ -4,6 +4,23 @@ export type ServiceLine = (typeof SERVICE_LINES)[number];
 export const ALLOCATION_TYPES = ["Billable", "Non-Billable", "Bench", "Leave"] as const;
 export type AllocationType = (typeof ALLOCATION_TYPES)[number];
 
+// Cost/Opex framing for classifying a booking (RA "billable vs non-billable" surfaced to PMs as
+// a finance decision): Cost = billable to the client, Opex = internal/non-billable overhead.
+// Stored values stay the enum above; these are display-only.
+export const ALLOCATION_TYPE_LABEL: Record<AllocationType, string> = {
+  Billable: "Cost",
+  "Non-Billable": "Opex",
+  Bench: "Bench",
+  Leave: "Leave",
+};
+// Longer label for pickers — keeps the underlying meaning visible during the terminology switch.
+export const ALLOCATION_TYPE_OPTION: Record<AllocationType, string> = {
+  Billable: "Cost (Billable)",
+  "Non-Billable": "Opex (Non-billable)",
+  Bench: "Bench",
+  Leave: "Leave",
+};
+
 // Allocation model = the engagement pattern of a resource on a project (RA doc §4.2,
 // mandatory field per Dashboard Dev Tracker allocation_ledger). Distinct from % and type.
 export const ALLOCATION_MODELS = [
