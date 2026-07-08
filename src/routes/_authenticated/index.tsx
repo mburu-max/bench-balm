@@ -296,7 +296,7 @@ function GovernanceDashboard() {
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
         <KpiCard label="Avg Utilization" value={loading ? "—" : `${avgUtil}%`} icon={Gauge} accent={avgUtilAccent} to="/kpis" />
         <KpiCard label="Active Projects" value={loading ? "—" : activeProjects.length} icon={Briefcase} accent="info" to="/projects" search={{ status: "Active" }} />
-        <KpiCard label="Total Resources" value={loading ? "—" : activeResources.length} icon={Users} to="/resources" />
+        <KpiCard label="Total Resources" value={loading ? "—" : activeResources.length} icon={Users} to="/resources" search={{ status: "Active" }} />
         <KpiCard label="On Bench" value={loading ? "—" : benchCount} icon={Coffee} accent="warning" to="/bench" search={{ band: "zero" }} />
         <KpiCard label="Partially Allocated" value={loading ? "—" : partiallyAllocated} icon={BatteryMedium} accent="info" to="/bench" search={{ band: "partial" }} />
         <KpiCard label="Over-allocated" value={loading ? "—" : overAllocated} icon={AlertTriangle} accent="destructive" hint={onLeave ? `${onLeave} on leave` : undefined} to="/bench" search={{ band: "over" }} />

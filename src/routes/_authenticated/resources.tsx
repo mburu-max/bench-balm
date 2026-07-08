@@ -41,6 +41,9 @@ import { Users, UserCheck, UserMinus, UserX } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/resources")({
   component: ResourcesPage,
+  validateSearch: (search: Record<string, unknown>): { status?: string } => ({
+    status: typeof search.status === "string" ? search.status : undefined,
+  }),
 });
 
 type Form = {
@@ -82,6 +85,8 @@ function ResourcesPage() {
   const [saving, setSaving] = useState(false);
   const [q, setQ] = useState("");
   const [slFilter, setSlFilter] = useState<string>("all");
+  const { status: statusParam } = Route.useSearch();
+  const [statusFilter, setStatusFilter] = useState<string>(statusParam ?? "all");
 
   const startNew = () => {
     setForm(empty);
@@ -145,7 +150,8 @@ function ResourcesPage() {
     (r) =>
       (r.full_name.toLowerCase().includes(q.toLowerCase()) ||
         r.omni_id.toLowerCase().includes(q.toLowerCase())) &&
-      (slFilter === "all" || r.service_line === slFilter),
+      (slFilter === "all" || r.service_line === slFilter) &&
+      (statusFilter === "all" || r.status === statusFilter),
   );
 
   const counts = {
@@ -307,6 +313,13 @@ function ResourcesPage() {
           <SelectContent>
             <SelectItem value="all">All service lines</SelectItem>
             {SERVICE_LINES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            {RESOURCE_STATUSES.map((s) => <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>)}
           </SelectContent>
         </Select>
         <div className="text-sm text-muted-foreground">{filtered.length} resources</div>
