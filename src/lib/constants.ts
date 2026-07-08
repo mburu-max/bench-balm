@@ -8,8 +8,8 @@ export type AllocationType = (typeof ALLOCATION_TYPES)[number];
 // a finance decision): Cost = billable to the client, Opex = internal/non-billable overhead.
 // Stored values stay the enum above; these are display-only.
 export const ALLOCATION_TYPE_LABEL: Record<AllocationType, string> = {
-  Billable: "Cost",
-  "Non-Billable": "Opex",
+  Billable: "COS",
+  "Non-Billable": "OPEX",
   Bench: "Bench",
   Leave: "Leave",
 };

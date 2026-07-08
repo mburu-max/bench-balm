@@ -250,7 +250,7 @@ function AllocationsPage() {
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {ALLOCATION_TYPES.map((a) => <SelectItem key={a} value={a}>{ALLOCATION_TYPE_LABEL[a]}</SelectItem>)}
+                  {ALLOCATION_TYPES.filter((a) => a !== "Leave").map((a) => <SelectItem key={a} value={a}>{ALLOCATION_TYPE_LABEL[a]}</SelectItem>)}
                 </SelectContent>
               </Select>
               {allocationType === "Billable" && resource?.employment_type === "Contractor" && (
@@ -375,7 +375,7 @@ function AllocationsPage() {
               <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
                 <tr>
                   <th className="text-left px-5 py-2.5 font-medium">Project</th>
-                  <th className="text-left px-3 py-2.5 font-medium">Cost / Opex</th>
+                  <th className="text-left px-3 py-2.5 font-medium">COS / OPEX</th>
                   <th className="text-left px-3 py-2.5 font-medium">Model</th>
                   <th className="text-left px-3 py-2.5 font-medium">Dates</th>
                   <th className="text-right px-3 py-2.5 font-medium">%</th>
