@@ -180,7 +180,11 @@ function ProjectsPage() {
     const matchesQ =
       p.project_code.toLowerCase().includes(q.toLowerCase()) ||
       p.project_description.toLowerCase().includes(q.toLowerCase());
-    const matchesStatus = statusFilter === "all" || p.status === statusFilter;
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "pending"
+        ? p.status === "Draft" || p.status === "Verified"
+        : p.status === statusFilter);
     return matchesQ && matchesStatus;
   });
 
@@ -294,6 +298,7 @@ function ProjectsPage() {
           <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="pending">Pending (Draft / Verified)</SelectItem>
             {PROJECT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>)}
           </SelectContent>
         </Select>
