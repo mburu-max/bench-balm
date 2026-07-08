@@ -198,12 +198,12 @@ export function SlLeadDashboard() {
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4">
         <KpiCard label="Total Resources" value={loading ? "—" : activeResources.length} icon={Users} to="/resources" />
-        <KpiCard label="Active Projects" value={loading ? "—" : activeProjects.length} icon={Briefcase} accent="info" to="/projects" />
-        <KpiCard label="Fully Allocated" value={loading ? "—" : fullyAllocated} icon={Activity} accent="success" to="/bench" />
-        <KpiCard label="On Bench" value={loading ? "—" : benchCount} icon={Coffee} accent="warning" to="/bench" />
-        <KpiCard label="Partially Allocated" value={loading ? "—" : partiallyAllocated} icon={BatteryMedium} accent="info" to="/bench" />
+        <KpiCard label="Active Projects" value={loading ? "—" : activeProjects.length} icon={Briefcase} accent="info" to="/projects" search={{ status: "Active" }} />
+        <KpiCard label="Fully Allocated" value={loading ? "—" : fullyAllocated} icon={Activity} accent="success" to="/bench" search={{ band: "fully" }} />
+        <KpiCard label="On Bench" value={loading ? "—" : benchCount} icon={Coffee} accent="warning" to="/bench" search={{ band: "zero" }} />
+        <KpiCard label="Partially Allocated" value={loading ? "—" : partiallyAllocated} icon={BatteryMedium} accent="info" to="/bench" search={{ band: "partial" }} />
         <KpiCard label="On Leave" value={loading ? "—" : inactiveCount} icon={UserMinus} to="/resources" />
-        <KpiCard label="Over-allocated" value={loading ? "—" : overAllocated} icon={AlertTriangle} accent="destructive" to="/bench" />
+        <KpiCard label="Over-allocated" value={loading ? "—" : overAllocated} icon={AlertTriangle} accent="destructive" to="/bench" search={{ band: "over" }} />
       </div>
 
       {/* Cliff banner */}

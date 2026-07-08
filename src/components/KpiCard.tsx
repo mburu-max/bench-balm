@@ -11,6 +11,7 @@ export function KpiCard({
   accent = "primary",
   to,
   params,
+  search,
 }: {
   label: string;
   value: string | number;
@@ -20,6 +21,7 @@ export function KpiCard({
   // When set, the whole card becomes a link to this route (with a hover affordance).
   to?: string;
   params?: Record<string, string>;
+  search?: Record<string, unknown>;
 }) {
   const ring = {
     primary: "bg-primary/10 text-primary",
@@ -55,6 +57,7 @@ export function KpiCard({
       <Link
         to={to as never}
         params={params as never}
+        search={search as never}
         className={cn(base, "group relative transition-colors hover:border-primary/40 hover:bg-muted/30")}
       >
         <ArrowUpRight className="absolute top-2.5 right-2.5 size-4 text-muted-foreground/60 opacity-0 transition-opacity group-hover:opacity-100" />

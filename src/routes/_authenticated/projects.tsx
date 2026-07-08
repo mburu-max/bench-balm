@@ -30,6 +30,9 @@ import { useCurrentRole } from "@/lib/useCurrentRole";
 
 export const Route = createFileRoute("/_authenticated/projects")({
   component: ProjectsPage,
+  validateSearch: (search: Record<string, unknown>): { status?: string } => ({
+    status: typeof search.status === "string" ? search.status : undefined,
+  }),
 });
 
 type Form = {
@@ -65,7 +68,8 @@ function ProjectsPage() {
   const [form, setForm] = useState<Form>(empty);
   const [saving, setSaving] = useState(false);
   const [q, setQ] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const { status: statusParam } = Route.useSearch();
+  const [statusFilter, setStatusFilter] = useState<string>(statusParam ?? "all");
 
   // Project creation = PM + Governance (Step 1). SL Leads validate (Step 2), they don't
   // create. Activation = Governance only. Edit = Governance + SL Lead (not PM).

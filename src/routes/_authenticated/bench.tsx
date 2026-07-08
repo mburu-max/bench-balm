@@ -21,6 +21,9 @@ import { exportToExcel, exportToPdf } from "@/lib/export";
 
 export const Route = createFileRoute("/_authenticated/bench")({
   component: BenchPage,
+  validateSearch: (search: Record<string, unknown>): { band?: string } => ({
+    band: typeof search.band === "string" ? search.band : undefined,
+  }),
 });
 
 function BenchPage() {
@@ -28,7 +31,8 @@ function BenchPage() {
   const allocations = useAllocations();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [sl, setSl] = useState("all");
-  const [band, setBand] = useState("all");
+  const { band: bandParam } = Route.useSearch();
+  const [band, setBand] = useState(bandParam ?? "all");
   const [q, setQ] = useState("");
 
   const all = resources.data ?? [];
@@ -41,15 +45,15 @@ function BenchPage() {
   const onLeave = all.filter((r) => r.status === "On_Leave");
 
   const filtered: BenchRow[] = bench
-    .filter((b) => b.benchPct > 0)
     .filter((b) => sl === "all" || b.resource.service_line === sl)
     .filter((b) => {
-      if (band === "all") return true;
       if (band === "zero") return b.benchPct === 100;
       if (band === "high") return b.benchPct >= 50 && b.benchPct < 100;
       if (band === "low") return b.benchPct > 0 && b.benchPct < 50;
+      if (band === "partial") return b.benchPct > 0 && b.benchPct < 100;
+      if (band === "fully") return b.benchPct === 0;
       if (band === "over") return b.benchPct < 0;
-      return true;
+      return b.benchPct > 0; // "all" bench = anyone with free capacity (idle or partial)
     })
     .filter((b) =>
       b.resource.full_name.toLowerCase().includes(q.toLowerCase()) ||
@@ -132,8 +136,10 @@ function BenchPage() {
             <SelectContent>
               <SelectItem value="all">All bench</SelectItem>
               <SelectItem value="zero">Zero allocation</SelectItem>
+              <SelectItem value="partial">Partial (1-99%)</SelectItem>
               <SelectItem value="high">Partial 50-99%</SelectItem>
               <SelectItem value="low">Partial 1-49%</SelectItem>
+              <SelectItem value="fully">Fully allocated</SelectItem>
               <SelectItem value="over">Over-allocated</SelectItem>
             </SelectContent>
           </Select>
@@ -144,7 +150,9 @@ function BenchPage() {
           onChange={(e) => setQ(e.target.value)}
           className="max-w-xs"
         />
-        <div className="text-sm text-muted-foreground ml-auto">{filtered.length} on bench</div>
+        <div className="text-sm text-muted-foreground ml-auto">
+          {filtered.length} {band === "over" ? "over-allocated" : band === "fully" ? "fully allocated" : "on bench"}
+        </div>
       </div>
 
       <div className="rounded-xl border bg-card overflow-hidden">
@@ -185,7 +193,7 @@ function BenchPage() {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-5 py-10 text-center text-muted-foreground">
-                    Nobody on bench matching these filters. 🎯
+                    No resources match these filters. 🎯
                   </td>
                 </tr>
               )}
