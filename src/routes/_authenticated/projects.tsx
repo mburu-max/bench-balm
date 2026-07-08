@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +42,7 @@ type Form = {
   project_description: string;
   customer_id: string;
   service_line: ServiceLine | "";
+  project_manager_user_id: string;
   start_date: string;
   end_date: string;
 };
@@ -52,6 +53,7 @@ const empty: Form = {
   project_description: "",
   customer_id: "",
   service_line: "",
+  project_manager_user_id: "",
   start_date: "",
   end_date: "",
 };
@@ -71,9 +73,25 @@ function ProjectsPage() {
   const { status: statusParam } = Route.useSearch();
   const [statusFilter, setStatusFilter] = useState<string>(statusParam ?? "all");
 
-  // Project creation = PM + Governance (Step 1). SL Leads validate (Step 2), they don't
-  // create. Activation = Governance only. Edit = Governance + SL Lead (not PM).
-  const canCreate = !!(role?.isGovernanceLead || role?.isPm || role?.isDeveloper);
+  // PMs available to assign on creation. Uses a SECURITY DEFINER RPC so an SL Lead can
+  // read the PM roster without broad access to profiles/user_roles. Empty until PMs exist.
+  const pms = useQuery({
+    queryKey: ["project-managers"],
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)("list_project_managers");
+      if (error) return [] as { user_id: string; full_name: string | null; email: string }[];
+      return (data ?? []) as { user_id: string; full_name: string | null; email: string }[];
+    },
+  });
+  const pmLabel = (id: string | null | undefined) => {
+    const pm = (pms.data ?? []).find((p) => p.user_id === id);
+    return pm ? pm.full_name ?? pm.email : "—";
+  };
+
+  // Top-down workflow: SL Leads now initiate projects and assign the PM (Step 1); the
+  // project then cascades to that PM's dashboard. Activation, delete and On-Hold are
+  // Governance-only. Edit = Governance + SL Lead (not PM).
+  const canCreate = !!(role?.isGovernanceLead || role?.isSlLead || role?.isDeveloper);
   const canVerify = !!(role?.isDl || role?.isGovernanceLead || role?.isDeveloper);
   const canActivate = !!(role?.isGovernanceLead || role?.isDeveloper);
   const canDelete = !!(role?.isGovernanceLead || role?.isDeveloper);
@@ -106,6 +124,7 @@ function ProjectsPage() {
       project_description: p.project_description,
       customer_id: p.customer_id,
       service_line: p.service_line,
+      project_manager_user_id: p.project_manager_user_id ?? "",
       start_date: p.start_date,
       end_date: p.end_date,
     });
@@ -137,6 +156,7 @@ function ProjectsPage() {
       project_description: form.project_description,
       customer_id: form.customer_id,
       service_line: form.service_line as ServiceLine,
+      project_manager_user_id: form.project_manager_user_id || null,
       start_date: form.start_date,
       end_date: form.end_date,
     };
@@ -146,11 +166,11 @@ function ProjectsPage() {
     } else {
       ({ error } = await supabase
         .from("projects")
-        .insert({ ...base, project_code: form.project_code, status: "Draft" as ProjectStatus, project_manager_user_id: uid, created_by: uid } as any));
+        .insert({ ...base, project_code: form.project_code, status: "Draft" as ProjectStatus, created_by: uid } as any));
     }
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success(form.id ? "Project updated" : "Draft created — pending SL Lead validation");
+    toast.success(form.id ? "Project updated" : "Draft created — assigned to the PM's dashboard");
     setOpen(false);
     qc.invalidateQueries({ queryKey: ["projects"] });
   };
@@ -252,6 +272,22 @@ function ProjectsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="col-span-2 space-y-1.5">
+                  <Label>Project Manager</Label>
+                  <Select value={form.project_manager_user_id} onValueChange={(v) => setForm({ ...form, project_manager_user_id: v })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={(pms.data?.length ?? 0) === 0 ? "No project managers available yet" : "Assign a PM"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(pms.data ?? []).map((pm) => (
+                        <SelectItem key={pm.user_id} value={pm.user_id}>{pm.full_name ?? pm.email}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground">
+                    The assigned PM sees this project on their dashboard. Create PMs in Admin → Users.
+                  </p>
+                </div>
                 <div className="space-y-1.5">
                   <Label>Start Date *</Label>
                   <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
@@ -314,6 +350,7 @@ function ProjectsPage() {
                 <th className="text-left px-3 py-2.5 font-medium">Description</th>
                 <th className="text-left px-3 py-2.5 font-medium">Customer</th>
                 <th className="text-left px-3 py-2.5 font-medium">SL</th>
+                <th className="text-left px-3 py-2.5 font-medium">PM</th>
                 <th className="text-left px-3 py-2.5 font-medium">Dates</th>
                 <th className="text-right px-3 py-2.5 font-medium">Resources</th>
                 <th className="text-left px-3 py-2.5 font-medium">Status</th>
@@ -334,6 +371,7 @@ function ProjectsPage() {
                     <td className="px-3 py-3">
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase tracking-wide">{p.service_line}</span>
                     </td>
+                    <td className="px-3 py-3 text-muted-foreground">{pmLabel(p.project_manager_user_id)}</td>
                     <td className="px-3 py-3 text-xs text-muted-foreground tabular-nums">{p.start_date} → {p.end_date}</td>
                     <td className="px-3 py-3 text-right tabular-nums">
                       <Link to="/projects/$projectId" params={{ projectId: p.id }} className="text-primary hover:underline">{resCount}</Link>
@@ -376,7 +414,7 @@ function ProjectsPage() {
               })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-10 text-center text-muted-foreground">No projects match.</td>
+                  <td colSpan={9} className="px-5 py-10 text-center text-muted-foreground">No projects match.</td>
                 </tr>
               )}
             </tbody>
