@@ -52,7 +52,6 @@ export function PmDashboard() {
 
   const cliff = cliffEdge.data ?? [];
   const rolloffs30 = cliff.filter((r) => (r.cliff_band ?? 90) <= 30);
-  const gaps = rolloffs30;
 
   // My team: current allocations grouped by resource (% is "on your projects" only).
   const teamMap = new Map<string, { name: string; omni: string; projects: { id: string; code: string }[]; pct: number; nextEnd: string | null }>();
@@ -111,8 +110,8 @@ export function PmDashboard() {
         </Link>
       )}
 
-      {/* Needs attention + Upcoming gaps */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
+      {/* Needs attention */}
+      <div className="mt-6">
         {/* Unstaffed active projects */}
         <div className="rounded-xl border bg-card overflow-hidden flex flex-col">
           <div className="p-5 border-b flex items-center justify-between gap-3">
@@ -143,43 +142,6 @@ export function PmDashboard() {
                   </div>
                   <span className="text-xs font-medium text-destructive shrink-0">No one assigned</span>
                 </Link>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Upcoming gaps ≤30d */}
-        <div className="rounded-xl border bg-card overflow-hidden flex flex-col">
-          <div className="p-5 border-b flex items-center justify-between gap-3">
-            <div>
-              <h2 className="font-display text-base font-semibold">Upcoming Gaps</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Allocations ending within 30 days, no follow-on</p>
-            </div>
-            {gaps.length > PREVIEW_CAP && (
-              <Link to="/cliff-edge" className="text-xs text-primary hover:underline shrink-0">View all {gaps.length} →</Link>
-            )}
-          </div>
-          {gaps.length === 0 ? (
-            <div className="flex-1 grid place-items-center p-10 text-center">
-              <div>
-                <CheckCircle2 className="size-10 mx-auto text-success" />
-                <div className="mt-2 text-sm font-medium">No allocations ending in the next 30 days</div>
-              </div>
-            </div>
-          ) : (
-            <div className="divide-y">
-              {gaps.slice(0, PREVIEW_CAP).map((g) => (
-                <div key={g.resource_id} className="px-5 py-3 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium truncate">{g.full_name}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      <span className="font-mono">{g.ending_project_code ?? "—"}</span> · ends {g.last_covered_date}
-                    </div>
-                  </div>
-                  <span className={`text-xs font-medium tabular-nums shrink-0 ${(g.days_until_cliff ?? 0) <= 0 ? "text-destructive" : "text-warning-foreground"}`}>
-                    {(g.days_until_cliff ?? 0) <= 0 ? "Now" : `${g.days_until_cliff}d`}
-                  </span>
-                </div>
               ))}
             </div>
           )}
