@@ -91,8 +91,8 @@ export function PmDashboard() {
         <KpiCard label="Pending" value={loading ? "—" : pendingProjects.length} icon={Clock} accent="warning" hint="Draft / Verified" />
         <KpiCard label="Team" value={loading ? "—" : teamSize} icon={Users} hint="on your projects" />
         <KpiCard label="Unstaffed Active" value={loading ? "—" : unstaffedActive.length} icon={UserX} accent={unstaffedActive.length > 0 ? "destructive" : "success"} />
-        <KpiCard label="Roll-offs ≤30d" value={loading ? "—" : rolloffs30.length} icon={AlertTriangle} accent="warning" />
-        <KpiCard label="Roll-offs ≤90d" value={loading ? "—" : cliff.length} icon={AlertOctagon} />
+        <KpiCard label="Allocation ≤ 30 Days" value={loading ? "—" : rolloffs30.length} icon={AlertTriangle} accent="warning" />
+        <KpiCard label="Allocation ≤ 90 Days" value={loading ? "—" : cliff.length} icon={AlertOctagon} />
       </div>
 
       {/* Cliff banner */}
@@ -102,7 +102,7 @@ export function PmDashboard() {
             <div className="flex items-center gap-3">
               <AlertOctagon className={`size-5 ${rolloffs30.length > 0 ? "text-destructive" : "text-warning-foreground"}`} />
               <div>
-                <div className="text-sm font-medium">{cliff.length} on your projects rolling off within 90 days with no follow-on</div>
+                <div className="text-sm font-medium">{cliff.length} on your projects with an allocation ending within 90 days and no follow-on</div>
                 <div className="text-xs text-muted-foreground mt-0.5">{rolloffs30.length > 0 ? `${rolloffs30.length} within 30 days — line up their next allocation` : "None urgent yet, but worth planning"}</div>
               </div>
             </div>
@@ -163,7 +163,7 @@ export function PmDashboard() {
             <div className="flex-1 grid place-items-center p-10 text-center">
               <div>
                 <CheckCircle2 className="size-10 mx-auto text-success" />
-                <div className="mt-2 text-sm font-medium">No roll-offs in the next 30 days</div>
+                <div className="mt-2 text-sm font-medium">No allocations ending in the next 30 days</div>
               </div>
             </div>
           ) : (
@@ -240,7 +240,7 @@ export function PmDashboard() {
           <div className="p-5 border-b flex items-center justify-between gap-3">
             <div>
               <h2 className="font-display text-base font-semibold">My Team</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Top {PREVIEW_CAP} by soonest roll-off</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Top {PREVIEW_CAP} by soonest allocation end</p>
             </div>
             {team.length > PREVIEW_CAP && (
               <Link to="/project-allocations" className="text-xs text-primary hover:underline shrink-0">View all {team.length} →</Link>
@@ -253,7 +253,7 @@ export function PmDashboard() {
                   <th className="text-left px-5 py-2.5 font-medium">Resource</th>
                   <th className="text-left px-3 py-2.5 font-medium">On projects</th>
                   <th className="text-right px-3 py-2.5 font-medium">% on your projects</th>
-                  <th className="text-left px-5 py-2.5 font-medium">Next roll-off</th>
+                  <th className="text-left px-5 py-2.5 font-medium">Allocation ends</th>
                 </tr>
               </thead>
               <tbody>

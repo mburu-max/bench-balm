@@ -43,18 +43,18 @@ function KpisPage() {
   const benchRate = active.length > 0 ? Math.round((benchCount / active.length) * 100) : 0;
   const overAllocRate = active.length > 0 ? Math.round((overAllocatedCount / active.length) * 100) : 0;
 
-  // Contractor / vendor allocations rolling off soon — margin-exposure early warning.
+  // Contractor / vendor allocations ending soon — margin-exposure early warning.
   const _today = new Date().toISOString().slice(0, 10);
   const in30 = horizonStr(30);
-  const in60 = horizonStr(60);
+  const in90 = horizonStr(90);
   const externalIds = new Set(active.filter((r) => r.employment_type !== "FTE").map((r) => r.id));
   const externalExpiring = (allocations.data ?? []).filter(
     (a) => externalIds.has(a.resource_id)
       && (a.allocation_type === "Billable" || a.allocation_type === "Non-Billable")
-      && a.allocation_end_date >= _today && a.allocation_end_date <= in60,
+      && a.allocation_end_date >= _today && a.allocation_end_date <= in90,
   );
-  const rollOff60 = new Set(externalExpiring.map((a) => a.resource_id)).size;
-  const rollOff30 = new Set(externalExpiring.filter((a) => a.allocation_end_date <= in30).map((a) => a.resource_id)).size;
+  const alloc90 = new Set(externalExpiring.map((a) => a.resource_id)).size;
+  const alloc30 = new Set(externalExpiring.filter((a) => a.allocation_end_date <= in30).map((a) => a.resource_id)).size;
 
   // Portfolio utilisation variance — spread between the hottest and coolest service line.
   // Company-wide by nature (needs ≥2 SLs), so a single-SL viewer sees "—".
@@ -217,13 +217,13 @@ function KpisPage() {
           hint="Populate headcount targets in headcount_forecast table to enable"
         />
 
-        {/* Margin watch (not a §6.1 KPI): external allocations rolling off soon */}
+        {/* Margin watch (not a §6.1 KPI): external allocations ending soon */}
         <KpiCard
-          label="Contractor Roll-offs"
-          value={rollOff60}
+          label="Contractor Allocations"
+          value={alloc90}
           icon={CalendarClock}
-          accent={rollOff30 > 0 ? "warning" : rollOff60 > 0 ? "info" : "success"}
-          hint={`External (Contractor/Vendor) rolling off ≤60d · ${rollOff30} within 30d`}
+          accent={alloc30 > 0 ? "warning" : alloc90 > 0 ? "info" : "success"}
+          hint={`External Contractor/Vendor · Allocation ≤ 90 Days: ${alloc90} · Allocation ≤ 30 Days: ${alloc30}`}
         />
 
         {/* Structural watch (not a §6.1 KPI): utilisation spread across service lines */}
