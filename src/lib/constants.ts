@@ -13,13 +13,6 @@ export const ALLOCATION_TYPE_LABEL: Record<AllocationType, string> = {
   Bench: "Bench",
   Leave: "Leave",
 };
-// Longer label for pickers — keeps the underlying meaning visible during the terminology switch.
-export const ALLOCATION_TYPE_OPTION: Record<AllocationType, string> = {
-  Billable: "Cost (Billable)",
-  "Non-Billable": "Opex (Non-billable)",
-  Bench: "Bench",
-  Leave: "Leave",
-};
 
 // Allocation model = the engagement pattern of a resource on a project (RA doc §4.2,
 // mandatory field per Dashboard Dev Tracker allocation_ledger). Distinct from % and type.

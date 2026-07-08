@@ -23,7 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   ALLOCATION_TYPES,
-  ALLOCATION_TYPE_OPTION,
+  ALLOCATION_TYPE_LABEL,
   type AllocationType,
   ALLOCATION_MODELS,
   ALLOCATION_MODEL_LABEL,
@@ -233,7 +233,7 @@ function ProjectAllocationsPage() {
                           <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             {ALLOCATION_TYPES.filter((t) => t !== "Leave").map((t) => (
-                              <SelectItem key={t} value={t}>{ALLOCATION_TYPE_OPTION[t]}</SelectItem>
+                              <SelectItem key={t} value={t}>{ALLOCATION_TYPE_LABEL[t]}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
