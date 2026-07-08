@@ -86,12 +86,12 @@ export function PmDashboard() {
     <AppShell title="My Projects">
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-        <KpiCard label="Active Projects" value={loading ? "—" : activeProjects.length} icon={FolderKanban} accent="info" />
-        <KpiCard label="Pending" value={loading ? "—" : pendingProjects.length} icon={Clock} accent="warning" hint="Draft / Verified" />
-        <KpiCard label="Team" value={loading ? "—" : teamSize} icon={Users} hint="on your projects" />
-        <KpiCard label="Unstaffed Active" value={loading ? "—" : unstaffedActive.length} icon={UserX} accent={unstaffedActive.length > 0 ? "destructive" : "success"} />
-        <KpiCard label="Allocation ≤ 30 Days" value={loading ? "—" : rolloffs30.length} icon={AlertTriangle} accent="warning" />
-        <KpiCard label="Allocation ≤ 90 Days" value={loading ? "—" : cliff.length} icon={AlertOctagon} />
+        <KpiCard label="Active Projects" value={loading ? "—" : activeProjects.length} icon={FolderKanban} accent="info" to="/projects" />
+        <KpiCard label="Pending" value={loading ? "—" : pendingProjects.length} icon={Clock} accent="warning" hint="Draft / Verified" to="/projects" />
+        <KpiCard label="Team" value={loading ? "—" : teamSize} icon={Users} hint="on your projects" to="/project-allocations" />
+        <KpiCard label="Unstaffed Active" value={loading ? "—" : unstaffedActive.length} icon={UserX} accent={unstaffedActive.length > 0 ? "destructive" : "success"} to="/projects" />
+        <KpiCard label="Allocation ≤ 30 Days" value={loading ? "—" : rolloffs30.length} icon={AlertTriangle} accent="warning" to="/cliff-edge" />
+        <KpiCard label="Allocation ≤ 90 Days" value={loading ? "—" : cliff.length} icon={AlertOctagon} to="/cliff-edge" />
       </div>
 
       {/* Cliff banner */}

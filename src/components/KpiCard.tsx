@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { ArrowUpRight } from "lucide-react";
 
 export function KpiCard({
   label,
@@ -7,12 +9,17 @@ export function KpiCard({
   hint,
   icon: Icon,
   accent = "primary",
+  to,
+  params,
 }: {
   label: string;
   value: string | number;
   hint?: string;
   icon?: LucideIcon;
   accent?: "primary" | "success" | "warning" | "destructive" | "info";
+  // When set, the whole card becomes a link to this route (with a hover affordance).
+  to?: string;
+  params?: Record<string, string>;
 }) {
   const ring = {
     primary: "bg-primary/10 text-primary",
@@ -22,8 +29,8 @@ export function KpiCard({
     info: "bg-info/15 text-info",
   }[accent];
 
-  return (
-    <div className="rounded-xl border bg-card p-5 flex items-start gap-4">
+  const content = (
+    <>
       {Icon ? (
         <div className={cn("size-10 rounded-lg grid place-items-center shrink-0", ring)}>
           <Icon className="size-5" />
@@ -38,6 +45,23 @@ export function KpiCard({
         </div>
         {hint ? <div className="text-xs text-muted-foreground mt-1.5">{hint}</div> : null}
       </div>
-    </div>
+    </>
   );
+
+  const base = "rounded-xl border bg-card p-5 flex items-start gap-4";
+
+  if (to) {
+    return (
+      <Link
+        to={to as never}
+        params={params as never}
+        className={cn(base, "group relative transition-colors hover:border-primary/40 hover:bg-muted/30")}
+      >
+        <ArrowUpRight className="absolute top-2.5 right-2.5 size-4 text-muted-foreground/60 opacity-0 transition-opacity group-hover:opacity-100" />
+        {content}
+      </Link>
+    );
+  }
+
+  return <div className={base}>{content}</div>;
 }
