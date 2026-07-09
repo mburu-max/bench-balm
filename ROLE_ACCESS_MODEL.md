@@ -1,8 +1,9 @@
 # Role & Access Model — Resource Flow (bench-balm)
 
 **Status:** Source of truth for who-can-see and who-can-do. Reflects the implemented system
-as of 2026-07-02. Where the code and this document disagree, treat it as a bug in one of them
-and reconcile. Sections marked **⚠ GAP** are known open items.
+as of 2026-07-09 (top-down project creation: SL Lead initiates + assigns the PM). Where the code
+and this document disagree, treat it as a bug in one of them and reconcile. Sections marked
+**⚠ GAP** are known open items.
 
 **Scope:** This is a **management tool**. Its active users are the management roles — Governance
 Lead, Finance, Service Line Lead, Project Manager (and Developer). **Resources (the
@@ -23,8 +24,8 @@ object (policy / trigger / function) that enforces it, so each row can be assert
 | L0 | `developer` (`admin` legacy) | Full access to everything. Superuser. Manages users/roles. |
 | L1 | `governance_lead` | Owns master data + dashboard; final gate on project activation. Sees everything. |
 | L1r | `finance` | **Read-only** everywhere. No write under any circumstance. |
-| L2 | `service_line_lead` | Validates drafts, manages allocations & resources within assigned service line(s). Sole validator (Delivery Lead cut). |
-| L3 | `project_manager` | Creates projects; manages allocations on the projects they own. Sees only their projects. |
+| L2 | `service_line_lead` | Initiates projects (own SL) & assigns the owning PM; validates drafts; manages allocations & resources within assigned service line(s). Sole validator (Delivery Lead cut). |
+| L3 | `project_manager` | Owns and staffs the projects an SL Lead assigns to them; manages allocations on those projects. Sees only their projects. **Does not create projects.** |
 | L5 | `resource` | **Future expansion — not used in v1.** Self-service view of own profile + allocations; requests leave. Retained but dormant (see Scope note above). |
 
 Notes:
@@ -48,7 +49,7 @@ Notes:
 | Entity | Developer | Governance Lead | Finance | SL Lead | Project Manager | Resource |
 |---|---|---|---|---|---|---|
 | **Customer Master** | R·W | R·W | R (all) | R (all) | R (all) | R (all) |
-| **Project Registry** | R·W | R·W | R (all) | R (own SLs) · W (edit own SLs) | R (own projects) · W (create only) | R (allocated projects) |
+| **Project Registry** | R·W | R·W | R (all) | R (own SLs) · W (create + edit own SLs) | R (own projects) | R (allocated projects) |
 | **Resource Master** | R·W | R·W | R (all) | R (own SLs) · W (own SLs) | R (own projects' resources) | R (self) |
 | **Allocation Ledger** | R·W | R·W | R (all) | R (own SLs) · W (own SLs) | R (own projects) · W (own projects) | R (self) · W (leave via RPC) |
 | **Snapshots** | R·W | R·W | R (all) | R (all) | R (all) | R (all) |
@@ -100,10 +101,10 @@ from Draft/Verified.
 
 | Transition | Who may perform it | Notes |
 |---|---|---|
-| *(create)* → **Draft** | PM, Governance, Developer | Step 1. SL Lead **cannot** create. |
+| *(create)* → **Draft** | SL Lead (own SL), Governance, Developer | Step 1. **PM can no longer create** — the SL Lead initiates the project and assigns its owning PM. |
 | Draft → **Verified** | SL Lead, Governance, Developer | Step 2 (validation gate). Surfaced via the draft-handoff queue. |
-| Verified → **Active** | Governance, Developer | Step 4 (final gate). **No contract gate** (Finance gate deferred, June 30). |
-| Active → **On_Hold** | Governance, Developer *(UI)* | Trigger also permits SL Lead. Hold button shows on Active rows only. |
+| Verified → **Active** | Governance, Developer | Step 3 (final gate). **No contract gate** (Finance gate deferred, June 30). |
+| Active → **On_Hold** | Governance, Developer | **Governance-only** — SL Leads are now prohibited (trigger raises on a non-Governance hold). Hold button shows on Active rows only. |
 | Draft/Verified → **Rejected** | SL Lead, Governance, Developer | |
 | → **Closed** | Governance, SL Lead *(trigger)* | **⚠ GAP** — no UI action exposes "Close" yet. |
 | *(delete)* | Governance, Developer | Blocked if the project has allocations, or is Closed (retention). |
@@ -120,9 +121,12 @@ Other actions:
 
 ## 5. Process flows
 
-### 5.1 Project Activation Lifecycle
-1. **PM** creates a project → saved as **Draft** (code auto-generated `[SL]-YYYY-NNN`).
-2. Draft appears in the **"pending your validation" queue** for the SL Lead of that SL.
+### 5.1 Project Activation Lifecycle (top-down)
+1. **SL Lead** creates a project in one of their **assigned service lines** → saved as **Draft**
+   (code auto-generated `[SL]-[CUST]-NNN`, e.g. `DLA-AIM-001`), and assigns the owning **PM** on creation
+   (`project_manager_user_id`, picked from `list_project_managers()`).
+2. The Draft immediately surfaces on the assigned **PM's** dashboard (`project_manager_user_id =
+   auth.uid()`), and sits in the SL Lead's own validation queue.
 3. **SL Lead** verifies → **Verified**.
 4. **Governance Lead** activates → **Active** (now selectable for allocation).
 
@@ -182,13 +186,14 @@ Each guarantee → the object that enforces it. A regression = any of these not 
 | Customers global-read | policy `customers_select` = `true` |
 | Finance zero-write | Finance absent from `*_write` / insert / update / delete policies |
 | Master-data write = Governance | `customers_write`, `resources_write` (+ `is_sl_lead` for resources) |
-| Project create = PM/Gov/Dev | policy `projects_insert` |
-| Project transitions | trigger `validate_project_transition` |
+| Project create = SL Lead (own SL)/Gov/Dev | policy `projects_insert` = `is_developer() OR is_governance_lead() OR is_sl_lead(service_line)` |
+| PM assignment roster (creation dropdown) | function `list_project_managers()` (SECURITY DEFINER; PM users only) |
+| Project transitions (incl. On-Hold = Governance-only) | trigger `validate_project_transition` |
 | Delete protection | triggers `prevent_project_delete_with_allocations`, `prevent_closed_project_delete`, `prevent_exited_resource_delete` |
 | Allocation rules R-01…R-04 | triggers listed in §6 |
 | Duplicate allocations | index `uq_allocation_no_dupe` |
 | Audit trail | triggers `trg_audit_*` → `audit_row_change()` |
-| Project code generation | function `next_project_code()` |
+| Project code generation | function `next_project_code(service_line, customer_id)` → `[SL]-[CUST]-NNN` (SL = first 3 letters of the service line; CUST = first 3 letters of the customer name; NNN per SL+customer) |
 | PM staffing pool | function `allocatable_resources()` |
 | Cross-SL-accurate load (bench/utilisation) | function `resource_current_load()` — totals across the whole ledger so loaned-out resources count as unavailable |
 | Role/SL resolution | `is_developer/is_governance_lead/is_finance/is_dl/is_sl_lead/is_pm/is_resource_role/has_sl_access` |

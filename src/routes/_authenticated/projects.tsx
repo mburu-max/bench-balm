@@ -131,16 +131,42 @@ function ProjectsPage() {
     setOpen(true);
   };
 
-  // On new projects, generate the code server-side when a service line is picked.
-  const onServiceLineChange = async (v: string) => {
+  // On new projects the code is [SL]-[CUST]-NNN, so it needs both the service line and the
+  // customer. Regenerate server-side once both are set (and re-run if either changes).
+  const regenerateCode = async (sl: ServiceLine | "", customerId: string) => {
+    if (!sl || !customerId) {
+      setForm((f) => ({ ...f, project_code: "" }));
+      return;
+    }
+    const { data } = await (supabase.rpc as any)("next_project_code", {
+      _sl: sl,
+      _customer_id: customerId,
+    });
+    // Guard against a stale response overwriting a newer selection.
+    setForm((f) =>
+      f.service_line === sl && f.customer_id === customerId
+        ? { ...f, project_code: (data as string) ?? "" }
+        : f
+    );
+  };
+
+  const onServiceLineChange = (v: string) => {
     const sl = v as ServiceLine;
     if (form.id) {
       setForm((f) => ({ ...f, service_line: sl }));
       return;
     }
     setForm((f) => ({ ...f, service_line: sl, project_code: "" }));
-    const { data } = await (supabase.rpc as any)("next_project_code", { _sl: sl });
-    setForm((f) => (f.service_line === sl ? { ...f, project_code: (data as string) ?? "" } : f));
+    regenerateCode(sl, form.customer_id);
+  };
+
+  const onCustomerChange = (v: string) => {
+    if (form.id) {
+      setForm((f) => ({ ...f, customer_id: v }));
+      return;
+    }
+    setForm((f) => ({ ...f, customer_id: v, project_code: "" }));
+    regenerateCode(form.service_line, v);
   };
 
   const save = async () => {
@@ -230,10 +256,10 @@ function ProjectsPage() {
                 <div className="space-y-1.5">
                   <Label>Project Code</Label>
                   <div className="h-9 flex items-center rounded-md border bg-muted/40 px-3 font-mono text-sm">
-                    {form.project_code || <span className="text-muted-foreground font-sans text-xs">Auto-generated from service line</span>}
+                    {form.project_code || <span className="text-muted-foreground font-sans text-xs">Auto-generated from service line + customer</span>}
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    {form.id ? "Locked — the code is the primary key and can't change." : "Generated as [SL]-YYYY-NNN when you pick a service line."}
+                    {form.id ? "Locked — the code is the primary key and can't change." : "Generated as [SL]-[CUST]-NNN once you pick a service line and customer."}
                   </p>
                 </div>
                 <div className="space-y-1.5">
@@ -254,7 +280,7 @@ function ProjectsPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Customer *</Label>
-                  <Select value={form.customer_id} onValueChange={(v) => setForm({ ...form, customer_id: v })}>
+                  <Select value={form.customer_id} onValueChange={onCustomerChange}>
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
                       {(customers.data ?? []).map((c) => (
