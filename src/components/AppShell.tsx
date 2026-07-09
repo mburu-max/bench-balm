@@ -43,6 +43,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentRole } from "@/lib/useCurrentRole";
+import { usePmStaffingQueue } from "@/lib/staffing";
 import { setViewAs } from "@/lib/impersonation";
 import { getHiddenPages, setHiddenPages } from "@/lib/demo-visibility";
 import { ROLE_LABEL, type AppRole } from "@/lib/constants";
@@ -110,6 +111,11 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
   const location = useLocation();
   const navigate = useNavigate();
   const role = useCurrentRole();
+
+  // "Ready to staff" badge on the Projects nav item — only for users who land on the PM
+  // view (a pure PM, not Governance/Finance). Gated so non-PM roles don't fetch for it.
+  const isPmView = !!role.data && !role.data.isGovernanceLead && !role.data.isFinance && role.data.isPm;
+  const staffing = usePmStaffingQueue(isPmView);
 
   const labelledGroups = NAV_GROUPS.filter((g) => g.label !== null).map((g) => g.label as string);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
@@ -232,6 +238,14 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
                       >
                         <Icon className="size-[17px]" />
                         {n.label}
+                        {n.to === "/projects" && isPmView && staffing.count > 0 && (
+                          <span
+                            className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-warning/30 text-warning-foreground tabular-nums"
+                            title={`${staffing.count} active project${staffing.count === 1 ? "" : "s"} waiting to be staffed`}
+                          >
+                            {staffing.count}
+                          </span>
+                        )}
                       </Link>
                     );
                   })}

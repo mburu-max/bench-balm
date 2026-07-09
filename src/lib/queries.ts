@@ -15,9 +15,10 @@ export function useCustomers() {
   });
 }
 
-export function useProjects() {
+export function useProjects(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["projects"],
+    enabled: options?.enabled ?? true,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("projects")
@@ -43,9 +44,10 @@ export function useResources() {
   });
 }
 
-export function useAllocations() {
+export function useAllocations(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["allocations"],
+    enabled: options?.enabled ?? true,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("allocations")

@@ -94,6 +94,24 @@ export function PmDashboard() {
         <KpiCard label="Allocation ≤ 90 Days" value={loading ? "—" : cliff.length} icon={AlertOctagon} to="/cliff-edge" />
       </div>
 
+      {/* Ready-to-staff flag — active projects assigned to you with nobody allocated yet */}
+      {!loading && unstaffedActive.length > 0 && (
+        <Link to="/projects" search={{ status: "Active" }} className="block mt-6">
+          <div className="rounded-xl border border-warning/40 bg-warning/5 p-4 flex items-center justify-between gap-4 transition-colors hover:bg-muted/40">
+            <div className="flex items-center gap-3">
+              <UserX className="size-5 text-warning-foreground" />
+              <div>
+                <div className="text-sm font-medium">
+                  {unstaffedActive.length} active project{unstaffedActive.length === 1 ? "" : "s"} assigned to you with nobody staffed yet
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">Start allocating resources so delivery can begin.</div>
+              </div>
+            </div>
+            <ArrowRight className="size-4 text-muted-foreground" />
+          </div>
+        </Link>
+      )}
+
       {/* Cliff banner */}
       {cliff.length > 0 && (
         <Link to="/cliff-edge" className="block mt-6">
