@@ -406,6 +406,8 @@ export type Database = {
           project_manager_user_id: string | null
           project_type: Database["public"]["Enums"]["project_type"] | null
           service_line: Database["public"]["Enums"]["service_line"]
+          staffing_approved_at: string | null
+          staffing_approved_by: string | null
           start_date: string
           status: Database["public"]["Enums"]["project_status"]
           updated_at: string
@@ -430,6 +432,8 @@ export type Database = {
           project_manager_user_id?: string | null
           project_type?: Database["public"]["Enums"]["project_type"] | null
           service_line: Database["public"]["Enums"]["service_line"]
+          staffing_approved_at?: string | null
+          staffing_approved_by?: string | null
           start_date: string
           status?: Database["public"]["Enums"]["project_status"]
           updated_at?: string
@@ -454,6 +458,8 @@ export type Database = {
           project_manager_user_id?: string | null
           project_type?: Database["public"]["Enums"]["project_type"] | null
           service_line?: Database["public"]["Enums"]["service_line"]
+          staffing_approved_at?: string | null
+          staffing_approved_by?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["project_status"]
           updated_at?: string
