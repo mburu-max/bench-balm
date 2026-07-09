@@ -94,9 +94,9 @@ export function PmDashboard() {
         <KpiCard label="Allocation ≤ 90 Days" value={loading ? "—" : cliff.length} icon={AlertOctagon} to="/cliff-edge" />
       </div>
 
-      {/* Ready-to-staff flag — active projects assigned to you with nobody allocated yet */}
+      {/* Ready-to-staff flag — jumps straight to allocation for the first unstaffed project */}
       {!loading && unstaffedActive.length > 0 && (
-        <Link to="/projects" search={{ status: "Active" }} className="block mt-6">
+        <Link to="/project-allocations" search={{ projectId: unstaffedActive[0]?.id }} className="block mt-6">
           <div className="rounded-xl border border-warning/40 bg-warning/5 p-4 flex items-center justify-between gap-4 transition-colors hover:bg-muted/40">
             <div className="flex items-center gap-3">
               <UserX className="size-5 text-warning-foreground" />
@@ -151,14 +151,14 @@ export function PmDashboard() {
           ) : (
             <div className="divide-y">
               {unstaffedActive.slice(0, PREVIEW_CAP).map((p: any) => (
-                <Link key={p.id} to="/projects/$projectId" params={{ projectId: p.id }} className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-muted/40">
+                <Link key={p.id} to="/project-allocations" search={{ projectId: p.id }} className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-muted/40">
                   <div className="min-w-0">
                     <div className="text-sm font-medium truncate">
                       <span className="font-mono text-xs text-muted-foreground mr-2">{p.project_code}</span>{p.project_description}
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">{p.customers?.customer_name ?? "—"} · ends {p.end_date}</div>
                   </div>
-                  <span className="text-xs font-medium text-destructive shrink-0">No one assigned</span>
+                  <span className="text-xs font-medium text-primary shrink-0">Assign resources →</span>
                 </Link>
               ))}
             </div>

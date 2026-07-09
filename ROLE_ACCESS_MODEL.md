@@ -105,7 +105,7 @@ verifies a Draft **straight to Active** (single approval gate).
 | *(create)* → **Draft** | SL Lead (own SL), Governance, Developer | Step 1. **PM can no longer create** — the SL Lead initiates the project and assigns its owning PM. |
 | Draft → **Active** *(Verify)* | Governance, Developer | **Single approval gate** — Governance *verifies* a Draft straight to Active (the "Verify" action). Surfaced via the Governance verification queue. **SL Leads no longer verify.** Activating raises the assigned PM's "assign resources" flag. No contract gate (Finance gate deferred, June 30). |
 | Active → **On_Hold** | Governance, Developer | **Governance-only** — SL Leads are prohibited (trigger raises on a non-Governance hold). Hold button shows on Active rows only. |
-| Draft → **Rejected** | Governance, SL Lead (own SL), Developer | |
+| Draft → **Rejected** | Governance, Developer | **SL Leads can no longer reject** — Governance only. |
 | → **Closed** | Governance, SL Lead *(trigger)* | **⚠ GAP** — no UI action exposes "Close" yet. |
 | *(delete)* | Governance, Developer | Blocked if the project has allocations, or is Closed (retention). |
 
@@ -114,6 +114,10 @@ Other actions:
   (scoped to their SLs). **PM cannot edit** (UI). Project code is auto-generated and locked.
 - **Allocate a resource** (create/edit/delete allocation rows): Governance, SL Lead (own SL),
   PM (own projects). Finance/Resource cannot.
+- **Approve staffing** (SL Lead sign-off): once the PM has allocated resources to an **Active**
+  project, the **SL Lead** of that service line approves — recorded as a flag
+  (`staffing_approved_by` / `staffing_approved_at`) and shown as an "✓ Approved" badge. The
+  project **stays Active** (no status change). Governance/Developer may also sign off.
 - **Resource status** Active/On_Leave/Exited: Resource-Master writers. A Resource self-serves
   leave via `request_leave` / `return_from_leave`.
 
@@ -131,6 +135,8 @@ Other actions:
    (the legacy `Verified` state is skipped).
 4. Activation raises the "assign resources" flag on the assigned **PM's** dashboard, and the
    project becomes selectable for allocation — the PM then staffs it.
+5. Once the PM has staffed the project, the **SL Lead** reviews and **approves** the staffing —
+   a sign-off flag (`staffing_approved_by/_at`, "✓ Approved" badge); the project stays Active.
 
 ### 5.2 Direct Resource Allocation
 - **PM or SL Lead** allocates directly (no demand-raising step — removed June 30).

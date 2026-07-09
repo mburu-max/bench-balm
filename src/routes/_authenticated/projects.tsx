@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, ArrowRight, XCircle, Lock, ClipboardCheck } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowRight, XCircle, Lock, ClipboardCheck, CheckCircle2 } from "lucide-react";
 import { useCustomers, useProjects, useAllocations } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -96,8 +96,11 @@ function ProjectsPage() {
   // Verify = the Governance approval that activates a Draft (Developer implied).
   const canVerify = !!(role?.isGovernanceLead || role?.isDeveloper);
   const canActivate = canVerify;
-  // Reject/withdraw a Draft: Governance or the SL Lead who owns the service line.
-  const canReject = !!(role?.isGovernanceLead || role?.isDl || role?.isDeveloper);
+  // Reject a Draft: Governance only (Developer implied). SL Leads can no longer reject.
+  const canReject = !!(role?.isGovernanceLead || role?.isDeveloper);
+  // Staffing sign-off: the SL Lead approves once the PM has staffed an Active project.
+  // Governance/Developer can also sign off. Only meaningful on Active projects with resources.
+  const canApproveStaffing = !!(role?.isSlLead || role?.isGovernanceLead || role?.isDeveloper);
   const canDelete = !!(role?.isGovernanceLead || role?.isDeveloper);
   const canEditProject = (p: any) =>
     !!(role?.isDeveloper || role?.isGovernanceLead || role?.isDl);
@@ -212,6 +215,21 @@ function ProjectsPage() {
     const { error } = await supabase.from("projects").update({ status }).eq("id", p.id);
     if (error) return toast.error(error.message);
     toast.success(status === "Active" ? "Verified → Active" : `Status → ${status.replace("_", " ")}`);
+    qc.invalidateQueries({ queryKey: ["projects"] });
+  };
+
+  // SL Lead signs off on staffing once the PM has allocated resources. Records who/when; the
+  // project stays Active. Passing approve=false clears it (e.g. if staffing changes).
+  const approveStaffing = async (p: any, approve: boolean) => {
+    if (!canApproveStaffing) return toast.error("Only a Service Line Lead can approve staffing");
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData.user?.id ?? null;
+    const patch = approve
+      ? { staffing_approved_by: uid, staffing_approved_at: new Date().toISOString() }
+      : { staffing_approved_by: null, staffing_approved_at: null };
+    const { error } = await supabase.from("projects").update(patch as any).eq("id", p.id);
+    if (error) return toast.error(error.message);
+    toast.success(approve ? "Staffing approved" : "Approval removed");
     qc.invalidateQueries({ queryKey: ["projects"] });
   };
 
@@ -407,7 +425,17 @@ function ProjectsPage() {
                     <td className="px-3 py-3 text-right tabular-nums">
                       <Link to="/projects/$projectId" params={{ projectId: p.id }} className="text-primary hover:underline">{resCount}</Link>
                     </td>
-                    <td className="px-3 py-3"><ProjectStatusBadge status={p.status} /></td>
+                    <td className="px-3 py-3">
+                      <ProjectStatusBadge status={p.status} />
+                      {p.staffing_approved_at && (
+                        <span
+                          className="ml-1.5 inline-flex items-center rounded-full border border-success/30 bg-success/15 text-success px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
+                          title={`Staffing approved by SL Lead on ${String(p.staffing_approved_at).slice(0, 10)}`}
+                        >
+                          ✓ Approved
+                        </span>
+                      )}
+                    </td>
                     <td className="px-5 py-3 text-right whitespace-nowrap">
                       {p.status === "Draft" && canVerify && (
                         <Button size="sm" variant="secondary" className="mr-1" title="Verify & activate" onClick={() => updateStatus(p, "Active")}>
@@ -427,6 +455,16 @@ function ProjectsPage() {
                       {p.status === "Active" && canActivate && (
                         <Button size="sm" variant="outline" className="mr-1" onClick={() => updateStatus(p, "On_Hold")}>
                           Hold
+                        </Button>
+                      )}
+                      {p.status === "Active" && resCount > 0 && !p.staffing_approved_at && canApproveStaffing && (
+                        <Button size="sm" variant="outline" className="mr-1" title="Approve staffing" onClick={() => approveStaffing(p, true)}>
+                          <CheckCircle2 className="size-3.5 mr-1 text-success" /> Approve
+                        </Button>
+                      )}
+                      {p.status === "Active" && p.staffing_approved_at && canApproveStaffing && (
+                        <Button size="sm" variant="ghost" className="mr-1" title="Remove approval" onClick={() => approveStaffing(p, false)}>
+                          Unapprove
                         </Button>
                       )}
                       {canEdit && (

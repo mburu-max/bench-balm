@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,9 @@ import {
 import { AllocationTypeBadge } from "@/components/StatusBadge";
 
 export const Route = createFileRoute("/_authenticated/project-allocations")({
+  validateSearch: (search: Record<string, unknown>): { projectId?: string } => ({
+    projectId: typeof search.projectId === "string" ? search.projectId : undefined,
+  }),
   component: ProjectAllocationsPage,
 });
 
@@ -71,6 +74,9 @@ function ProjectAllocationsPage() {
   });
   const allocations = useAllocations();
   const qc = useQueryClient();
+  // Deep-link from the PM "ready to staff" flag: ?projectId=<id> preselects the assigned project.
+  const { projectId: preselectProjectId } = Route.useSearch();
+  const preselectApplied = useRef(false);
 
   const [customerId, setCustomerId] = useState("");
   const [projectId, setProjectId] = useState("");
@@ -81,6 +87,18 @@ function ProjectAllocationsPage() {
     () => (projects.data ?? []).find((p) => p.id === projectId),
     [projects.data, projectId],
   );
+
+  // Arriving from the PM flag with a preselected project: pin its customer + project and default
+  // the allocation dates to the project window, so the PM doesn't re-pick what they already own.
+  useEffect(() => {
+    if (preselectApplied.current || !preselectProjectId || !projects.data) return;
+    const p = projects.data.find((pp) => pp.id === preselectProjectId);
+    if (!p) return;
+    preselectApplied.current = true;
+    setCustomerId(p.customer_id);
+    setProjectId(preselectProjectId);
+    setRows((rs) => rs.map((r) => ({ ...r, start: r.start || p.start_date, end: r.end || p.end_date })));
+  }, [preselectProjectId, projects.data]);
   const filteredProjects = useMemo(
     () => (projects.data ?? []).filter((p) => p.status === "Active" && (!customerId || p.customer_id === customerId)),
     [projects.data, customerId],
@@ -94,7 +112,8 @@ function ProjectAllocationsPage() {
   const setRow = (key: string, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
-  const addRow = () => setRows((rs) => [...rs, blankRow()]);
+  // New rows default to the project's window too, so the PM doesn't retype dates per resource.
+  const addRow = () => setRows((rs) => [...rs, { ...blankRow(), start: project?.start_date ?? "", end: project?.end_date ?? "" }]);
   const removeRow = (key: string) => setRows((rs) => rs.filter((r) => r.key !== key));
 
   const saveRow = async (row: Row) => {
