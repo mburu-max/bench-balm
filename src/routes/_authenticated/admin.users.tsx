@@ -113,7 +113,22 @@ function AdminUsersPage() {
     });
     setCreating(false);
     if (error || (data as any)?.error) {
-      return toast.error((data as any)?.error ?? error?.message ?? "Failed to create user");
+      // supabase-js hides the function's JSON body on a non-2xx: `error` is a
+      // FunctionsHttpError whose generic message is "Edge Function returned a non-2xx
+      // status code", and the real body sits on error.context (a Response). Dig it out
+      // so the developer sees the actual reason instead of the generic string.
+      let msg = (data as any)?.error ?? error?.message ?? "Failed to create user";
+      const ctx = (error as any)?.context;
+      if (ctx && typeof ctx.json === "function") {
+        try {
+          const body = await ctx.json();
+          if (body?.error) msg = body.error;
+        } catch {
+          /* body wasn't JSON (e.g. a gateway 404 = function not deployed) — keep msg */
+        }
+      }
+      console.error("admin-create-user failed:", msg, error);
+      return toast.error(msg);
     }
     toast.success(`User ${form.email} created`);
     setForm(emptyForm);
