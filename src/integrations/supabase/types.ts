@@ -757,11 +757,22 @@ export type Database = {
         }
         Returns: boolean
       }
+      list_project_managers: {
+        Args: never
+        Returns: {
+          email: string
+          full_name: string
+          user_id: string
+        }[]
+      }
       my_allocated_project_ids: { Args: never; Returns: string[] }
       my_pm_project_ids: { Args: never; Returns: string[] }
       my_resource_ids: { Args: never; Returns: string[] }
       next_project_code: {
-        Args: { _sl: Database["public"]["Enums"]["service_line"] }
+        Args: {
+          _customer_id: string
+          _sl: Database["public"]["Enums"]["service_line"]
+        }
         Returns: string
       }
       pm_project_resource_ids: { Args: never; Returns: string[] }
