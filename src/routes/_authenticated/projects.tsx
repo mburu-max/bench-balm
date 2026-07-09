@@ -88,12 +88,16 @@ function ProjectsPage() {
     return pm ? pm.full_name ?? pm.email : "—";
   };
 
-  // Top-down workflow: SL Leads now initiate projects and assign the PM (Step 1); the
-  // project then cascades to that PM's dashboard. Activation, delete and On-Hold are
-  // Governance-only. Edit = Governance + SL Lead (not PM).
+  // Top-down workflow: SL Leads initiate projects and assign the PM (Step 1); the project
+  // cascades to that PM's dashboard. The Governance Lead then VERIFIES a Draft straight to
+  // Active (single approval gate) — that flip surfaces the "assign resources" flag for the PM.
+  // Delete and On-Hold are Governance-only. Edit = Governance + SL Lead (not PM).
   const canCreate = !!(role?.isGovernanceLead || role?.isSlLead || role?.isDeveloper);
-  const canVerify = !!(role?.isDl || role?.isGovernanceLead || role?.isDeveloper);
-  const canActivate = !!(role?.isGovernanceLead || role?.isDeveloper);
+  // Verify = the Governance approval that activates a Draft (Developer implied).
+  const canVerify = !!(role?.isGovernanceLead || role?.isDeveloper);
+  const canActivate = canVerify;
+  // Reject/withdraw a Draft: Governance or the SL Lead who owns the service line.
+  const canReject = !!(role?.isGovernanceLead || role?.isDl || role?.isDeveloper);
   const canDelete = !!(role?.isGovernanceLead || role?.isDeveloper);
   const canEditProject = (p: any) =>
     !!(role?.isDeveloper || role?.isGovernanceLead || role?.isDl);
@@ -202,11 +206,12 @@ function ProjectsPage() {
   };
 
   const updateStatus = async (p: any, status: ProjectStatus) => {
-    if (status === "Verified" && !canVerify) return toast.error("Only a Service Line Lead can verify");
-    if (status === "Active" && !canActivate) return toast.error("Only Governance Lead can activate");
+    if (status === "Active" && !canVerify) return toast.error("Only the Governance Lead can verify & activate a project");
+    if (status === "On_Hold" && !canActivate) return toast.error("Only the Governance Lead can put a project on hold");
+    if (status === "Rejected" && !canReject) return toast.error("You can't reject this project");
     const { error } = await supabase.from("projects").update({ status }).eq("id", p.id);
     if (error) return toast.error(error.message);
-    toast.success(`Status → ${status.replace("_", " ")}`);
+    toast.success(status === "Active" ? "Verified → Active" : `Status → ${status.replace("_", " ")}`);
     qc.invalidateQueries({ queryKey: ["projects"] });
   };
 
@@ -330,12 +335,12 @@ function ProjectsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Draft handoff queue — Step 1 → Step 2 bridge for validators */}
+      {/* Governance verification queue — Draft → Active (single approval gate) */}
       {canVerify && draftsPending.length > 0 && (
         <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
           <div className="flex items-center gap-2 text-sm font-medium">
             <ClipboardCheck className="size-4 text-primary" />
-            {draftsPending.length} draft project{draftsPending.length === 1 ? "" : "s"} pending your validation
+            {draftsPending.length} draft project{draftsPending.length === 1 ? "" : "s"} pending your verification
           </div>
           <div className="mt-3 space-y-1.5">
             {draftsPending.map((p) => (
@@ -345,8 +350,8 @@ function ProjectsPage() {
                   {p.project_description}
                   <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase tracking-wide">{p.service_line}</span>
                 </div>
-                <Button size="sm" onClick={() => updateStatus(p, "Verified")}>
-                  Verify <ArrowRight className="size-3.5 ml-1" />
+                <Button size="sm" onClick={() => updateStatus(p, "Active")}>
+                  Verify &amp; Activate <ArrowRight className="size-3.5 ml-1" />
                 </Button>
               </div>
             ))}
@@ -405,7 +410,7 @@ function ProjectsPage() {
                     <td className="px-3 py-3"><ProjectStatusBadge status={p.status} /></td>
                     <td className="px-5 py-3 text-right whitespace-nowrap">
                       {p.status === "Draft" && canVerify && (
-                        <Button size="sm" variant="secondary" className="mr-1" onClick={() => updateStatus(p, "Verified")}>
+                        <Button size="sm" variant="secondary" className="mr-1" title="Verify & activate" onClick={() => updateStatus(p, "Active")}>
                           Verify <ArrowRight className="size-3.5 ml-1" />
                         </Button>
                       )}
@@ -414,7 +419,7 @@ function ProjectsPage() {
                           <Lock className="size-3.5 mr-1" /> Lock to Active
                         </Button>
                       )}
-                      {(p.status === "Draft" || p.status === "Verified") && (role?.isDl || role?.isGovernanceLead || role?.isDeveloper) && (
+                      {(p.status === "Draft" || p.status === "Verified") && canReject && (
                         <Button size="sm" variant="ghost" className="mr-1" onClick={() => updateStatus(p, "Rejected")}>
                           <XCircle className="size-4 mr-1 text-destructive" /> Reject
                         </Button>

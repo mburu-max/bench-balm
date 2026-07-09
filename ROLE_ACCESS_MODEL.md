@@ -96,16 +96,16 @@ several project codes, and they see the union.
 
 ## 4. Action hierarchy — project lifecycle
 
-Status flow: `Draft → Verified → Active → (On_Hold ⇄ Active) → Closed`, with `Rejected` as an exit
-from Draft/Verified.
+Status flow: `Draft → Active → (On_Hold ⇄ Active) → Closed`, with `Rejected` as an exit from Draft.
+The legacy `Verified` state stays in the enum for old rows but is no longer used — Governance
+verifies a Draft **straight to Active** (single approval gate).
 
 | Transition | Who may perform it | Notes |
 |---|---|---|
 | *(create)* → **Draft** | SL Lead (own SL), Governance, Developer | Step 1. **PM can no longer create** — the SL Lead initiates the project and assigns its owning PM. |
-| Draft → **Verified** | SL Lead, Governance, Developer | Step 2 (validation gate). Surfaced via the draft-handoff queue. |
-| Verified → **Active** | Governance, Developer | Step 3 (final gate). **No contract gate** (Finance gate deferred, June 30). |
-| Active → **On_Hold** | Governance, Developer | **Governance-only** — SL Leads are now prohibited (trigger raises on a non-Governance hold). Hold button shows on Active rows only. |
-| Draft/Verified → **Rejected** | SL Lead, Governance, Developer | |
+| Draft → **Active** *(Verify)* | Governance, Developer | **Single approval gate** — Governance *verifies* a Draft straight to Active (the "Verify" action). Surfaced via the Governance verification queue. **SL Leads no longer verify.** Activating raises the assigned PM's "assign resources" flag. No contract gate (Finance gate deferred, June 30). |
+| Active → **On_Hold** | Governance, Developer | **Governance-only** — SL Leads are prohibited (trigger raises on a non-Governance hold). Hold button shows on Active rows only. |
+| Draft → **Rejected** | Governance, SL Lead (own SL), Developer | |
 | → **Closed** | Governance, SL Lead *(trigger)* | **⚠ GAP** — no UI action exposes "Close" yet. |
 | *(delete)* | Governance, Developer | Blocked if the project has allocations, or is Closed (retention). |
 
@@ -125,10 +125,12 @@ Other actions:
 1. **SL Lead** creates a project in one of their **assigned service lines** → saved as **Draft**
    (code auto-generated `[SL]-[CUST]-NNN`, e.g. `DLA-AIM-001`), and assigns the owning **PM** on creation
    (`project_manager_user_id`, picked from `list_project_managers()`).
-2. The Draft immediately surfaces on the assigned **PM's** dashboard (`project_manager_user_id =
-   auth.uid()`), and sits in the SL Lead's own validation queue.
-3. **SL Lead** verifies → **Verified**.
-4. **Governance Lead** activates → **Active** (now selectable for allocation).
+2. The Draft goes to the **Governance Lead's** verification queue. (The PM can already see the
+   project on their dashboard, but it isn't actionable until it's Active.)
+3. **Governance Lead** clicks **Verify** → **Active** in one step — the single approval gate
+   (the legacy `Verified` state is skipped).
+4. Activation raises the "assign resources" flag on the assigned **PM's** dashboard, and the
+   project becomes selectable for allocation — the PM then staffs it.
 
 ### 5.2 Direct Resource Allocation
 - **PM or SL Lead** allocates directly (no demand-raising step — removed June 30).
