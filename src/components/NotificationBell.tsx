@@ -55,8 +55,7 @@ export function NotificationBell({
         {items.length === 0 ? (
           <div className="p-8 text-center">
             <CheckCircle2 className="mx-auto size-8 text-success" />
-            <div className="mt-2 text-sm font-medium">You're all caught up</div>
-            <div className="mt-0.5 text-xs text-muted-foreground">No actions need your attention.</div>
+            <div className="mt-2 text-sm text-muted-foreground">No actions need your attention.</div>
           </div>
         ) : (
           <div className="max-h-96 divide-y overflow-y-auto">
