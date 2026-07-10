@@ -103,6 +103,8 @@ function ProjectsPage() {
   // Staffing sign-off: the SL Lead approves once the PM has staffed an Active project.
   // Governance/Developer can also sign off. Only meaningful on Active projects with resources.
   const canApproveStaffing = !!(role?.isSlLead || role?.isGovernanceLead || role?.isDeveloper);
+  // Once approved, only Governance/Developer can remove it — SL Leads cannot unapprove.
+  const canUnapprove = !!(role?.isGovernanceLead || role?.isDeveloper);
   const canDelete = !!(role?.isGovernanceLead || role?.isDeveloper);
   const canEditProject = (p: any) =>
     !!(role?.isDeveloper || role?.isGovernanceLead || role?.isDl);
@@ -225,7 +227,8 @@ function ProjectsPage() {
   // SL Lead signs off on staffing once the PM has allocated resources. Records who/when; the
   // project stays Active. Passing approve=false clears it (e.g. if staffing changes).
   const approveStaffing = async (p: any, approve: boolean) => {
-    if (!canApproveStaffing) return toast.error("Only a Service Line Lead can approve staffing");
+    if (approve && !canApproveStaffing) return toast.error("Only a Service Line Lead can approve staffing");
+    if (!approve && !canUnapprove) return toast.error("Only the Governance Lead can remove an approval");
     const { data: userData } = await supabase.auth.getUser();
     const uid = userData.user?.id ?? null;
     const patch = approve
@@ -474,7 +477,7 @@ function ProjectsPage() {
                           <CheckCircle2 className="size-3.5 mr-1 text-success" /> Approve
                         </Button>
                       )}
-                      {p.status === "Active" && p.staffing_approved_at && canApproveStaffing && (
+                      {p.status === "Active" && p.staffing_approved_at && canUnapprove && (
                         <Button size="sm" variant="ghost" className="mr-1" title="Remove approval" onClick={() => approveStaffing(p, false)}>
                           Unapprove
                         </Button>
