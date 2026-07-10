@@ -365,9 +365,7 @@ function ResourcesPage() {
                           </Button>
                         )}
                       </>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Read only</span>
-                    )}
+                    ) : null}
                   </td>
                 </tr>
               ))}
