@@ -84,10 +84,10 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Operations",
     items: [
       { to: "/projects", label: "Projects", icon: FolderKanban, show: (r) => !!r?.hasAnyOtherRole },
-      // Resource Allocation is hidden from PMs — they staff their own projects via the deep-linked
-      // Project Allocation flow. (Finance keeps read access; SL Lead & Governance own it.)
-      { to: "/allocations", label: "Resource Allocation", icon: CalendarRange, show: (r) => !!(r?.isSlLead || r?.isGovernanceLead || r?.isFinance) },
-      { to: "/project-allocations", label: "Project Allocation", icon: Briefcase, show: (r) => !!r?.hasAnyOtherRole },
+      // Allocation pages: SL Leads & Governance (and PMs for Project Allocation). Finance sees
+      // neither — no allocation access. PMs staff via the deep-linked Project Allocation flow.
+      { to: "/allocations", label: "Resource Allocation", icon: CalendarRange, show: (r) => !!(r?.isSlLead || r?.isGovernanceLead) },
+      { to: "/project-allocations", label: "Project Allocation", icon: Briefcase, show: (r) => !!(r?.isGovernanceLead || r?.isSlLead || r?.isPm) },
       { to: "/bench", label: "Bench Report", icon: Coffee, show: (r) => !!r?.hasAnyOtherRole },
       { to: "/cliff-edge", label: "Cliff Edge", icon: AlertOctagon, show: (r) => !!r?.hasAnyOtherRole },
       // KPI Dashboard is hidden from PMs (they use their own project-focused dashboard).
