@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.guard_staffing_approval() FROM PUBLIC, anon;
