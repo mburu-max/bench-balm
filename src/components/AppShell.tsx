@@ -105,8 +105,8 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Administration",
     items: [
-      { to: "/snapshots", label: "Snapshots", icon: Camera, show: (r) => !!(r?.isFinance || r?.isDeveloper) },
-      { to: "/audit", label: "Audit Trail", icon: FileClock, show: (r) => !!(r?.isFinance || r?.isDeveloper) },
+      { to: "/snapshots", label: "Snapshots", icon: Camera, show: (r) => !!r?.isDeveloper },
+      { to: "/audit", label: "Audit Trail", icon: FileClock, show: (r) => !!r?.isDeveloper },
       { to: "/admin/users", label: "User Roles", icon: ShieldCheck, show: (r) => !!r?.isDeveloper },
     ],
   },
