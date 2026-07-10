@@ -83,11 +83,14 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Operations",
     items: [
       { to: "/projects", label: "Projects", icon: FolderKanban, show: (r) => !!r?.hasAnyOtherRole },
-      { to: "/allocations", label: "Resource Allocation", icon: CalendarRange, show: (r) => !!r?.hasAnyOtherRole },
+      // Resource Allocation is hidden from PMs — they staff their own projects via the deep-linked
+      // Project Allocation flow. (Finance keeps read access; SL Lead & Governance own it.)
+      { to: "/allocations", label: "Resource Allocation", icon: CalendarRange, show: (r) => !!(r?.isSlLead || r?.isGovernanceLead || r?.isFinance) },
       { to: "/project-allocations", label: "Project Allocation", icon: Briefcase, show: (r) => !!r?.hasAnyOtherRole },
       { to: "/bench", label: "Bench Report", icon: Coffee, show: (r) => !!r?.hasAnyOtherRole },
       { to: "/cliff-edge", label: "Cliff Edge", icon: AlertOctagon, show: (r) => !!r?.hasAnyOtherRole },
-      { to: "/kpis", label: "KPI Dashboard", icon: BarChart2, show: (r) => !!r?.hasAnyOtherRole },
+      // KPI Dashboard is hidden from PMs (they use their own project-focused dashboard).
+      { to: "/kpis", label: "KPI Dashboard", icon: BarChart2, show: (r) => !!(r?.isSlLead || r?.isGovernanceLead || r?.isFinance) },
     ],
   },
   {
@@ -107,6 +110,20 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
+// "Seen" staffing projects — the Projects badge behaves like a notification: once the PM opens
+// Projects, the current unstaffed projects are acknowledged (persisted) and the badge clears
+// until a NEW unstaffed project appears.
+const STAFFING_SEEN_KEY = "pm_staffing_seen";
+const readStaffingSeen = (): string[] => {
+  if (typeof localStorage === "undefined") return [];
+  try {
+    const v = JSON.parse(localStorage.getItem(STAFFING_SEEN_KEY) || "[]");
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+};
+
 export function AppShell({ children, title, actions }: { children: ReactNode; title: string; actions?: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -116,6 +133,20 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
   // view (a pure PM, not Governance/Finance). Gated so non-PM roles don't fetch for it.
   const isPmView = !!role.data && !role.data.isGovernanceLead && !role.data.isFinance && role.data.isPm;
   const staffing = usePmStaffingQueue(isPmView);
+  // Notification-style badge: only count projects the PM hasn't acknowledged yet (opened Projects).
+  const [staffingSeen, setStaffingSeen] = useState<string[]>(readStaffingSeen);
+  const staffingBadge = staffing.unstaffedActive.filter((p) => !staffingSeen.includes(p.id)).length;
+  useEffect(() => {
+    if (!isPmView || !location.pathname.startsWith("/projects")) return;
+    const ids = staffing.unstaffedActive.map((p) => p.id);
+    if (ids.length === 0) return;
+    setStaffingSeen((prev) => {
+      const merged = Array.from(new Set([...prev, ...ids]));
+      if (merged.length === prev.length) return prev;
+      try { localStorage.setItem(STAFFING_SEEN_KEY, JSON.stringify(merged)); } catch {}
+      return merged;
+    });
+  }, [isPmView, location.pathname, staffing.unstaffedActive]);
 
   const labelledGroups = NAV_GROUPS.filter((g) => g.label !== null).map((g) => g.label as string);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
@@ -238,12 +269,12 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
                       >
                         <Icon className="size-[17px]" />
                         {n.label}
-                        {n.to === "/projects" && isPmView && staffing.count > 0 && (
+                        {n.to === "/projects" && isPmView && staffingBadge > 0 && (
                           <span
                             className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-warning/30 text-warning-foreground tabular-nums"
-                            title={`${staffing.count} active project${staffing.count === 1 ? "" : "s"} waiting to be staffed`}
+                            title={`${staffingBadge} new project${staffingBadge === 1 ? "" : "s"} to staff`}
                           >
-                            {staffing.count}
+                            {staffingBadge}
                           </span>
                         )}
                       </Link>
