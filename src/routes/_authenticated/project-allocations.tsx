@@ -5,6 +5,14 @@ import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -12,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { Plus, Save, Trash2, Upload } from "lucide-react";
 import {
   useAllocations,
   useCustomers,
@@ -76,12 +84,14 @@ function ProjectAllocationsPage() {
   const qc = useQueryClient();
   // Deep-link from the PM "ready to staff" flag: ?projectId=<id> preselects the assigned project.
   const { projectId: preselectProjectId } = Route.useSearch();
-  const preselectApplied = useRef(false);
+  const appliedPreselect = useRef<string | undefined>(undefined);
 
   const [customerId, setCustomerId] = useState("");
   const [projectId, setProjectId] = useState("");
   const [rows, setRows] = useState<Row[]>([blankRow()]);
   const [saving, setSaving] = useState<string | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkText, setBulkText] = useState("");
 
   const project = useMemo(
     () => (projects.data ?? []).find((p) => p.id === projectId),
@@ -91,13 +101,16 @@ function ProjectAllocationsPage() {
   // Arriving from the PM flag with a preselected project: pin its customer + project and default
   // the allocation dates to the project window, so the PM doesn't re-pick what they already own.
   useEffect(() => {
-    if (preselectApplied.current || !preselectProjectId || !projects.data) return;
+    if (!preselectProjectId || !projects.data) return;
+    // Re-apply whenever the ?projectId changes (e.g. clicking a different notification while
+    // already on this page) — so switching notifications actually switches the loaded project.
+    if (appliedPreselect.current === preselectProjectId) return;
     const p = projects.data.find((pp) => pp.id === preselectProjectId);
     if (!p) return;
-    preselectApplied.current = true;
+    appliedPreselect.current = preselectProjectId;
     setCustomerId(p.customer_id);
     setProjectId(preselectProjectId);
-    setRows((rs) => rs.map((r) => ({ ...r, start: r.start || p.start_date, end: r.end || p.end_date })));
+    setRows([{ ...blankRow(), start: p.start_date, end: p.end_date }]);
   }, [preselectProjectId, projects.data]);
   const filteredProjects = useMemo(
     () => (projects.data ?? []).filter((p) => p.status === "Active" && (!customerId || p.customer_id === customerId)),
@@ -122,6 +135,39 @@ function ProjectAllocationsPage() {
 
   // New rows default to the project's window too, so the PM doesn't retype dates per resource.
   const addRow = () => setRows((rs) => [...rs, { ...blankRow(), start: project?.start_date ?? "", end: project?.end_date ?? "" }]);
+
+  // Bulk add — paste spreadsheet rows ("Omni ID/name, %, start, end"), match resources, append.
+  const parseBulk = () => {
+    const pool = (resources.data ?? []).filter((r) => r.status === "Active");
+    const find = (who: string) => {
+      const key = who.trim().toLowerCase();
+      return pool.find((r) => (r.omni_id ?? "").toLowerCase() === key || (r.full_name ?? "").toLowerCase() === key);
+    };
+    const parsed: Row[] = [];
+    let unmatched = 0;
+    for (const line of bulkText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
+      const cols = line.split(/\t|,/).map((c) => c.trim());
+      const r = find(cols[0] ?? "");
+      if (!r) { unmatched++; continue; }
+      parsed.push({
+        key: crypto.randomUUID(),
+        resource_id: r.id,
+        allocation_type: "Billable",
+        allocation_model: "Full_Dedication",
+        start: cols[2] || project?.start_date || "",
+        end: cols[3] || project?.end_date || "",
+        pct: Math.min(100, Math.max(1, parseInt(cols[1] || "100", 10) || 100)),
+        remarks: "",
+      });
+    }
+    if (parsed.length === 0) {
+      return toast.error("No rows matched a resource — use each resource's Omni ID or exact name.");
+    }
+    setRows((rs) => [...rs.filter((r) => r.resource_id), ...parsed]);
+    setBulkOpen(false);
+    setBulkText("");
+    toast.success(`Added ${parsed.length} row${parsed.length === 1 ? "" : "s"}${unmatched ? ` · ${unmatched} unmatched skipped` : ""}`);
+  };
   const removeRow = (key: string) => setRows((rs) => rs.filter((r) => r.key !== key));
 
   const saveRow = async (row: Row) => {
@@ -214,6 +260,27 @@ function ProjectAllocationsPage() {
 
       {project && (
         <>
+          <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader><DialogTitle>Bulk add resources</DialogTitle></DialogHeader>
+              <p className="text-xs text-muted-foreground">
+                Paste from a spreadsheet — one resource per line, tab- or comma-separated:{" "}
+                <span className="font-mono">Omni ID (or name), %, Start, End</span>. Missing dates default to
+                the project window; type defaults to COST and model to Full Dedication. Review the rows before saving.
+              </p>
+              <Textarea
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+                rows={8}
+                className="font-mono text-xs"
+                placeholder={`OMNI-001\t100\t${project.start_date}\t${project.end_date}\nJane Doe\t50`}
+              />
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setBulkOpen(false)}>Cancel</Button>
+                <Button onClick={parseBulk}>Add rows</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <div className="mt-6 rounded-xl border bg-card overflow-hidden">
             <div className="p-5 border-b flex items-center justify-between">
               <div>
@@ -222,9 +289,14 @@ function ProjectAllocationsPage() {
                   Each row saves independently. Dates must fall inside project window.
                 </p>
               </div>
-              <Button variant="outline" size="sm" onClick={addRow}>
-                <Plus className="size-4 mr-1.5" /> Add row
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setBulkOpen(true)}>
+                  <Upload className="size-4 mr-1.5" /> Bulk add
+                </Button>
+                <Button variant="outline" size="sm" onClick={addRow}>
+                  <Plus className="size-4 mr-1.5" /> Add row
+                </Button>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
