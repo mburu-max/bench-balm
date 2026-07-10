@@ -444,7 +444,7 @@ function ProjectsPage() {
                           className="ml-1.5 inline-flex items-center rounded-full border border-success/30 bg-success/15 text-success px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
                           title={`Staffing approved by SL Lead on ${String(p.staffing_approved_at).slice(0, 10)}`}
                         >
-                          ✓ Approved
+                          Approved
                         </span>
                       )}
                     </td>
