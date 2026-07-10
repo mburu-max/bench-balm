@@ -294,7 +294,7 @@ function GovernanceDashboard() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
-        <KpiCard label="Avg Utilization" value={loading ? "—" : `${avgUtil}%`} icon={Gauge} accent={avgUtilAccent} to="/kpis" />
+        <KpiCard label="Avg Utilization" value={loading ? "—" : `${avgUtil}%`} icon={Gauge} accent={avgUtilAccent} />
         <KpiCard label="Active Projects" value={loading ? "—" : activeProjects.length} icon={Briefcase} accent="info" to="/projects" search={{ status: "Active" }} />
         <KpiCard label="Total Resources" value={loading ? "—" : activeResources.length} icon={Users} to="/resources" search={{ status: "Active" }} />
         <KpiCard label="On Bench" value={loading ? "—" : benchCount} icon={Coffee} accent="warning" to="/bench" search={{ band: "zero" }} />
