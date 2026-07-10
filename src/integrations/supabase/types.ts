@@ -782,6 +782,10 @@ export type Database = {
         Returns: string
       }
       pm_project_resource_ids: { Args: never; Returns: string[] }
+      pm_project_service_lines: {
+        Args: never
+        Returns: Database["public"]["Enums"]["service_line"][]
+      }
       request_leave: {
         Args: {
           _end: string
