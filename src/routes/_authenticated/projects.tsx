@@ -42,6 +42,7 @@ type Form = {
   project_description: string;
   customer_id: string;
   service_line: ServiceLine | "";
+  delivery_center: string;
   project_manager_user_id: string;
   start_date: string;
   end_date: string;
@@ -53,6 +54,7 @@ const empty: Form = {
   project_description: "",
   customer_id: "",
   service_line: "",
+  delivery_center: "",
   project_manager_user_id: "",
   start_date: "",
   end_date: "",
@@ -131,6 +133,7 @@ function ProjectsPage() {
       project_description: p.project_description,
       customer_id: p.customer_id,
       service_line: p.service_line,
+      delivery_center: p.delivery_center ?? "",
       project_manager_user_id: p.project_manager_user_id ?? "",
       start_date: p.start_date,
       end_date: p.end_date,
@@ -189,6 +192,7 @@ function ProjectsPage() {
       project_description: form.project_description,
       customer_id: form.customer_id,
       service_line: form.service_line as ServiceLine,
+      delivery_center: form.delivery_center || null,
       project_manager_user_id: form.project_manager_user_id || null,
       start_date: form.start_date,
       end_date: form.end_date,
@@ -320,6 +324,14 @@ function ProjectsPage() {
                       {SERVICE_LINES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="col-span-2 space-y-1.5">
+                  <Label>Delivery Center</Label>
+                  <Input
+                    value={form.delivery_center}
+                    onChange={(e) => setForm({ ...form, delivery_center: e.target.value })}
+                    placeholder="e.g. Nairobi"
+                  />
                 </div>
                 <div className="col-span-2 space-y-1.5">
                   <Label>Project Manager</Label>
