@@ -44,6 +44,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { usePendingActions } from "@/lib/staffing";
+import { NotificationBell, type AppNotification } from "@/components/NotificationBell";
 import { setViewAs } from "@/lib/impersonation";
 import { getHiddenPages, setHiddenPages } from "@/lib/demo-visibility";
 import { ROLE_LABEL, type AppRole } from "@/lib/constants";
@@ -141,16 +142,30 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
       : pending.kind === "approve"
         ? `${pendingBadge} project${pendingBadge === 1 ? "" : "s"} awaiting your approval`
         : `${pendingBadge} project${pendingBadge === 1 ? "" : "s"} to staff`;
-  useEffect(() => {
-    if (pending.count === 0 || !location.pathname.startsWith("/projects")) return;
-    const ids = pending.items.map((p) => p.id);
+  // Acknowledge the current pending items — clears the unread count on the bell + Projects badge.
+  const markPendingSeen = () => {
     setPendingSeen((prev) => {
+      const ids = pending.items.map((p) => p.id);
       const merged = Array.from(new Set([...prev, ...ids]));
       if (merged.length === prev.length) return prev;
       try { localStorage.setItem(PENDING_SEEN_KEY, JSON.stringify(merged)); } catch {}
       return merged;
     });
-  }, [location.pathname, pending.items, pending.count]);
+  };
+  useEffect(() => {
+    if (location.pathname.startsWith("/projects")) markPendingSeen();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, pending.items]);
+
+  // Central notifications inbox — the pending actions, each linking to where the user acts.
+  const notifications: AppNotification[] = pending.items.map((p: any) => {
+    const customer = p.customers?.customer_name ?? "";
+    if (pending.kind === "verify")
+      return { id: p.id, code: p.project_code, title: "Verify this draft", subtitle: customer, to: "/projects", search: { status: "Draft" } };
+    if (pending.kind === "approve")
+      return { id: p.id, code: p.project_code, title: "Approve staffing", subtitle: customer, to: "/projects", search: { status: "Active" } };
+    return { id: p.id, code: p.project_code, title: "Assign resources", subtitle: customer, to: "/project-allocations", search: { projectId: p.id } };
+  });
 
   const labelledGroups = NAV_GROUPS.filter((g) => g.label !== null).map((g) => g.label as string);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
@@ -381,6 +396,7 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
           </div>
           <div className="flex items-center gap-2">
             {actions}
+            <NotificationBell items={notifications} unseenCount={pendingBadge} onOpen={markPendingSeen} />
             <ThemeToggle />
           </div>
         </header>
