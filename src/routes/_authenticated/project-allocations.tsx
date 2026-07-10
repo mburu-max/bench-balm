@@ -316,7 +316,7 @@ function ProjectAllocationsPage() {
                     <th className="text-left px-3 py-2.5 font-medium min-w-[150px]">Model</th>
                     <th className="text-left px-3 py-2.5 font-medium">Start</th>
                     <th className="text-left px-3 py-2.5 font-medium">End</th>
-                    <th className="text-left px-3 py-2.5 font-medium w-20">%</th>
+                    <th className="text-left px-3 py-2.5 font-medium w-22">%</th>
                     <th className="text-left px-3 py-2.5 font-medium">Remarks</th>
                     <th className="px-3 py-2.5"></th>
                   </tr>
