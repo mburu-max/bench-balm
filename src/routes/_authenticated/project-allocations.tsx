@@ -347,7 +347,7 @@ function ProjectAllocationsPage() {
                         </Select>
                       </td>
                       <td className="px-3 py-2">
-                        <Select value={row.allocation_model} onValueChange={(v) => setRow(row.key, { allocation_model: v as AllocationModel })}>
+                        <Select value={row.allocation_model} onValueChange={(v) => setRow(row.key, { allocation_model: v as AllocationModel, ...(v === "Full_Dedication" ? { pct: 100 } : {}) })}>
                           <SelectTrigger className="h-9"><SelectValue placeholder="Model" /></SelectTrigger>
                           <SelectContent>
                             {ALLOCATION_MODELS.map((m) => (
