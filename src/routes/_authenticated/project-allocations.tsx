@@ -98,6 +98,14 @@ function ProjectAllocationsPage() {
     [projects.data, projectId],
   );
 
+  // A new allocation defaults to starting "today" (but never before the project starts) and
+  // running to the project end — auto-filled, editable (e.g. a resource may roll off early).
+  const defaultStart = (p?: { start_date: string }) => {
+    if (!p) return "";
+    const t = new Date().toISOString().slice(0, 10);
+    return t > p.start_date ? t : p.start_date;
+  };
+
   // Arriving from the PM flag with a preselected project: pin its customer + project and default
   // the allocation dates to the project window, so the PM doesn't re-pick what they already own.
   useEffect(() => {
@@ -110,7 +118,8 @@ function ProjectAllocationsPage() {
     appliedPreselect.current = preselectProjectId;
     setCustomerId(p.customer_id);
     setProjectId(preselectProjectId);
-    setRows([{ ...blankRow(), start: p.start_date, end: p.end_date }]);
+    const t = new Date().toISOString().slice(0, 10);
+    setRows([{ ...blankRow(), start: t > p.start_date ? t : p.start_date, end: p.end_date }]);
   }, [preselectProjectId, projects.data]);
   const filteredProjects = useMemo(
     () => (projects.data ?? []).filter((p) => p.status === "Active" && (!customerId || p.customer_id === customerId)),
@@ -134,7 +143,7 @@ function ProjectAllocationsPage() {
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
   // New rows default to the project's window too, so the PM doesn't retype dates per resource.
-  const addRow = () => setRows((rs) => [...rs, { ...blankRow(), start: project?.start_date ?? "", end: project?.end_date ?? "" }]);
+  const addRow = () => setRows((rs) => [...rs, { ...blankRow(), start: defaultStart(project), end: project?.end_date ?? "" }]);
 
   // Bulk add — paste spreadsheet rows ("Omni ID/name, %, start, end"), match resources, append.
   const parseBulk = () => {
@@ -154,7 +163,7 @@ function ProjectAllocationsPage() {
         resource_id: r.id,
         allocation_type: "Billable",
         allocation_model: "Full_Dedication",
-        start: cols[2] || project?.start_date || "",
+        start: cols[2] || defaultStart(project),
         end: cols[3] || project?.end_date || "",
         pct: Math.min(100, Math.max(1, parseInt(cols[1] || "100", 10) || 100)),
         remarks: "",
