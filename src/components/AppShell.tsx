@@ -98,7 +98,8 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Setup / Masters",
     items: [
       { to: "/customers", label: "Customer Master", icon: Building2, show: (r) => !!(r?.isGovernanceLead || r?.isDeveloper) },
-      { to: "/resources", label: "Resource Master", icon: Users, show: (r) => !!(r?.isGovernanceLead || r?.isDeveloper || r?.isSlLead) },
+      // PMs see Resource Master too, but RLS scopes it to the resources on their own projects.
+      { to: "/resources", label: "Resource Master", icon: Users, show: (r) => !!(r?.isGovernanceLead || r?.isDeveloper || r?.isSlLead || r?.isPm) },
     ],
   },
   {
