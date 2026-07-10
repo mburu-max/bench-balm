@@ -104,6 +104,14 @@ function ProjectAllocationsPage() {
     [projects.data, customerId],
   );
 
+  // Customer dropdown is scoped to customers the user actually has an Active project for.
+  // projects.data is RLS-scoped (a PM sees only their own projects), so a PM only sees their
+  // assigned customers here — not the whole global Customer Master.
+  const scopedCustomers = useMemo(() => {
+    const ids = new Set((projects.data ?? []).filter((p) => p.status === "Active").map((p) => p.customer_id));
+    return (customers.data ?? []).filter((c) => ids.has(c.id));
+  }, [customers.data, projects.data]);
+
   const teamAllocations = useMemo(
     () => (allocations.data ?? []).filter((a) => a.project_id === projectId),
     [allocations.data, projectId],
@@ -170,7 +178,7 @@ function ProjectAllocationsPage() {
             <Select value={customerId} onValueChange={(v) => { setCustomerId(v); setProjectId(""); }}>
               <SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger>
               <SelectContent>
-                {(customers.data ?? []).map((c) => (
+                {scopedCustomers.map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.customer_name}</SelectItem>
                 ))}
               </SelectContent>
