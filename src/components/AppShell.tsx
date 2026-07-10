@@ -43,7 +43,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentRole } from "@/lib/useCurrentRole";
-import { usePmStaffingQueue } from "@/lib/staffing";
+import { usePendingActions } from "@/lib/staffing";
 import { setViewAs } from "@/lib/impersonation";
 import { getHiddenPages, setHiddenPages } from "@/lib/demo-visibility";
 import { ROLE_LABEL, type AppRole } from "@/lib/constants";
@@ -113,11 +113,11 @@ const NAV_GROUPS: NavGroup[] = [
 // "Seen" staffing projects — the Projects badge behaves like a notification: once the PM opens
 // Projects, the current unstaffed projects are acknowledged (persisted) and the badge clears
 // until a NEW unstaffed project appears.
-const STAFFING_SEEN_KEY = "pm_staffing_seen";
-const readStaffingSeen = (): string[] => {
+const PENDING_SEEN_KEY = "pending_actions_seen";
+const readPendingSeen = (): string[] => {
   if (typeof localStorage === "undefined") return [];
   try {
-    const v = JSON.parse(localStorage.getItem(STAFFING_SEEN_KEY) || "[]");
+    const v = JSON.parse(localStorage.getItem(PENDING_SEEN_KEY) || "[]");
     return Array.isArray(v) ? v : [];
   } catch {
     return [];
@@ -129,24 +129,28 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
   const navigate = useNavigate();
   const role = useCurrentRole();
 
-  // "Ready to staff" badge on the Projects nav item — only for users who land on the PM
-  // view (a pure PM, not Governance/Finance). Gated so non-PM roles don't fetch for it.
-  const isPmView = !!role.data && !role.data.isGovernanceLead && !role.data.isFinance && role.data.isPm;
-  const staffing = usePmStaffingQueue(isPmView);
-  // Notification-style badge: only count projects the PM hasn't acknowledged yet (opened Projects).
-  const [staffingSeen, setStaffingSeen] = useState<string[]>(readStaffingSeen);
-  const staffingBadge = staffing.unstaffedActive.filter((p) => !staffingSeen.includes(p.id)).length;
+  // Per-role "pending action" badge on the Projects nav item — Governance (drafts to verify),
+  // PM (projects to staff) or SL Lead (staffed projects to approve). One flag per role.
+  const pending = usePendingActions(role.data);
+  // Notification-style: count only the items the user hasn't acknowledged yet (opened Projects).
+  const [pendingSeen, setPendingSeen] = useState<string[]>(readPendingSeen);
+  const pendingBadge = pending.items.filter((p) => !pendingSeen.includes(p.id)).length;
+  const pendingLabel =
+    pending.kind === "verify"
+      ? `${pendingBadge} draft${pendingBadge === 1 ? "" : "s"} to verify`
+      : pending.kind === "approve"
+        ? `${pendingBadge} project${pendingBadge === 1 ? "" : "s"} awaiting your approval`
+        : `${pendingBadge} project${pendingBadge === 1 ? "" : "s"} to staff`;
   useEffect(() => {
-    if (!isPmView || !location.pathname.startsWith("/projects")) return;
-    const ids = staffing.unstaffedActive.map((p) => p.id);
-    if (ids.length === 0) return;
-    setStaffingSeen((prev) => {
+    if (pending.count === 0 || !location.pathname.startsWith("/projects")) return;
+    const ids = pending.items.map((p) => p.id);
+    setPendingSeen((prev) => {
       const merged = Array.from(new Set([...prev, ...ids]));
       if (merged.length === prev.length) return prev;
-      try { localStorage.setItem(STAFFING_SEEN_KEY, JSON.stringify(merged)); } catch {}
+      try { localStorage.setItem(PENDING_SEEN_KEY, JSON.stringify(merged)); } catch {}
       return merged;
     });
-  }, [isPmView, location.pathname, staffing.unstaffedActive]);
+  }, [location.pathname, pending.items, pending.count]);
 
   const labelledGroups = NAV_GROUPS.filter((g) => g.label !== null).map((g) => g.label as string);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
@@ -269,12 +273,12 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
                       >
                         <Icon className="size-[17px]" />
                         {n.label}
-                        {n.to === "/projects" && isPmView && staffingBadge > 0 && (
+                        {n.to === "/projects" && pendingBadge > 0 && (
                           <span
                             className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-warning/30 text-warning-foreground tabular-nums"
-                            title={`${staffingBadge} new project${staffingBadge === 1 ? "" : "s"} to staff`}
+                            title={pendingLabel}
                           >
-                            {staffingBadge}
+                            {pendingBadge}
                           </span>
                         )}
                       </Link>

@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { KpiCard } from "@/components/KpiCard";
 import { UtilBullets } from "@/components/UtilBullets";
-import { Button } from "@/components/ui/button";
 import { useAllocations, useProjects, useResources } from "@/lib/queries";
 import { SERVICE_LINES } from "@/lib/constants";
 import { useCurrentRole } from "@/lib/useCurrentRole";
@@ -13,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { SL_COLORS, todayStr, computeUtilTrend, type UtilView } from "@/lib/dashboard";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { usePendingActions } from "@/lib/staffing";
 import {
   Users, Briefcase, Activity, Coffee, AlertTriangle, UserMinus, AlertOctagon, ArrowRight, CheckCircle2, ClipboardCheck, BatteryMedium,
 } from "lucide-react";
@@ -79,13 +78,8 @@ export function SlLeadDashboard() {
   const loadMap = new Map((loadQ.data ?? []).map((l) => [l.resource_id, l]));
   const loadOf = (id: string) => loadMap.get(id)?.total_pct ?? 0;
 
-  const qc = useQueryClient();
-  const verify = async (p: any) => {
-    const { error } = await supabase.from("projects").update({ status: "Verified" }).eq("id", p.id);
-    if (error) return toast.error(error.message);
-    toast.success(`${p.project_code} verified`);
-    qc.invalidateQueries({ queryKey: ["projects"] });
-  };
+  // Staffing sign-offs awaiting this SL Lead — active projects the PM has staffed but not approved.
+  const pending = usePendingActions(role);
 
   const loading = projects.isLoading || resources.isLoading || allocations.isLoading;
   const today = todayStr();
@@ -137,8 +131,6 @@ export function SlLeadDashboard() {
     conBillShare != null ? `Contractor ${conBillShare}%` : null,
   ].filter(Boolean).join(" · ");
 
-  // Pending validations: draft projects awaiting the SL Lead's Step-2 verification.
-  const pendingDrafts = allProjects.filter((p) => p.status === "Draft");
 
   const shownSls = SERVICE_LINES.filter(
     (sl) => allResources.some((r) => r.service_line === sl) || allProjects.some((p) => p.service_line === sl),
@@ -226,29 +218,22 @@ export function SlLeadDashboard() {
         );
       })()}
 
-      {/* Pending Line Verifications — PM-created drafts awaiting your Step-2 validation */}
-      {isLead && pendingDrafts.length > 0 && (
-        <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 overflow-hidden">
-          <div className="px-5 py-3 border-b border-primary/20 flex items-center gap-2">
-            <ClipboardCheck className="size-4 text-primary" />
-            <span className="text-sm font-medium">{pendingDrafts.length} draft project{pendingDrafts.length === 1 ? "" : "s"} pending your validation</span>
-          </div>
-          <div className="divide-y">
-            {pendingDrafts.slice(0, 5).map((p: any) => (
-              <div key={p.id} className="px-5 py-2.5 flex items-center justify-between gap-3">
-                <div className="min-w-0 text-sm">
-                  <Link to="/projects/$projectId" params={{ projectId: p.id }} className="font-mono text-xs text-primary hover:underline mr-2">{p.project_code}</Link>
-                  {p.project_description}
-                  <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase tracking-wide">{p.service_line}</span>
+      {/* Awaiting your approval — active projects the PM has staffed, pending SL Lead sign-off */}
+      {pending.kind === "approve" && pending.count > 0 && (
+        <Link to="/projects" search={{ status: "Active" }} className="block mt-4">
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-center justify-between gap-4 transition-colors hover:bg-muted/40">
+            <div className="flex items-center gap-3">
+              <ClipboardCheck className="size-5 text-primary" />
+              <div>
+                <div className="text-sm font-medium">
+                  {pending.count} project{pending.count === 1 ? "" : "s"} staffed and awaiting your approval
                 </div>
-                <Button size="sm" onClick={() => verify(p)}>Verify <ArrowRight className="size-3.5 ml-1" /></Button>
+                <div className="text-xs text-muted-foreground mt-0.5">Review the staffing and sign off in Projects.</div>
               </div>
-            ))}
+            </div>
+            <ArrowRight className="size-4 text-muted-foreground" />
           </div>
-          {pendingDrafts.length > 5 && (
-            <Link to="/projects" className="block px-5 py-2 text-xs text-primary hover:underline border-t border-primary/20">View all {pendingDrafts.length} in Projects →</Link>
-          )}
-        </div>
+        </Link>
       )}
 
       {/* Upper charts */}
