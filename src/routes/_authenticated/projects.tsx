@@ -406,9 +406,6 @@ function ProjectsPage() {
                   <Field label="Resources" value={String(resCount)} />
                   <Field label="HubSpot Deal" value={p.hubspot_deal_id ?? "—"} />
                 </div>
-                <Link to="/projects/$projectId" params={{ projectId: p.id }} className="text-xs text-primary hover:underline">
-                  Open full project page →
-                </Link>
                 <DialogFooter className="mt-2 flex-wrap gap-2 sm:justify-start">
                   {p.status === "Draft" && canVerify && (
                     <Button size="sm" onClick={() => act(() => updateStatus(p, "Active"))}>
