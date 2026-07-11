@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, ArrowRight, XCircle, Lock, ClipboardCheck, CheckCircle2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowRight, XCircle, Lock, ClipboardCheck, CheckCircle2, Eye } from "lucide-react";
 import { useCustomers, useProjects, useAllocations } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -62,6 +62,15 @@ const empty: Form = {
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
+function Field({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
+  return (
+    <div className={wide ? "col-span-2" : undefined}>
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-sm">{value}</div>
+    </div>
+  );
+}
+
 function ProjectsPage() {
   const projects = useProjects();
   const customers = useCustomers();
@@ -69,6 +78,7 @@ function ProjectsPage() {
   const qc = useQueryClient();
   const { data: role } = useCurrentRole();
   const [open, setOpen] = useState(false);
+  const [viewProject, setViewProject] = useState<any | null>(null);
   const [form, setForm] = useState<Form>(empty);
   const [saving, setSaving] = useState(false);
   const [q, setQ] = useState("");
@@ -368,6 +378,81 @@ function ProjectsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* View project — details + the contextual actions (moved out of the table row) */}
+      <Dialog open={!!viewProject} onOpenChange={(o) => { if (!o) setViewProject(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          {viewProject && (() => {
+            const p = viewProject;
+            const resCount = resCountByProject[p.id]?.size ?? 0;
+            const act = (fn: () => void) => { fn(); setViewProject(null); };
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-sm">{p.project_code}</span>
+                    <ProjectStatusBadge status={p.status} />
+                    {p.staffing_approved_at && (
+                      <span className="inline-flex items-center rounded-full border border-success/30 bg-success/15 text-success px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide">Approved</span>
+                    )}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 py-1">
+                  <Field label="Description" value={p.project_description} wide />
+                  <Field label="Customer" value={p.customers?.customer_name ?? "—"} />
+                  <Field label="Service Line" value={p.service_line} />
+                  <Field label="Project Manager" value={pmLabel(p.project_manager_user_id)} />
+                  <Field label="Delivery Center" value={p.delivery_center ?? "—"} />
+                  <Field label="Dates" value={`${p.start_date} → ${p.end_date}`} />
+                  <Field label="Resources" value={String(resCount)} />
+                  <Field label="HubSpot Deal" value={p.hubspot_deal_id ?? "—"} />
+                </div>
+                <Link to="/projects/$projectId" params={{ projectId: p.id }} className="text-xs text-primary hover:underline">
+                  Open full project page →
+                </Link>
+                <DialogFooter className="mt-2 flex-wrap gap-2 sm:justify-start">
+                  {p.status === "Draft" && canVerify && (
+                    <Button size="sm" onClick={() => act(() => updateStatus(p, "Active"))}>
+                      Verify &amp; Activate <ArrowRight className="size-3.5 ml-1" />
+                    </Button>
+                  )}
+                  {p.status === "Verified" && canActivate && (
+                    <Button size="sm" onClick={() => act(() => updateStatus(p, "Active"))}>
+                      <Lock className="size-3.5 mr-1" /> Lock to Active
+                    </Button>
+                  )}
+                  {p.status === "Active" && resCount > 0 && !p.staffing_approved_at && canApproveStaffing && (
+                    <Button size="sm" variant="outline" onClick={() => act(() => approveStaffing(p, true))}>
+                      <CheckCircle2 className="size-3.5 mr-1 text-success" /> Approve
+                    </Button>
+                  )}
+                  {p.status === "Active" && p.staffing_approved_at && canUnapprove && (
+                    <Button size="sm" variant="ghost" onClick={() => act(() => approveStaffing(p, false))}>Unapprove</Button>
+                  )}
+                  {p.status === "Active" && canActivate && (
+                    <Button size="sm" variant="outline" onClick={() => act(() => updateStatus(p, "On_Hold"))}>Hold</Button>
+                  )}
+                  {(p.status === "Draft" || p.status === "Verified") && canReject && (
+                    <Button size="sm" variant="ghost" onClick={() => act(() => updateStatus(p, "Rejected"))}>
+                      <XCircle className="size-4 mr-1 text-destructive" /> Reject
+                    </Button>
+                  )}
+                  {canEditProject(p) && (
+                    <Button size="sm" variant="outline" onClick={() => act(() => startEdit(p))}>
+                      <Pencil className="size-3.5 mr-1" /> Edit
+                    </Button>
+                  )}
+                  {canDelete && p.status !== "Closed" && (
+                    <Button size="sm" variant="ghost" onClick={() => act(() => remove(p))}>
+                      <Trash2 className="size-4 mr-1 text-destructive" /> Delete
+                    </Button>
+                  )}
+                </DialogFooter>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
       {/* Governance verification queue — Draft → Active (single approval gate) */}
       {canVerify && draftsPending.length > 0 && (
         <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
@@ -423,7 +508,6 @@ function ProjectsPage() {
             </thead>
             <tbody>
               {filtered.map((p: any) => {
-                const canEdit = canEditProject(p);
                 const resCount = resCountByProject[p.id]?.size ?? 0;
                 return (
                   <tr key={p.id} className="border-t hover:bg-muted/30">
@@ -452,46 +536,9 @@ function ProjectsPage() {
                       )}
                     </td>
                     <td className="px-5 py-3 text-right whitespace-nowrap">
-                      {p.status === "Draft" && canVerify && (
-                        <Button size="sm" variant="secondary" className="mr-1" title="Verify & activate" onClick={() => updateStatus(p, "Active")}>
-                          Verify <ArrowRight className="size-3.5 ml-1" />
-                        </Button>
-                      )}
-                      {p.status === "Verified" && canActivate && (
-                        <Button size="sm" variant="secondary" className="mr-1" title="Lock & activate" onClick={() => updateStatus(p, "Active")}>
-                          <Lock className="size-3.5 mr-1" /> Lock to Active
-                        </Button>
-                      )}
-                      {(p.status === "Draft" || p.status === "Verified") && canReject && (
-                        <Button size="sm" variant="ghost" className="mr-1" onClick={() => updateStatus(p, "Rejected")}>
-                          <XCircle className="size-4 mr-1 text-destructive" /> Reject
-                        </Button>
-                      )}
-                      {p.status === "Active" && canActivate && (
-                        <Button size="sm" variant="outline" className="mr-1" onClick={() => updateStatus(p, "On_Hold")}>
-                          Hold
-                        </Button>
-                      )}
-                      {p.status === "Active" && resCount > 0 && !p.staffing_approved_at && canApproveStaffing && (
-                        <Button size="sm" variant="outline" className="mr-1" title="Approve staffing" onClick={() => approveStaffing(p, true)}>
-                          <CheckCircle2 className="size-3.5 mr-1 text-success" /> Approve
-                        </Button>
-                      )}
-                      {p.status === "Active" && p.staffing_approved_at && canUnapprove && (
-                        <Button size="sm" variant="ghost" className="mr-1" title="Remove approval" onClick={() => approveStaffing(p, false)}>
-                          Unapprove
-                        </Button>
-                      )}
-                      {canEdit && (
-                        <Button variant="ghost" size="icon" onClick={() => startEdit(p)}>
-                          <Pencil className="size-4" />
-                        </Button>
-                      )}
-                      {canDelete && p.status !== "Closed" && (
-                        <Button variant="ghost" size="icon" onClick={() => remove(p)}>
-                          <Trash2 className="size-4 text-destructive" />
-                        </Button>
-                      )}
+                      <Button size="sm" variant="outline" onClick={() => setViewProject(p)}>
+                        <Eye className="size-3.5 mr-1" /> View
+                      </Button>
                     </td>
                   </tr>
                 );
