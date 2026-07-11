@@ -139,7 +139,7 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
   const pendingBadge = pending.items.filter((p) => !pendingSeen.includes(p.id)).length;
   const pendingLabel =
     pending.kind === "verify"
-      ? `${pendingBadge} draft${pendingBadge === 1 ? "" : "s"} to verify`
+      ? `${pendingBadge} draft${pendingBadge === 1 ? "" : "s"} to approve`
       : pending.kind === "approve"
         ? `${pendingBadge} project${pendingBadge === 1 ? "" : "s"} awaiting your approval`
         : `${pendingBadge} project${pendingBadge === 1 ? "" : "s"} to staff`;
@@ -162,7 +162,7 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
   const notifications: AppNotification[] = pending.items.map((p: any) => {
     const customer = p.customers?.customer_name ?? "";
     if (pending.kind === "verify")
-      return { id: p.id, code: p.project_code, title: "Verify this draft", subtitle: customer, to: "/projects", search: { status: "Draft" } };
+      return { id: p.id, code: p.project_code, title: "Approve this draft", subtitle: customer, to: "/projects", search: { status: "Draft" } };
     if (pending.kind === "approve")
       return { id: p.id, code: p.project_code, title: "Approve staffing", subtitle: customer, to: "/projects", search: { status: "Active" } };
     return { id: p.id, code: p.project_code, title: "Assign resources", subtitle: customer, to: "/project-allocations", search: { projectId: p.id } };

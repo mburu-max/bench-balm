@@ -225,12 +225,12 @@ function ProjectsPage() {
   };
 
   const updateStatus = async (p: any, status: ProjectStatus) => {
-    if (status === "Active" && !canVerify) return toast.error("Only the Governance Lead can verify & activate a project");
+    if (status === "Active" && !canVerify) return toast.error("Only the Governance Lead can approve & activate a project");
     if (status === "On_Hold" && !canActivate) return toast.error("Only the Governance Lead can put a project on hold");
     if (status === "Rejected" && !canReject) return toast.error("You can't reject this project");
     const { error } = await supabase.from("projects").update({ status }).eq("id", p.id);
     if (error) return toast.error(error.message);
-    toast.success(status === "Active" ? "Verified → Active" : `Status → ${status.replace("_", " ")}`);
+    toast.success(status === "Active" ? "Approved → Active" : `Status → ${status.replace("_", " ")}`);
     qc.invalidateQueries({ queryKey: ["projects"] });
   };
 
@@ -409,7 +409,7 @@ function ProjectsPage() {
                 <DialogFooter className="mt-2 flex-wrap gap-2 sm:justify-start">
                   {p.status === "Draft" && canVerify && (
                     <Button size="sm" onClick={() => act(() => updateStatus(p, "Active"))}>
-                      Verify &amp; Activate <ArrowRight className="size-3.5 ml-1" />
+                      Approve &amp; Activate <ArrowRight className="size-3.5 ml-1" />
                     </Button>
                   )}
                   {p.status === "Verified" && canActivate && (
@@ -455,7 +455,7 @@ function ProjectsPage() {
         <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
           <div className="flex items-center gap-2 text-sm font-medium">
             <ClipboardCheck className="size-4 text-primary" />
-            {draftsPending.length} draft project{draftsPending.length === 1 ? "" : "s"} pending your verification
+            {draftsPending.length} draft project{draftsPending.length === 1 ? "" : "s"} pending your approval
           </div>
           <div className="mt-3 space-y-1.5">
             {draftsPending.map((p) => (
@@ -466,7 +466,7 @@ function ProjectsPage() {
                   <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase tracking-wide">{p.service_line}</span>
                 </div>
                 <Button size="sm" onClick={() => updateStatus(p, "Active")}>
-                  Verify &amp; Activate <ArrowRight className="size-3.5 ml-1" />
+                  Approve &amp; Activate <ArrowRight className="size-3.5 ml-1" />
                 </Button>
               </div>
             ))}
