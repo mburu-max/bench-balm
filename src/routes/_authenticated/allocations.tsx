@@ -27,9 +27,6 @@ import {
   ALLOCATION_TYPES,
   ALLOCATION_TYPE_LABEL,
   type AllocationType,
-  ALLOCATION_MODELS,
-  ALLOCATION_MODEL_LABEL,
-  type AllocationModel,
 } from "@/lib/constants";
 import { AllocationTypeBadge } from "@/components/StatusBadge";
 import { useCurrentRole } from "@/lib/useCurrentRole";
@@ -65,7 +62,6 @@ function AllocationsPage() {
   const [customerId, setCustomerId] = useState<string>("");
   const [projectId, setProjectId] = useState<string>("");
   const [allocationType, setAllocationType] = useState<AllocationType>("Billable");
-  const [allocationModel, setAllocationModel] = useState<AllocationModel | "">("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [pct, setPct] = useState<number>(100);
@@ -124,7 +120,6 @@ function AllocationsPage() {
     setCustomerId("");
     setProjectId("");
     setAllocationType("Billable");
-    setAllocationModel("");
     setStart("");
     setEnd("");
     setPct(100);
@@ -137,7 +132,6 @@ function AllocationsPage() {
   const save = async () => {
     if (!resource) return toast.error("Pick a resource");
     if (allocationType !== "Leave" && !projectId) return toast.error("Pick a project");
-    if (allocationType !== "Leave" && !allocationModel) return toast.error("Pick an allocation model");
     if (!start || !end) return toast.error("Dates required");
     if (pct < 1 || pct > 100) return toast.error("Percentage must be 1-100");
     setSaving(true);
@@ -156,7 +150,7 @@ function AllocationsPage() {
       employment_type: resource.employment_type,
       resource_status: resource.status,
       allocation_type: allocationType,
-      allocation_model: allocationType === "Leave" ? null : (allocationModel || null),
+      allocation_model: null,
       allocation_start_date: start,
       allocation_end_date: end,
       allocation_pct: pct,
@@ -270,19 +264,6 @@ function AllocationsPage() {
               />
             </div>
             {!isLeave && (
-              <div className="space-y-1.5">
-                <Label>Allocation Model</Label>
-                <Select value={allocationModel} onValueChange={(v) => setAllocationModel(v as AllocationModel)}>
-                  <SelectTrigger><SelectValue placeholder="Select model" /></SelectTrigger>
-                  <SelectContent>
-                    {ALLOCATION_MODELS.map((m) => (
-                      <SelectItem key={m} value={m}>{ALLOCATION_MODEL_LABEL[m]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            {!isLeave && (
               <>
                 <div className="space-y-1.5">
                   <Label>Customer</Label>
@@ -376,7 +357,6 @@ function AllocationsPage() {
                 <tr>
                   <th className="text-left px-5 py-2.5 font-medium">Project</th>
                   <th className="text-left px-3 py-2.5 font-medium">COS / OPEX</th>
-                  <th className="text-left px-3 py-2.5 font-medium">Model</th>
                   <th className="text-left px-3 py-2.5 font-medium">Dates</th>
                   <th className="text-right px-3 py-2.5 font-medium">%</th>
                   <th className="text-left px-3 py-2.5 font-medium">Remarks</th>
@@ -405,9 +385,6 @@ function AllocationsPage() {
                           Extended &gt;5d
                         </span>
                       )}
-                    </td>
-                    <td className="px-3 py-3 text-xs text-muted-foreground">
-                      {a.allocation_model ? ALLOCATION_MODEL_LABEL[a.allocation_model as AllocationModel] : "—"}
                     </td>
                     <td className="px-3 py-3 text-xs tabular-nums text-muted-foreground">
                       {a.allocation_start_date} → {a.allocation_end_date}
