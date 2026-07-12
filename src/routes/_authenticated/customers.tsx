@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useCustomers } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,12 +59,22 @@ const empty: Form = {
   notes: "",
 };
 
+function Field({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
+  return (
+    <div className={wide ? "col-span-2" : undefined}>
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-sm">{value}</div>
+    </div>
+  );
+}
+
 function CustomersPage() {
   const customers = useCustomers();
   const { data: role } = useCurrentRole();
   const canWrite = !!(role?.isGovernanceLead || role?.isDeveloper);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [viewCustomer, setViewCustomer] = useState<any | null>(null);
   const [form, setForm] = useState<Form>(empty);
   const [saving, setSaving] = useState(false);
   const [q, setQ] = useState("");
@@ -283,6 +293,49 @@ function CustomersPage() {
         <div className="text-sm text-muted-foreground">{filtered.length} total</div>
       </div>
 
+      <Dialog open={!!viewCustomer} onOpenChange={(o) => { if (!o) setViewCustomer(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          {viewCustomer && (() => {
+            const c = viewCustomer;
+            const act = (fn: () => void) => { fn(); setViewCustomer(null); };
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>{c.customer_name}</DialogTitle>
+                </DialogHeader>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 py-1">
+                  <div className="col-span-2">
+                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Service Lines</div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(c.service_lines ?? []).map((sl: string) => (
+                        <span key={sl} className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase tracking-wide">{sl}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <Field label="Account Tier" value={c.account_tier ?? "—"} />
+                  <Field label="Contract Type" value={c.contract_type ?? "—"} />
+                  <Field label="Account Manager" value={c.account_manager ?? "—"} />
+                  <Field label="Region" value={c.region ?? "—"} />
+                  <Field label="Vertical" value={c.vertical ?? "—"} />
+                  <Field label="HubSpot" value={c.hubspot_sync_status ?? "not_configured"} />
+                  {c.notes ? <Field label="Notes" value={c.notes} wide /> : null}
+                </div>
+                {canWrite && (
+                  <DialogFooter className="mt-2 gap-2 sm:justify-start">
+                    <Button size="sm" variant="outline" onClick={() => act(() => startEdit(c))}>
+                      <Pencil className="size-3.5 mr-1" /> Edit
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => act(() => remove(c.id))}>
+                      <Trash2 className="size-4 mr-1 text-destructive" /> Delete
+                    </Button>
+                  </DialogFooter>
+                )}
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
       <div className="rounded-xl border bg-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -325,18 +378,9 @@ function CustomersPage() {
                     </span>
                   </td>
                   <td className="px-5 py-3 text-right">
-                    {canWrite ? (
-                      <>
-                        <Button variant="ghost" size="icon" onClick={() => startEdit(c)}>
-                          <Pencil className="size-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => remove(c.id)}>
-                          <Trash2 className="size-4 text-destructive" />
-                        </Button>
-                      </>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Read only</span>
-                    )}
+                    <Button size="sm" variant="outline" onClick={() => setViewCustomer(c)}>
+                      <Eye className="size-3.5 mr-1" /> View
+                    </Button>
                   </td>
                 </tr>
               ))}

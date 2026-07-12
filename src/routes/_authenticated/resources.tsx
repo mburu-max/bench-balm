@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye } from "lucide-react";
 import { useResources } from "@/lib/queries";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { supabase } from "@/integrations/supabase/client";
@@ -76,12 +76,22 @@ const empty: Form = {
   email: "",
 };
 
+function Field({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
+  return (
+    <div className={wide ? "col-span-2" : undefined}>
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-sm">{value}</div>
+    </div>
+  );
+}
+
 function ResourcesPage() {
   const resources = useResources();
   const { data: role } = useCurrentRole();
   const canWrite = !!(role?.isGovernanceLead || role?.isDeveloper || role?.isSlLead);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [viewResource, setViewResource] = useState<any | null>(null);
   const [form, setForm] = useState<Form>(empty);
   const [saving, setSaving] = useState(false);
   const [q, setQ] = useState("");
@@ -326,6 +336,47 @@ function ResourcesPage() {
         <div className="text-sm text-muted-foreground">{filtered.length} resources</div>
       </div>
 
+      <Dialog open={!!viewResource} onOpenChange={(o) => { if (!o) setViewResource(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          {viewResource && (() => {
+            const r = viewResource;
+            const act = (fn: () => void) => { fn(); setViewResource(null); };
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-sm">{r.omni_id}</span>
+                    {r.full_name}
+                    <ResourceStatusBadge status={r.status} />
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3 py-1">
+                  <Field label="Role" value={r.position ?? "—"} />
+                  <Field label="Department" value={r.department ?? "—"} />
+                  <Field label="Manager" value={r.manager_name ?? "—"} />
+                  <Field label="Location" value={r.location ?? "—"} />
+                  <Field label="Service Line" value={r.service_line} />
+                  <Field label="Employment" value={r.employment_type} />
+                  <Field label="Email" value={r.email ?? "—"} />
+                </div>
+                {canWrite && (
+                  <DialogFooter className="mt-2 gap-2 sm:justify-start">
+                    <Button size="sm" variant="outline" onClick={() => act(() => startEdit(r))}>
+                      <Pencil className="size-3.5 mr-1" /> Edit
+                    </Button>
+                    {r.status !== "Exited" && (
+                      <Button size="sm" variant="ghost" onClick={() => act(() => remove(r.id))}>
+                        <Trash2 className="size-4 mr-1 text-destructive" /> Delete
+                      </Button>
+                    )}
+                  </DialogFooter>
+                )}
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
       <div className="rounded-xl border bg-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -354,18 +405,9 @@ function ResourcesPage() {
                   <td className="px-3 py-3 text-muted-foreground">{r.employment_type}</td>
                   <td className="px-3 py-3"><ResourceStatusBadge status={r.status} /></td>
                   <td className="px-5 py-3 text-right">
-                    {canWrite ? (
-                      <>
-                        <Button variant="ghost" size="icon" onClick={() => startEdit(r)}>
-                          <Pencil className="size-4" />
-                        </Button>
-                        {r.status !== "Exited" && (
-                          <Button variant="ghost" size="icon" onClick={() => remove(r.id)}>
-                            <Trash2 className="size-4 text-destructive" />
-                          </Button>
-                        )}
-                      </>
-                    ) : null}
+                    <Button size="sm" variant="outline" onClick={() => setViewResource(r)}>
+                      <Eye className="size-3.5 mr-1" /> View
+                    </Button>
                   </td>
                 </tr>
               ))}
