@@ -262,12 +262,17 @@ function ProjectsPage() {
     qc.invalidateQueries({ queryKey: ["projects"] });
   };
 
+  // A PM only works with live projects — their Projects view is limited to these statuses.
+  const pmStatuses: string[] = ["Active", "On_Hold", "Closed"];
+  const pmScoped = !!(role?.isPm && !role?.isGovernanceLead && !role?.isSlLead);
+
   const filtered = (projects.data ?? []).filter((p) => {
     const matchesQ =
       p.project_code.toLowerCase().includes(q.toLowerCase()) ||
       p.project_description.toLowerCase().includes(q.toLowerCase());
+    const inPmScope = !pmScoped || pmStatuses.includes(p.status);
     const matchesStatus = statusFilter === "all" || p.status === statusFilter;
-    return matchesQ && matchesStatus;
+    return matchesQ && inPmScope && matchesStatus;
   });
 
   const draftsPending = (projects.data ?? []).filter((p) => p.status === "Draft");
@@ -476,7 +481,7 @@ function ProjectsPage() {
           <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
-            {PROJECT_STATUSES.filter((s) => s !== "Verified").map((s) => <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>)}
+            {(pmScoped ? pmStatuses : PROJECT_STATUSES.filter((s) => s !== "Verified")).map((s) => <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>)}
           </SelectContent>
         </Select>
         <div className="text-sm text-muted-foreground">{filtered.length} total</div>
