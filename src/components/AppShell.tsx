@@ -14,6 +14,7 @@ import {
   Camera,
   FileClock,
   BarChart2,
+  ClipboardList,
   AlertOctagon,
   ChevronDown,
   Eye,
@@ -90,6 +91,9 @@ const NAV_GROUPS: NavGroup[] = [
       { to: "/project-allocations", label: "Project Allocation", icon: Briefcase, show: (r) => !!(r?.isGovernanceLead || r?.isSlLead || r?.isPm) },
       { to: "/bench", label: "Bench Report", icon: Coffee, show: (r) => !!r?.hasAnyOtherRole },
       { to: "/cliff-edge", label: "Cliff Edge", icon: AlertOctagon, show: (r) => !!r?.hasAnyOtherRole },
+      // Allocation Report (July 10 sync): cross-service-line allocation view for leadership /
+      // reporting. Governance + Developer + Finance only (isFinance already ⊇ governance/dev).
+      { to: "/allocation-report", label: "Allocation Report", icon: ClipboardList, show: (r) => !!(r?.isGovernanceLead || r?.isFinance) },
       // KPI Dashboard is hidden from PMs (they use their own project-focused dashboard).
       { to: "/kpis", label: "KPI Dashboard", icon: BarChart2, show: (r) => !!(r?.isSlLead || r?.isGovernanceLead || r?.isFinance) },
     ],

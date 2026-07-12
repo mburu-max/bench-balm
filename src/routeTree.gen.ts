@@ -23,6 +23,7 @@ import { Route as AuthenticatedCliffEdgeRouteImport } from './routes/_authentica
 import { Route as AuthenticatedBenchRouteImport } from './routes/_authenticated/bench'
 import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
 import { Route as AuthenticatedAllocationsRouteImport } from './routes/_authenticated/allocations'
+import { Route as AuthenticatedAllocationReportRouteImport } from './routes/_authenticated/allocation-report'
 import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
 import { Route as AuthenticatedCustomersCustomerIdRouteImport } from './routes/_authenticated/customers.$customerId'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
@@ -98,6 +99,12 @@ const AuthenticatedAllocationsRoute =
     path: '/allocations',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAllocationReportRoute =
+  AuthenticatedAllocationReportRouteImport.update({
+    id: '/allocation-report',
+    path: '/allocation-report',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedProjectsProjectIdRoute =
   AuthenticatedProjectsProjectIdRouteImport.update({
     id: '/$projectId',
@@ -119,6 +126,7 @@ const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
+  '/allocation-report': typeof AuthenticatedAllocationReportRoute
   '/allocations': typeof AuthenticatedAllocationsRoute
   '/audit': typeof AuthenticatedAuditRoute
   '/bench': typeof AuthenticatedBenchRoute
@@ -136,6 +144,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/allocation-report': typeof AuthenticatedAllocationReportRoute
   '/allocations': typeof AuthenticatedAllocationsRoute
   '/audit': typeof AuthenticatedAuditRoute
   '/bench': typeof AuthenticatedBenchRoute
@@ -156,6 +165,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/allocation-report': typeof AuthenticatedAllocationReportRoute
   '/_authenticated/allocations': typeof AuthenticatedAllocationsRoute
   '/_authenticated/audit': typeof AuthenticatedAuditRoute
   '/_authenticated/bench': typeof AuthenticatedBenchRoute
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/allocation-report'
     | '/allocations'
     | '/audit'
     | '/bench'
@@ -194,6 +205,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/allocation-report'
     | '/allocations'
     | '/audit'
     | '/bench'
@@ -213,6 +225,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/allocation-report'
     | '/_authenticated/allocations'
     | '/_authenticated/audit'
     | '/_authenticated/bench'
@@ -335,6 +348,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAllocationsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/allocation-report': {
+      id: '/_authenticated/allocation-report'
+      path: '/allocation-report'
+      fullPath: '/allocation-report'
+      preLoaderRoute: typeof AuthenticatedAllocationReportRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/projects/$projectId': {
       id: '/_authenticated/projects/$projectId'
       path: '/$projectId'
@@ -388,6 +408,7 @@ const AuthenticatedProjectsRouteWithChildren =
   )
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAllocationReportRoute: typeof AuthenticatedAllocationReportRoute
   AuthenticatedAllocationsRoute: typeof AuthenticatedAllocationsRoute
   AuthenticatedAuditRoute: typeof AuthenticatedAuditRoute
   AuthenticatedBenchRoute: typeof AuthenticatedBenchRoute
@@ -404,6 +425,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAllocationReportRoute: AuthenticatedAllocationReportRoute,
   AuthenticatedAllocationsRoute: AuthenticatedAllocationsRoute,
   AuthenticatedAuditRoute: AuthenticatedAuditRoute,
   AuthenticatedBenchRoute: AuthenticatedBenchRoute,

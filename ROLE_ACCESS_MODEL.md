@@ -92,6 +92,20 @@ several project codes, and they see the union.
 | Project Manager | "My Projects" view | No dropdown |
 | Resource | My Profile only | — |
 
+### Reports & exports
+Read-only report pages derived from the ledger. They add **no new data access** — each inherits the
+RLS read scope in the table above — so scoping is enforced at the DB. The **sidebar visibility**
+below is who the menu item is offered to; all three reports expose CSV / Excel / PDF export.
+
+| Report | Sidebar visibility | Contents |
+|---|---|---|
+| **Bench Report** | All management roles | Active resources under 100% allocation. KPI cards are clickable — they filter the table by band (zero / partial 50-99 / partial 1-49 / over-allocated); "On Leave" scrolls to the excluded-list section. |
+| **Cliff Edge** | All management roles | Resources nearing contract end. KPI cards (already-on-bench / 30 / 60 / 90-day) are clickable — they filter the table to those specific names (Sharad's "bench-risk clickable" ask). |
+| **Allocation Report** | **Governance, Developer, Finance only** | Flat cross-service-line view of every project allocation: service line · resource (name + Omni ID) · customer · project code · allocation % · type · window · HubSpot ID. Filter by service line, customer, project code, name, and an "as of" date. *(July 10 sync.)* |
+
+Note: the Allocation Report's tighter audience is **nav-level** — `allocations_select` is `USING(true)`,
+so the DB does not itself restrict it (consistent with how every allocation view in the app is scoped).
+
 ---
 
 ## 4. Action hierarchy — project lifecycle

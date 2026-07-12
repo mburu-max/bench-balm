@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,6 +43,9 @@ function BenchPage() {
   );
 
   const onLeave = all.filter((r) => r.status === "On_Leave");
+  const onLeaveRef = useRef<HTMLDivElement>(null);
+  // Clicking a KPI card filters the table by that band (toggles off if already active).
+  const toggleBand = (b: string) => setBand((cur: string) => (cur === b ? "all" : b));
 
   const filtered: BenchRow[] = bench
     .filter((b) => sl === "all" || b.resource.service_line === sl)
@@ -107,11 +110,11 @@ function BenchPage() {
       }
     >
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <KpiCard label="Zero allocation" value={counts.zero} icon={Coffee} accent="warning" />
-        <KpiCard label="Partial (50-99%)" value={counts.high} icon={Coffee} accent="info" />
-        <KpiCard label="Partial (1-49%)" value={counts.low} icon={Coffee} accent="info" />
-        <KpiCard label="Over-allocated" value={counts.over} icon={AlertTriangle} accent="destructive" />
-        <KpiCard label="On Leave (excluded)" value={onLeave.length} icon={PauseCircle} accent="primary" />
+        <KpiCard label="Zero allocation" value={counts.zero} icon={Coffee} accent="warning" onClick={() => toggleBand("zero")} active={band === "zero"} />
+        <KpiCard label="Partial (50-99%)" value={counts.high} icon={Coffee} accent="info" onClick={() => toggleBand("high")} active={band === "high"} />
+        <KpiCard label="Partial (1-49%)" value={counts.low} icon={Coffee} accent="info" onClick={() => toggleBand("low")} active={band === "low"} />
+        <KpiCard label="Over-allocated" value={counts.over} icon={AlertTriangle} accent="destructive" onClick={() => toggleBand("over")} active={band === "over"} />
+        <KpiCard label="On Leave (excluded)" value={onLeave.length} icon={PauseCircle} accent="primary" onClick={() => onLeaveRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
       </div>
 
       <div className="flex flex-wrap items-end gap-3 mb-4">
@@ -203,7 +206,7 @@ function BenchPage() {
       </div>
 
       {onLeave.length > 0 && (
-        <div className="mt-8">
+        <div className="mt-8 scroll-mt-6" ref={onLeaveRef}>
           <h3 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-3">
             On Leave (excluded from bench)
           </h3>

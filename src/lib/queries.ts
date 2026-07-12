@@ -59,6 +59,27 @@ export function useAllocations(options?: { enabled?: boolean }) {
   });
 }
 
+// Allocation Report (July 10 sync): a flat, cross-service-line view of every project allocation
+// — resource, customer, project code, %, and HubSpot deal id — for Governance / Finance to slice
+// by service line, customer or project and export. Its own select so the shared useAllocations
+// query stays untouched; RLS on allocations/projects is USING(true) so Finance sees everything.
+export function useAllocationReport(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ["allocation-report"],
+    enabled: options?.enabled ?? true,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("allocations")
+        .select(
+          "id, allocation_pct, allocation_type, allocation_start_date, allocation_end_date, omni_id, projects(project_code, service_line, hubspot_deal_id, status), customers(customer_name), resources(full_name, omni_id, service_line, status)",
+        )
+        .order("allocation_start_date", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
 export type CustomerRow = NonNullable<ReturnType<typeof useCustomers>["data"]>[number];
 export type ProjectRow = NonNullable<ReturnType<typeof useProjects>["data"]>[number];
 export type ResourceRow = NonNullable<ReturnType<typeof useResources>["data"]>[number];

@@ -14,7 +14,8 @@ import {
 import { KpiCard } from "@/components/KpiCard";
 import { supabase } from "@/integrations/supabase/client";
 import { SERVICE_LINES } from "@/lib/constants";
-import { AlertOctagon, AlertTriangle, Clock3, Download } from "lucide-react";
+import { AlertOctagon, AlertTriangle, Clock3, Download, FileSpreadsheet, FileText } from "lucide-react";
+import { exportToExcel, exportToPdf } from "@/lib/export";
 
 export const Route = createFileRoute("/_authenticated/cliff-edge")({
   component: CliffEdgePage,
@@ -35,6 +36,8 @@ function CliffEdgePage() {
   const [sl, setSl] = useState("all");
   const [band, setBand] = useState("all");
   const [q, setQ] = useState("");
+  // Clicking a KPI card filters the table to that cliff band (toggles off if already active).
+  const toggleBand = (b: string) => setBand((cur: string) => (cur === b ? "all" : b));
 
   const cliff = useQuery({
     queryKey: ["cliff-edge"],
@@ -61,28 +64,40 @@ function CliffEdgePage() {
     d90: all.filter((r) => r.cliff_band === 90).length,
   };
 
+  const stamp = new Date().toISOString().slice(0, 10);
+  const CLIFF_HEADERS = ["Omni ID","Name","SL","Role","Manager","Ending Project","Customer","Last Covered Date","Days Until Cliff"];
+  const cliffRows = () => filtered.map((r) => [
+    r.omni_id, r.full_name, r.service_line, r.position ?? "", r.manager_name ?? "",
+    r.ending_project_code ?? "", r.ending_customer_name ?? "", r.last_covered_date, r.days_until_cliff,
+  ]);
+
   const exportCsv = () => {
-    const headers = ["Omni ID","Name","SL","Role","Manager","Ending Project","Customer","Last Covered Date","Days Until Cliff"];
-    const rows = filtered.map((r) => [
-      r.omni_id, r.full_name, r.service_line, r.position ?? "", r.manager_name ?? "",
-      r.ending_project_code ?? "", r.ending_customer_name ?? "", r.last_covered_date, r.days_until_cliff,
-    ]);
-    const csv = [headers, ...rows].map((row) => row.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csv = [CLIFF_HEADERS, ...cliffRows()].map((row) => row.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `cliff-edge-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `cliff-edge-${stamp}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   };
+  const exportExcel = () => exportToExcel(`cliff-edge-${stamp}`, "Cliff Edge", CLIFF_HEADERS, cliffRows());
+  const exportPdf = () => exportToPdf(`cliff-edge-${stamp}`, `Cliff Edge — ${stamp}`, CLIFF_HEADERS, cliffRows());
 
   return (
     <AppShell
       title="Cliff Edge"
       actions={
-        <Button variant="outline" size="sm" onClick={exportCsv}>
-          <Download className="size-4 mr-1.5" /> Export CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={exportCsv}>
+            <Download className="size-4 mr-1.5" /> CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportExcel}>
+            <FileSpreadsheet className="size-4 mr-1.5" /> Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportPdf}>
+            <FileText className="size-4 mr-1.5" /> PDF
+          </Button>
+        </div>
       }
     >
       <p className="text-sm text-muted-foreground mb-6">
@@ -91,10 +106,10 @@ function CliffEdgePage() {
       </p>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <KpiCard label="Already on Bench" value={counts.now} icon={AlertOctagon} accent="destructive" />
-        <KpiCard label="Within 30 days" value={counts.d30} icon={AlertTriangle} accent="destructive" />
-        <KpiCard label="Within 60 days" value={counts.d60} icon={Clock3} accent="warning" />
-        <KpiCard label="Within 90 days" value={counts.d90} icon={Clock3} accent="info" />
+        <KpiCard label="Already on Bench" value={counts.now} icon={AlertOctagon} accent="destructive" onClick={() => toggleBand("0")} active={band === "0"} />
+        <KpiCard label="Within 30 days" value={counts.d30} icon={AlertTriangle} accent="destructive" onClick={() => toggleBand("30")} active={band === "30"} />
+        <KpiCard label="Within 60 days" value={counts.d60} icon={Clock3} accent="warning" onClick={() => toggleBand("60")} active={band === "60"} />
+        <KpiCard label="Within 90 days" value={counts.d90} icon={Clock3} accent="info" onClick={() => toggleBand("90")} active={band === "90"} />
       </div>
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
