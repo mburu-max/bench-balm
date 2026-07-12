@@ -301,7 +301,7 @@ function ProjectAllocationsPage() {
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="text-sm">
                 <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
                   <tr>
                     <th className="text-left px-3 py-2.5 font-medium min-w-[200px]">Resource</th>
@@ -348,7 +348,7 @@ function ProjectAllocationsPage() {
                         <Input type="number" min={1} max={100} className="h-9" value={row.pct} onChange={(e) => setRow(row.key, { pct: parseInt(e.target.value || "0") })} />
                       </td>
                       <td className="px-3 py-2">
-                        <Input className="h-9" value={row.remarks} onChange={(e) => setRow(row.key, { remarks: e.target.value })} />
+                        <Input className="h-9 w-56" value={row.remarks} onChange={(e) => setRow(row.key, { remarks: e.target.value })} />
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-right">
                         <Button size="sm" onClick={() => saveRow(row)} disabled={saving === row.key}>
