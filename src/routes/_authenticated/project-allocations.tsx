@@ -339,10 +339,10 @@ function ProjectAllocationsPage() {
                         </Select>
                       </td>
                       <td className="px-3 py-2">
-                        <Input type="date" className="h-9 px-2" value={row.start} onChange={(e) => setRow(row.key, { start: e.target.value })} />
+                        <Input type="date" className="h-9 px-2 w-auto" value={row.start} onChange={(e) => setRow(row.key, { start: e.target.value })} />
                       </td>
                       <td className="px-3 py-2">
-                        <Input type="date" className="h-9 px-2" value={row.end} onChange={(e) => setRow(row.key, { end: e.target.value })} />
+                        <Input type="date" className="h-9 px-2 w-auto" value={row.end} onChange={(e) => setRow(row.key, { end: e.target.value })} />
                       </td>
                       <td className="px-3 py-2">
                         <Input type="number" min={1} max={100} className="h-9" value={row.pct} onChange={(e) => setRow(row.key, { pct: parseInt(e.target.value || "0") })} />
