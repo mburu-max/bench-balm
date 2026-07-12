@@ -35,6 +35,7 @@ import {
   type AllocationType,
 } from "@/lib/constants";
 import { AllocationTypeBadge } from "@/components/StatusBadge";
+import { Combobox } from "@/components/Combobox";
 
 export const Route = createFileRoute("/_authenticated/project-allocations")({
   validateSearch: (search: Record<string, unknown>): { projectId?: string } => ({
@@ -317,16 +318,15 @@ function ProjectAllocationsPage() {
                   {rows.map((row) => (
                     <tr key={row.key} className="border-t">
                       <td className="px-3 py-2">
-                        <Select value={row.resource_id} onValueChange={(v) => setRow(row.key, { resource_id: v })}>
-                          <SelectTrigger className="h-9"><SelectValue placeholder="Pick…" /></SelectTrigger>
-                          <SelectContent>
-                            {(resources.data ?? []).filter((r) => r.status === "Active").map((r) => (
-                              <SelectItem key={r.id} value={r.id}>
-                                <span className="font-mono text-xs mr-2">{r.omni_id}</span>{r.full_name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Combobox
+                          value={row.resource_id}
+                          onChange={(v) => setRow(row.key, { resource_id: v })}
+                          options={(resources.data ?? []).filter((r) => r.status === "Active").map((r) => ({ value: r.id, label: `${r.omni_id}  ${r.full_name}` }))}
+                          placeholder="Pick…"
+                          searchPlaceholder="Search resources…"
+                          emptyText="No resource found."
+                          className="h-9"
+                        />
                       </td>
                       <td className="px-3 py-2">
                         <Select value={row.allocation_type} onValueChange={(v) => setRow(row.key, { allocation_type: v as AllocationType })}>

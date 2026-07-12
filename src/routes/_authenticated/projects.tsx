@@ -26,6 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SERVICE_LINES, type ServiceLine, type ProjectStatus, PROJECT_STATUSES } from "@/lib/constants";
 import { ProjectStatusBadge } from "@/components/StatusBadge";
+import { Combobox } from "@/components/Combobox";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 
 export const Route = createFileRoute("/_authenticated/projects")({
@@ -321,14 +322,15 @@ function ProjectsPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Customer *</Label>
-                  <Select value={form.customer_id} onValueChange={onCustomerChange}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      {(customers.data ?? []).map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.customer_name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    value={form.customer_id}
+                    onChange={onCustomerChange}
+                    options={(customers.data ?? []).map((c) => ({ value: c.id, label: c.customer_name }))}
+                    placeholder="Select customer"
+                    searchPlaceholder="Search customers…"
+                    emptyText="No customer found."
+                    modal
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Service Line *</Label>
