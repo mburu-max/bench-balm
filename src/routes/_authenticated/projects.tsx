@@ -269,7 +269,7 @@ function ProjectsPage() {
     const matchesStatus =
       statusFilter === "all" ||
       (statusFilter === "pending"
-        ? p.status === "Draft" || p.status === "Verified"
+        ? p.status === "Draft"
         : p.status === statusFilter);
     return matchesQ && matchesStatus;
   });
@@ -480,8 +480,8 @@ function ProjectsPage() {
           <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="pending">Pending (Draft / Verified)</SelectItem>
-            {PROJECT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>)}
+            <SelectItem value="pending">Pending (Draft)</SelectItem>
+            {PROJECT_STATUSES.filter((s) => s !== "Verified").map((s) => <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>)}
           </SelectContent>
         </Select>
         <div className="text-sm text-muted-foreground">{filtered.length} total</div>
