@@ -301,7 +301,7 @@ function ProjectAllocationsPage() {
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="text-sm">
+              <table className="w-full text-sm">
                 <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
                   <tr>
                     <th className="text-left px-3 py-2.5 font-medium min-w-[200px]">Resource</th>
@@ -330,7 +330,7 @@ function ProjectAllocationsPage() {
                       </td>
                       <td className="px-3 py-2">
                         <Select value={row.allocation_type} onValueChange={(v) => setRow(row.key, { allocation_type: v as AllocationType })}>
-                          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-9 w-28"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             {ALLOCATION_TYPES.filter((t) => t !== "Leave").map((t) => (
                               <SelectItem key={t} value={t}>{ALLOCATION_TYPE_LABEL[t]}</SelectItem>
@@ -345,10 +345,10 @@ function ProjectAllocationsPage() {
                         <Input type="date" className="h-9 px-2 w-auto" value={row.end} onChange={(e) => setRow(row.key, { end: e.target.value })} />
                       </td>
                       <td className="px-3 py-2">
-                        <Input type="number" min={1} max={100} className="h-9" value={row.pct} onChange={(e) => setRow(row.key, { pct: parseInt(e.target.value || "0") })} />
+                        <Input type="number" min={1} max={100} className="h-9 w-24" value={row.pct} onChange={(e) => setRow(row.key, { pct: parseInt(e.target.value || "0") })} />
                       </td>
                       <td className="px-3 py-2">
-                        <Input className="h-9 w-56" value={row.remarks} onChange={(e) => setRow(row.key, { remarks: e.target.value })} />
+                        <Input className="h-9 w-full" value={row.remarks} onChange={(e) => setRow(row.key, { remarks: e.target.value })} />
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap text-right">
                         <Button size="sm" onClick={() => saveRow(row)} disabled={saving === row.key}>
