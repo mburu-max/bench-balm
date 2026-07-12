@@ -308,7 +308,7 @@ function ProjectAllocationsPage() {
                     <th className="text-left px-3 py-2.5 font-medium">COS / OPEX</th>
                     <th className="text-left px-3 py-2.5 font-medium">Start</th>
                     <th className="text-left px-3 py-2.5 font-medium">End</th>
-                    <th className="text-left px-3 py-2.5 font-medium w-22">%</th>
+                    <th className="text-left px-3 py-2.5 font-medium w-28">Allocation %</th>
                     <th className="text-left px-3 py-2.5 font-medium">Remarks</th>
                     <th className="px-3 py-2.5"></th>
                   </tr>
@@ -378,7 +378,7 @@ function ProjectAllocationsPage() {
                     <th className="text-left px-3 py-2.5 font-medium">Role</th>
                     <th className="text-left px-3 py-2.5 font-medium">COS / OPEX</th>
                     <th className="text-left px-3 py-2.5 font-medium">Dates</th>
-                    <th className="text-right px-3 py-2.5 font-medium">%</th>
+                    <th className="text-right px-3 py-2.5 font-medium">Allocation %</th>
                     <th className="px-5 py-2.5"></th>
                   </tr>
                 </thead>
