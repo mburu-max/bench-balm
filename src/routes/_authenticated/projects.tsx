@@ -40,6 +40,7 @@ export const Route = createFileRoute("/_authenticated/projects")({
 
 type Form = {
   id?: string;
+  status?: string;
   project_code: string;
   hubspot_deal_id: string;
   project_description: string;
@@ -82,6 +83,8 @@ function ProjectsPage() {
   const { data: role } = useCurrentRole();
   const [open, setOpen] = useState(false);
   const [viewProject, setViewProject] = useState<any | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<any | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
   const [form, setForm] = useState<Form>(empty);
   const [saving, setSaving] = useState(false);
   const [q, setQ] = useState("");
@@ -143,6 +146,7 @@ function ProjectsPage() {
     if (!canEditProject(p)) return toast.error("You can't edit this project");
     setForm({
       id: p.id,
+      status: p.status,
       project_code: p.project_code,
       hubspot_deal_id: p.hubspot_deal_id ?? "",
       project_description: p.project_description,
@@ -212,9 +216,14 @@ function ProjectsPage() {
       start_date: form.start_date,
       end_date: form.end_date,
     };
+    const resubmitting = form.id && form.status === "Rejected";
     let error;
     if (form.id) {
-      ({ error } = await supabase.from("projects").update(base).eq("id", form.id));
+      const patch: any = { ...base };
+      // Resubmission: editing a rejected project sends it back to the Draft approval queue,
+      // clearing the old rejection reason so the fresh submission starts clean.
+      if (resubmitting) { patch.status = "Draft"; patch.approval_notes = null; }
+      ({ error } = await supabase.from("projects").update(patch).eq("id", form.id));
     } else {
       ({ error } = await supabase
         .from("projects")
@@ -222,16 +231,25 @@ function ProjectsPage() {
     }
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success(form.id ? "Project updated" : "Draft created — assigned to the PM's dashboard");
+    toast.success(
+      resubmitting
+        ? "Resubmitted for approval — back in the Governance queue"
+        : form.id
+          ? "Project updated"
+          : "Draft created — assigned to the PM's dashboard",
+    );
     setOpen(false);
     qc.invalidateQueries({ queryKey: ["projects"] });
   };
 
-  const updateStatus = async (p: any, status: ProjectStatus) => {
+  const updateStatus = async (p: any, status: ProjectStatus, notes?: string | null) => {
     if (status === "Active" && !canVerify) return toast.error("Only the Governance Lead can approve & activate a project");
     if (status === "On_Hold" && !canActivate) return toast.error("Only the Governance Lead can put a project on hold");
     if (status === "Rejected" && !canReject) return toast.error("You can't reject this project");
-    const { error } = await supabase.from("projects").update({ status }).eq("id", p.id);
+    const patch: any = { status };
+    // Rejection reason (optional) is stored on the project so the SL Lead sees why when resubmitting.
+    if (status === "Rejected") patch.approval_notes = notes && notes.trim() ? notes.trim() : null;
+    const { error } = await supabase.from("projects").update(patch).eq("id", p.id);
     if (error) return toast.error(error.message);
     toast.success(status === "Active" ? "Approved → Active" : `Status → ${status.replace("_", " ")}`);
     qc.invalidateQueries({ queryKey: ["projects"] });
@@ -405,6 +423,14 @@ function ProjectsPage() {
                     )}
                   </DialogTitle>
                 </DialogHeader>
+                {p.status === "Rejected" && (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs">
+                    <span className="font-medium text-destructive">Rejected.</span>{" "}
+                    <span className="text-muted-foreground">
+                      {p.approval_notes ? p.approval_notes : "No reason given."} Edit and save to resubmit for approval.
+                    </span>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-x-8 gap-y-4 py-2">
                   <Field label="Description" value={p.project_description} wide />
                   <Field label="Customer" value={p.customers?.customer_name ?? "—"} />
@@ -438,7 +464,7 @@ function ProjectsPage() {
                     <Button size="sm" variant="outline" onClick={() => act(() => updateStatus(p, "On_Hold"))}>Hold</Button>
                   )}
                   {(p.status === "Draft" || p.status === "Verified") && canReject && (
-                    <Button size="sm" variant="ghost" onClick={() => act(() => updateStatus(p, "Rejected"))}>
+                    <Button size="sm" variant="ghost" onClick={() => act(() => { setRejectReason(""); setRejectTarget(p); })}>
                       <XCircle className="size-4 mr-1 text-destructive" /> Reject
                     </Button>
                   )}
@@ -456,6 +482,36 @@ function ProjectsPage() {
               </>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject — an optional reason, then the project goes back to the SL Lead as Rejected */}
+      <Dialog open={!!rejectTarget} onOpenChange={(o) => { if (!o) setRejectTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="font-mono text-sm">{rejectTarget?.project_code}</span>
+              <span className="text-base">— Reject</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5 py-1">
+            <Label>Reason / remarks <span className="font-normal text-muted-foreground">(optional)</span></Label>
+            <Textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Why is this being rejected? The SL Lead sees this when they edit to resubmit."
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRejectTarget(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={async () => { const t = rejectTarget; setRejectTarget(null); await updateStatus(t, "Rejected", rejectReason); }}
+            >
+              <XCircle className="size-4 mr-1" /> Reject
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
