@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { getViewAs } from "@/lib/impersonation";
+import { getViewAs, getViewAsAccount } from "@/lib/impersonation";
 import type { AppRole, ServiceLine } from "@/lib/constants";
 
 export type CurrentRole = {
@@ -18,6 +18,8 @@ export type CurrentRole = {
   // Developer "view as" preview state (see lib/impersonation.ts).
   realIsDeveloper: boolean;
   impersonating: AppRole | null;
+  // When previewing a specific account (from Admin → User Roles), the person's display name.
+  impersonatingLabel: string | null;
 };
 
 const RANK: Record<string, number> = {
@@ -44,7 +46,7 @@ export function useCurrentRole() {
           isDeveloper: false, isGovernanceLead: false, isFinance: false,
           isDl: false, isSlLead: false, isPm: false, isResource: false,
           serviceLines: [], hasAnyOtherRole: false,
-          realIsDeveloper: false, impersonating: null,
+          realIsDeveloper: false, impersonating: null, impersonatingLabel: null,
         };
       }
       const { data: rolesData } = await supabase
@@ -57,6 +59,8 @@ export function useCurrentRole() {
       // rewrites the UI-gating booleans below — the DB still enforces the real account.
       const realIsDeveloper = roles.includes("developer") || roles.includes("admin");
       const impersonating = realIsDeveloper ? getViewAs() : null;
+      // Account-scoped preview (Admin → User Roles): also mirrors that account's service lines.
+      const viewAsAccount = realIsDeveloper ? getViewAsAccount() : null;
       const src = impersonating ? [impersonating] : roles;
       const top = impersonating ?? (src.sort((a, b) => (RANK[a] ?? 99) - (RANK[b] ?? 99))[0] ?? null);
 
@@ -74,7 +78,10 @@ export function useCurrentRole() {
       const hasAnyOtherRole = isDeveloper || isGovernanceLead || isFinance || isDl || isSlLead || isPm;
 
       let serviceLines: ServiceLine[] = [];
-      if (isSlLead && !isDeveloper) {
+      if (viewAsAccount) {
+        // Previewing a specific account — scope the UI to that account's service line(s).
+        serviceLines = viewAsAccount.serviceLines as ServiceLine[];
+      } else if (isSlLead && !isDeveloper) {
         const { data: slData } = await supabase
           .from("user_service_lines")
           .select("service_line")
@@ -88,6 +95,7 @@ export function useCurrentRole() {
         isDl, isSlLead, isPm, isResource,
         serviceLines, hasAnyOtherRole,
         realIsDeveloper, impersonating: impersonating ?? null,
+        impersonatingLabel: viewAsAccount?.label ?? null,
       };
     },
   });

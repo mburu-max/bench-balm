@@ -21,9 +21,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ROLE_LABEL, SERVICE_LINES } from "@/lib/constants";
+import { ROLE_LABEL, SERVICE_LINES, type AppRole } from "@/lib/constants";
 import { useCurrentRole } from "@/lib/useCurrentRole";
-import { ShieldAlert, UserPlus } from "lucide-react";
+import { setViewAsAccount } from "@/lib/impersonation";
+import { Eye, ShieldAlert, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/admin/users")({
@@ -136,6 +137,26 @@ function AdminUsersPage() {
     qc.invalidateQueries({ queryKey: ["admin-users"] });
   };
 
+  // Drop into an account-scoped preview: this person's role + their service-line scope. Reuses
+  // the developer "view as" mechanism (UI-only; RLS still runs as you). Exit via the sidebar
+  // "Exit preview" button or Ctrl+Shift+X.
+  const previewAccount = (u: any) => {
+    const r = (u.roles[0] ?? "resource") as AppRole;
+    if (r === "developer") {
+      toast("That's a Developer account — full access, nothing to preview.");
+      return;
+    }
+    setViewAsAccount({
+      userId: u.id,
+      role: r,
+      serviceLines: u.serviceLines ?? [],
+      label: u.full_name || u.email || "account",
+    });
+    qc.invalidateQueries({ queryKey: ["current-role"] });
+    navigate({ to: r === "resource" ? "/my-profile" : "/" });
+    toast(`Previewing as ${u.full_name || u.email} — use "Exit preview" (or Ctrl+Shift+X) to return`);
+  };
+
   const toggleSlOwnership = async (userId: string, sl: string, owned: boolean) => {
     if (owned) {
       await supabase.from("user_service_lines").insert({ user_id: userId, service_line: sl as any });
@@ -240,7 +261,8 @@ function AdminUsersPage() {
                 <th className="text-left px-5 py-2.5 font-medium">Name</th>
                 <th className="text-left px-3 py-2.5 font-medium">Email</th>
                 <th className="text-left px-3 py-2.5 font-medium">Current</th>
-                <th className="text-left px-5 py-2.5 font-medium">Change role</th>
+                <th className="text-left px-3 py-2.5 font-medium">Change role</th>
+                <th className="text-right px-5 py-2.5 font-medium">Preview</th>
               </tr>
             </thead>
             <tbody>
@@ -256,7 +278,7 @@ function AdminUsersPage() {
                         {ROLE_LABEL[primary] ?? primary}
                       </span>
                     </td>
-                    <td className="px-5 py-3 space-y-2">
+                    <td className="px-3 py-3 space-y-2 align-top">
                       <Select value={primary} onValueChange={(v) => setRole(u.id, v)}>
                         <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -283,14 +305,19 @@ function AdminUsersPage() {
                         </div>
                       )}
                     </td>
+                    <td className="px-5 py-3 text-right align-top">
+                      <Button size="sm" variant="outline" onClick={() => previewAccount(u)} disabled={primary === "developer"}>
+                        <Eye className="size-3.5 mr-1" /> View
+                      </Button>
+                    </td>
                   </tr>
                 );
               })}
               {users.isLoading && (
-                <tr><td colSpan={4} className="px-5 py-10 text-center text-muted-foreground">Loading…</td></tr>
+                <tr><td colSpan={5} className="px-5 py-10 text-center text-muted-foreground">Loading…</td></tr>
               )}
               {users.data && users.data.length === 0 && (
-                <tr><td colSpan={4} className="px-5 py-10 text-center text-muted-foreground">No users</td></tr>
+                <tr><td colSpan={5} className="px-5 py-10 text-center text-muted-foreground">No users</td></tr>
               )}
             </tbody>
           </table>

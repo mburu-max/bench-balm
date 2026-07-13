@@ -89,11 +89,11 @@ const NAV_GROUPS: NavGroup[] = [
       // neither — no allocation access. PMs staff via the deep-linked Project Allocation flow.
       { to: "/allocations", label: "Resource Allocation", icon: CalendarRange, show: (r) => !!(r?.isSlLead || r?.isGovernanceLead) },
       { to: "/project-allocations", label: "Project Allocation", icon: Briefcase, show: (r) => !!(r?.isGovernanceLead || r?.isSlLead || r?.isPm) },
-      { to: "/bench", label: "Bench Report", icon: Coffee, show: (r) => !!r?.hasAnyOtherRole },
-      { to: "/cliff-edge", label: "Cliff Edge", icon: AlertOctagon, show: (r) => !!r?.hasAnyOtherRole },
       // Allocation Report (July 10 sync): cross-service-line allocation view for leadership /
       // reporting. Governance + Developer + Finance only (isFinance already ⊇ governance/dev).
       { to: "/allocation-report", label: "Allocation Report", icon: ClipboardList, show: (r) => !!(r?.isGovernanceLead || r?.isFinance) },
+      { to: "/bench", label: "Bench Report", icon: Coffee, show: (r) => !!r?.hasAnyOtherRole },
+      { to: "/cliff-edge", label: "Cliff Edge", icon: AlertOctagon, show: (r) => !!r?.hasAnyOtherRole },
       // KPI Dashboard is hidden from PMs (they use their own project-focused dashboard).
       { to: "/kpis", label: "KPI Dashboard", icon: BarChart2, show: (r) => !!(r?.isSlLead || r?.isGovernanceLead || r?.isFinance) },
     ],
@@ -312,9 +312,28 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
         <div className="p-3 border-t border-sidebar-border space-y-2">
           {role.data?.role && (
             <div className="px-3 py-2 rounded-md bg-sidebar-accent/40 text-[11px]">
-              <div className="uppercase tracking-widest text-sidebar-foreground/60">Signed in as</div>
-              <div className="font-medium mt-0.5">{ROLE_LABEL[role.data.role as string] ?? role.data.role}</div>
+              <div className="uppercase tracking-widest text-sidebar-foreground/60">
+                {role.data.impersonating ? "Previewing" : "Signed in as"}
+              </div>
+              <div className="font-medium mt-0.5">
+                {role.data.impersonatingLabel ?? (ROLE_LABEL[role.data.role as string] ?? role.data.role)}
+              </div>
+              {role.data.impersonatingLabel && (
+                <div className="text-sidebar-foreground/60 mt-0.5">
+                  {ROLE_LABEL[role.data.role as string] ?? role.data.role}
+                  {role.data.serviceLines?.length ? ` · ${role.data.serviceLines.join(", ")}` : ""}
+                </div>
+              )}
             </div>
+          )}
+          {role.data?.realIsDeveloper && role.data?.impersonating && (
+            <Button
+              variant="outline"
+              className="w-full justify-start border-warning/40 text-sidebar-foreground/90 hover:bg-sidebar-accent/60"
+              onClick={() => changeViewAs("developer")}
+            >
+              <Eye className="size-4 mr-2" /> Exit preview
+            </Button>
           )}
           {showDevControls && (
             <div className="px-3 py-2 rounded-md text-[11px] space-y-1.5 bg-sidebar-accent/30">
