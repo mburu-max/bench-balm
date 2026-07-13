@@ -30,6 +30,7 @@ import {
 } from "@/lib/constants";
 import { AllocationTypeBadge } from "@/components/StatusBadge";
 import { useCurrentRole } from "@/lib/useCurrentRole";
+import { inSlScope } from "@/lib/scope";
 import { isExtendedLeave } from "@/lib/leave";
 
 export const Route = createFileRoute("/_authenticated/allocations")({
@@ -79,6 +80,7 @@ function AllocationsPage() {
   const filteredProjects = useMemo(() => {
     return (projects.data ?? []).filter(
       (p) =>
+        inSlScope(role, p.service_line) &&
         p.status === "Active" &&
         (!customerId || p.customer_id === customerId) &&
         // PMs can only allocate to their own projects; governance/SL-lead/dev see all active
@@ -191,7 +193,7 @@ function AllocationsPage() {
               </SelectTrigger>
               <SelectContent>
                 {(resources.data ?? [])
-                  .filter((r) => r.status === "Active")
+                  .filter((r) => r.status === "Active" && inSlScope(role, r.service_line))
                   .map((r) => (
                     <SelectItem key={r.id} value={r.id}>
                       <span className="font-mono text-xs mr-2">{r.omni_id}</span>

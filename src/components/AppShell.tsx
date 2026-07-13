@@ -328,8 +328,8 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
           )}
           {role.data?.realIsDeveloper && role.data?.impersonating && (
             <Button
-              variant="outline"
-              className="w-full justify-start border-warning/40 text-sidebar-foreground/90 hover:bg-sidebar-accent/60"
+              variant="ghost"
+              className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
               onClick={() => changeViewAs("developer")}
             >
               <Eye className="size-4 mr-2" /> Exit preview

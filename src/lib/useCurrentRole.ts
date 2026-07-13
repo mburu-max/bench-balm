@@ -90,7 +90,9 @@ export function useCurrentRole() {
       }
 
       return {
-        userId: uid, role: (top as any) ?? null,
+        // Previewing an account adopts its user id so ownership checks (a PM's own projects, a
+        // Resource's own profile) resolve to that person — not the real developer.
+        userId: viewAsAccount?.userId || uid, role: (top as any) ?? null,
         isDeveloper, isGovernanceLead, isFinance,
         isDl, isSlLead, isPm, isResource,
         serviceLines, hasAnyOtherRole,

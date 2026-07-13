@@ -23,6 +23,7 @@ import {
 import { Plus, Pencil, Trash2, Eye } from "lucide-react";
 import { useResources } from "@/lib/queries";
 import { useCurrentRole } from "@/lib/useCurrentRole";
+import { inSlScope, scopedServiceLines, usePmScope, inPmResources } from "@/lib/scope";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -88,6 +89,7 @@ function Field({ label, value, wide }: { label: string; value: string; wide?: bo
 function ResourcesPage() {
   const resources = useResources();
   const { data: role } = useCurrentRole();
+  const pm = usePmScope();
   const canWrite = !!(role?.isGovernanceLead || role?.isDeveloper || role?.isSlLead);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -156,7 +158,9 @@ function ResourcesPage() {
     qc.invalidateQueries({ queryKey: ["resources"] });
   };
 
-  const all = resources.data ?? [];
+  const all = (resources.data ?? []).filter(
+    (r) => inSlScope(role, r.service_line) && inPmResources(pm, r.id),
+  );
   const filtered = all.filter(
     (r) =>
       (r.full_name.toLowerCase().includes(q.toLowerCase()) ||
@@ -323,7 +327,7 @@ function ResourcesPage() {
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All service lines</SelectItem>
-            {SERVICE_LINES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            {scopedServiceLines(role, SERVICE_LINES).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>

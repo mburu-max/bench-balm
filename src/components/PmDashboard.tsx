@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { KpiCard } from "@/components/KpiCard";
 import { useAllocations, useProjects, useResources } from "@/lib/queries";
+import { useCurrentRole } from "@/lib/useCurrentRole";
 import { todayStr } from "@/lib/dashboard";
 import { supabase } from "@/integrations/supabase/client";
 import { ProjectStatusBadge } from "@/components/StatusBadge";
@@ -35,12 +36,21 @@ export function PmDashboard() {
     },
   });
 
+  const { data: role } = useCurrentRole();
   const loading = projects.isLoading || resources.isLoading || allocations.isLoading;
 
-  const myProjects = projects.data ?? [];
+  // Scope to the PM's OWN projects. RLS already does this for a real PM (no-op here); for a
+  // developer previewing a PM account it reproduces their scope, since role.userId is the PM's.
+  const uid = role?.userId;
+  const myProjects = (projects.data ?? []).filter(
+    (p) => (p as any).project_manager_user_id === uid,
+  );
+  const ownedProjectIds = new Set(myProjects.map((p) => p.id));
   const activeProjects = myProjects.filter((p) => p.status === "Active");
 
-  const allAllocations = allocations.data ?? [];
+  const allAllocations = (allocations.data ?? []).filter(
+    (a) => a.project_id != null && ownedProjectIds.has(a.project_id),
+  );
   const currentAllocs = allAllocations.filter(
     (a) => a.allocation_type !== "Leave" && a.allocation_start_date <= today && a.allocation_end_date >= today,
   );

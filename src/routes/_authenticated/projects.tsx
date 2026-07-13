@@ -28,6 +28,7 @@ import { SERVICE_LINES, type ServiceLine, type ProjectStatus, PROJECT_STATUSES }
 import { ProjectStatusBadge } from "@/components/StatusBadge";
 import { Combobox } from "@/components/Combobox";
 import { useCurrentRole } from "@/lib/useCurrentRole";
+import { inSlScope, scopedServiceLines } from "@/lib/scope";
 
 export const Route = createFileRoute("/_authenticated/projects")({
   component: ProjectsPage,
@@ -271,12 +272,15 @@ function ProjectsPage() {
     const matchesQ =
       p.project_code.toLowerCase().includes(q.toLowerCase()) ||
       p.project_description.toLowerCase().includes(q.toLowerCase());
-    const inPmScope = !pmScoped || pmStatuses.includes(p.status);
+    const inPmScope =
+      !pmScoped || (pmStatuses.includes(p.status) && (p as any).project_manager_user_id === role?.userId);
     const matchesStatus = statusFilter === "all" || p.status === statusFilter;
-    return matchesQ && inPmScope && matchesStatus;
+    return matchesQ && inPmScope && matchesStatus && inSlScope(role, p.service_line);
   });
 
-  const draftsPending = (projects.data ?? []).filter((p) => p.status === "Draft");
+  const draftsPending = (projects.data ?? []).filter(
+    (p) => p.status === "Draft" && inSlScope(role, p.service_line),
+  );
 
   return (
     <AppShell
@@ -337,7 +341,7 @@ function ProjectsPage() {
                   <Select value={form.service_line} onValueChange={onServiceLineChange}>
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
-                      {SERVICE_LINES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      {scopedServiceLines(role, SERVICE_LINES).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>

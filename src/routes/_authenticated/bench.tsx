@@ -14,6 +14,8 @@ import {
 import { useAllocations, useResources } from "@/lib/queries";
 import { computeBench, type BenchRow } from "@/lib/bench";
 import { SERVICE_LINES } from "@/lib/constants";
+import { useCurrentRole } from "@/lib/useCurrentRole";
+import { inSlScope, scopedServiceLines, usePmScope, inPmResources } from "@/lib/scope";
 import { BenchBandBadge, ResourceStatusBadge } from "@/components/StatusBadge";
 import { KpiCard } from "@/components/KpiCard";
 import { AlertTriangle, Coffee, Download, PauseCircle, FileSpreadsheet, FileText } from "lucide-react";
@@ -29,13 +31,17 @@ export const Route = createFileRoute("/_authenticated/bench")({
 function BenchPage() {
   const resources = useResources();
   const allocations = useAllocations();
+  const { data: role } = useCurrentRole();
+  const pm = usePmScope();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [sl, setSl] = useState("all");
   const { band: bandParam } = Route.useSearch();
   const [band, setBand] = useState(bandParam ?? "all");
   const [q, setQ] = useState("");
 
-  const all = resources.data ?? [];
+  const all = (resources.data ?? []).filter(
+    (r) => inSlScope(role, r.service_line) && inPmResources(pm, r.id),
+  );
   const active = all.filter((r) => r.status === "Active");
   const bench = useMemo(
     () => computeBench(active, allocations.data ?? [], date),
@@ -128,7 +134,7 @@ function BenchPage() {
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All</SelectItem>
-              {SERVICE_LINES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              {scopedServiceLines(role, SERVICE_LINES).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>

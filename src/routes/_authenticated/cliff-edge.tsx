@@ -14,6 +14,8 @@ import {
 import { KpiCard } from "@/components/KpiCard";
 import { supabase } from "@/integrations/supabase/client";
 import { SERVICE_LINES } from "@/lib/constants";
+import { useCurrentRole } from "@/lib/useCurrentRole";
+import { inSlScope, scopedServiceLines, usePmScope, inPmResources } from "@/lib/scope";
 import { AlertOctagon, AlertTriangle, Clock3, Download, FileSpreadsheet, FileText } from "lucide-react";
 import { exportToExcel, exportToPdf } from "@/lib/export";
 
@@ -33,6 +35,8 @@ function bandColor(band: number) {
 }
 
 function CliffEdgePage() {
+  const { data: role } = useCurrentRole();
+  const pm = usePmScope();
   const [sl, setSl] = useState("all");
   const [band, setBand] = useState("all");
   const [q, setQ] = useState("");
@@ -48,7 +52,9 @@ function CliffEdgePage() {
     },
   });
 
-  const all = cliff.data ?? [];
+  const all = (cliff.data ?? []).filter(
+    (r) => inSlScope(role, r.service_line) && inPmResources(pm, r.resource_id),
+  );
   const filtered = all
     .filter((r) => sl === "all" || r.service_line === sl)
     .filter((r) => band === "all" || String(r.cliff_band) === band)
@@ -123,7 +129,7 @@ function CliffEdgePage() {
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All service lines</SelectItem>
-            {SERVICE_LINES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            {scopedServiceLines(role, SERVICE_LINES).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={band} onValueChange={setBand}>

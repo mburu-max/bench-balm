@@ -38,7 +38,13 @@ export function SlLeadDashboard() {
   const assignedSls = role?.serviceLines ?? [];
   const canPickSl = assignedSls.length > 1;
   const [slFilter, setSlFilter] = useState<string>("all");
-  const matchesSl = (sl: string | null | undefined) => slFilter === "all" || sl === slFilter;
+  // Constrain to the lead's own service line(s). RLS already does this for a real lead, so it's a
+  // no-op there — but it makes the developer's account-scoped PREVIEW faithful: RLS returns every
+  // row for a developer, so "all" must mean "all MY service lines", not all five.
+  const inScope = (sl: string | null | undefined) =>
+    assignedSls.length === 0 || (sl != null && assignedSls.includes(sl as (typeof assignedSls)[number]));
+  const matchesSl = (sl: string | null | undefined) =>
+    inScope(sl) && (slFilter === "all" || sl === slFilter);
   const isLead = !!(role?.isSlLead || role?.isDl);
 
   const slTargets = useQuery({

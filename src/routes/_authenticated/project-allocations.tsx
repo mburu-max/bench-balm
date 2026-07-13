@@ -36,6 +36,8 @@ import {
 } from "@/lib/constants";
 import { AllocationTypeBadge } from "@/components/StatusBadge";
 import { Combobox } from "@/components/Combobox";
+import { useCurrentRole } from "@/lib/useCurrentRole";
+import { inSlScope, usePmScope, inPmServiceLines } from "@/lib/scope";
 
 export const Route = createFileRoute("/_authenticated/project-allocations")({
   validateSearch: (search: Record<string, unknown>): { projectId?: string } => ({
@@ -77,6 +79,9 @@ function ProjectAllocationsPage() {
     },
   });
   const allocations = useAllocations();
+  const { data: role } = useCurrentRole();
+  const pm = usePmScope();
+  const pmScoped = !!(role?.isPm && !role?.isGovernanceLead && !role?.isSlLead && !role?.isDeveloper);
   const qc = useQueryClient();
   // Deep-link from the PM "ready to staff" flag: ?projectId=<id> preselects the assigned project.
   const { projectId: preselectProjectId } = Route.useSearch();
@@ -118,17 +123,17 @@ function ProjectAllocationsPage() {
     setRows([{ ...blankRow(), start: t > p.start_date ? t : p.start_date, end: p.end_date }]);
   }, [preselectProjectId, projects.data]);
   const filteredProjects = useMemo(
-    () => (projects.data ?? []).filter((p) => p.status === "Active" && (!customerId || p.customer_id === customerId)),
-    [projects.data, customerId],
+    () => (projects.data ?? []).filter((p) => p.status === "Active" && inSlScope(role, p.service_line) && (!pmScoped || (p as any).project_manager_user_id === role?.userId) && (!customerId || p.customer_id === customerId)),
+    [projects.data, customerId, role, pmScoped],
   );
 
   // Customer dropdown is scoped to customers the user actually has an Active project for.
   // projects.data is RLS-scoped (a PM sees only their own projects), so a PM only sees their
   // assigned customers here — not the whole global Customer Master.
   const scopedCustomers = useMemo(() => {
-    const ids = new Set((projects.data ?? []).filter((p) => p.status === "Active").map((p) => p.customer_id));
+    const ids = new Set((projects.data ?? []).filter((p) => p.status === "Active" && inSlScope(role, p.service_line) && (!pmScoped || (p as any).project_manager_user_id === role?.userId)).map((p) => p.customer_id));
     return (customers.data ?? []).filter((c) => ids.has(c.id));
-  }, [customers.data, projects.data]);
+  }, [customers.data, projects.data, role, pmScoped]);
 
   const teamAllocations = useMemo(
     () => (allocations.data ?? []).filter((a) => a.project_id === projectId),
@@ -143,7 +148,7 @@ function ProjectAllocationsPage() {
 
   // Bulk add — paste spreadsheet rows ("Omni ID/name, %, start, end"), match resources, append.
   const parseBulk = () => {
-    const pool = (resources.data ?? []).filter((r) => r.status === "Active");
+    const pool = (resources.data ?? []).filter((r) => r.status === "Active" && inSlScope(role, r.service_line) && inPmServiceLines(pm, r.service_line));
     const find = (who: string) => {
       const key = who.trim().toLowerCase();
       return pool.find((r) => (r.omni_id ?? "").toLowerCase() === key || (r.full_name ?? "").toLowerCase() === key);
@@ -321,7 +326,7 @@ function ProjectAllocationsPage() {
                         <Combobox
                           value={row.resource_id}
                           onChange={(v) => setRow(row.key, { resource_id: v })}
-                          options={(resources.data ?? []).filter((r) => r.status === "Active").map((r) => ({ value: r.id, label: `${r.omni_id}  ${r.full_name}` }))}
+                          options={(resources.data ?? []).filter((r) => r.status === "Active" && inSlScope(role, r.service_line) && inPmServiceLines(pm, r.service_line)).map((r) => ({ value: r.id, label: `${r.omni_id}  ${r.full_name}` }))}
                           placeholder="Pick…"
                           searchPlaceholder="Search resources…"
                           emptyText="No resource found."

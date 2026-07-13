@@ -1,6 +1,7 @@
 import { useProjects, useAllocations } from "@/lib/queries";
 import { todayStr } from "@/lib/dashboard";
 import type { CurrentRole } from "@/lib/useCurrentRole";
+import { inSlScope } from "@/lib/scope";
 
 // Per-role "pending action" flag — the generalisation of the PM ready-to-staff signal. Each
 // workflow handoff surfaces the projects waiting for THIS user to act, derived on read from their
@@ -44,10 +45,22 @@ export function usePendingActions(role: CurrentRole | undefined | null) {
   if (kind === "verify") {
     items = all.filter((p) => p.status === "Draft");
   } else if (kind === "staff") {
-    items = all.filter((p) => p.status === "Active" && !staffed.has(p.id));
-  } else if (kind === "approve") {
+    // PM: their OWN active, unstaffed projects. RLS scopes a real PM; the ownership check also
+    // keeps a developer's PM-account preview faithful (role.userId is the previewed PM's id).
     items = all.filter(
-      (p) => p.status === "Active" && staffed.has(p.id) && !p.staffing_approved_at,
+      (p) =>
+        p.status === "Active" &&
+        !staffed.has(p.id) &&
+        (p as any).project_manager_user_id === role?.userId,
+    );
+  } else if (kind === "approve") {
+    // SL Lead: staffed projects in their service line(s) awaiting sign-off.
+    items = all.filter(
+      (p) =>
+        p.status === "Active" &&
+        staffed.has(p.id) &&
+        !p.staffing_approved_at &&
+        inSlScope(role, p.service_line),
     );
   } else {
     items = [];
