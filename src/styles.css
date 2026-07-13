@@ -193,3 +193,24 @@
   .font-display { font-family: var(--font-display); }
   .tabular-nums { font-variant-numeric: tabular-nums; }
 }
+
+/* Thin, theme-matched scrollbar for the sidebar nav — replaces the jarring default
+   light scrollbar over the dark sidebar. Barely there until you hover it. */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--sidebar-foreground) 20%, transparent) transparent;
+  scrollbar-gutter: stable;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklab, var(--sidebar-foreground) 20%, transparent);
+  border-radius: 9999px;
+}
+.sidebar-scroll:hover::-webkit-scrollbar-thumb {
+  background-color: color-mix(in oklab, var(--sidebar-foreground) 38%, transparent);
+}

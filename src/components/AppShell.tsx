@@ -251,7 +251,7 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
             </div>
           </div>
         </div>
-        <nav className="flex-1 px-3 overflow-y-auto min-h-0 py-2 space-y-1">
+        <nav className="sidebar-scroll flex-1 px-3 overflow-y-auto min-h-0 py-2 space-y-1">
           {NAV_GROUPS.map((group, gi) => {
             const visibleItems = group.items.filter((n) => n.show(role.data) && !hiddenSet.has(n.to));
             if (visibleItems.length === 0) return null;
