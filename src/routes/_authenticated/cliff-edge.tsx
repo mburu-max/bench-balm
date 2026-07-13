@@ -18,6 +18,7 @@ import { useCurrentRole } from "@/lib/useCurrentRole";
 import { inSlScope, scopedServiceLines, usePmScope, inPmResources } from "@/lib/scope";
 import { AlertOctagon, AlertTriangle, Clock3, Download, FileSpreadsheet, FileText } from "lucide-react";
 import { exportToExcel, exportToPdf } from "@/lib/export";
+import { usePagination, Pager } from "@/components/Pager";
 
 export const Route = createFileRoute("/_authenticated/cliff-edge")({
   component: CliffEdgePage,
@@ -62,6 +63,7 @@ function CliffEdgePage() {
       (r.full_name ?? "").toLowerCase().includes(q.toLowerCase()) ||
       (r.omni_id ?? "").toLowerCase().includes(q.toLowerCase()),
     );
+  const pg = usePagination(filtered, 10);
 
   const counts = {
     now: all.filter((r) => r.cliff_band === 0).length,
@@ -161,7 +163,7 @@ function CliffEdgePage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r) => (
+              {pg.pageItems.map((r) => (
                 <tr key={r.resource_id} className="border-t hover:bg-muted/30">
                   <td className="px-5 py-3">
                     <div className="font-medium">{r.full_name}</div>
@@ -192,6 +194,7 @@ function CliffEdgePage() {
             </tbody>
           </table>
         </div>
+        <Pager {...pg} />
       </div>
     </AppShell>
   );

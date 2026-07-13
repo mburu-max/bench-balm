@@ -31,6 +31,7 @@ import {
 import { AllocationTypeBadge } from "@/components/StatusBadge";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { inSlScope } from "@/lib/scope";
+import { usePagination, Pager } from "@/components/Pager";
 import { isExtendedLeave } from "@/lib/leave";
 
 export const Route = createFileRoute("/_authenticated/allocations")({
@@ -92,6 +93,7 @@ function AllocationsPage() {
     () => (allocations.data ?? []).filter((a) => a.resource_id === resourceId),
     [allocations.data, resourceId],
   );
+  const pgExisting = usePagination(myAllocations, 10);
 
   // running total across new dates (peak day)
   const peakTotal = useMemo(() => {
@@ -366,7 +368,7 @@ function AllocationsPage() {
                 </tr>
               </thead>
               <tbody>
-                {myAllocations.map((a: any) => (
+                {pgExisting.pageItems.map((a: any) => (
                   <tr key={a.id} className="border-t">
                     <td className="px-5 py-3">
                       {a.projects ? (
@@ -412,6 +414,7 @@ function AllocationsPage() {
               </tbody>
             </table>
           </div>
+          <Pager {...pgExisting} />
         </div>
       )}
     </AppShell>

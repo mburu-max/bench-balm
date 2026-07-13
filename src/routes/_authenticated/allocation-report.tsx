@@ -16,6 +16,7 @@ import { useAllocationReport } from "@/lib/queries";
 import { SERVICE_LINES, ALLOCATION_TYPE_LABEL, type AllocationType } from "@/lib/constants";
 import { Download, FileSpreadsheet, FileText } from "lucide-react";
 import { exportToExcel, exportToPdf } from "@/lib/export";
+import { usePagination, Pager } from "@/components/Pager";
 
 export const Route = createFileRoute("/_authenticated/allocation-report")({
   component: AllocationReportPage,
@@ -104,6 +105,7 @@ function AllocationReportPage() {
         }),
     [base, date, sl, customer, project, q],
   );
+  const pg = usePagination(filtered, 10);
 
   const HEADERS = [
     "Service Line",
@@ -229,7 +231,7 @@ function AllocationReportPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r) => (
+              {pg.pageItems.map((r) => (
                 <tr key={r.id} className="border-t hover:bg-muted/30">
                   <td className="px-5 py-3">
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase tracking-wide">
@@ -260,6 +262,7 @@ function AllocationReportPage() {
             </tbody>
           </table>
         </div>
+        <Pager {...pg} />
       </div>
     </AppShell>
   );

@@ -20,6 +20,7 @@ import { BenchBandBadge, ResourceStatusBadge } from "@/components/StatusBadge";
 import { KpiCard } from "@/components/KpiCard";
 import { AlertTriangle, Coffee, Download, PauseCircle, FileSpreadsheet, FileText } from "lucide-react";
 import { exportToExcel, exportToPdf } from "@/lib/export";
+import { usePagination, Pager } from "@/components/Pager";
 
 export const Route = createFileRoute("/_authenticated/bench")({
   component: BenchPage,
@@ -68,6 +69,7 @@ function BenchPage() {
       b.resource.full_name.toLowerCase().includes(q.toLowerCase()) ||
       b.resource.omni_id.toLowerCase().includes(q.toLowerCase()),
     );
+  const pg = usePagination(filtered, 10);
 
   const counts = {
     zero: bench.filter((b) => b.benchPct === 100).length,
@@ -180,7 +182,7 @@ function BenchPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((b) => (
+              {pg.pageItems.map((b) => (
                 <tr key={b.resource.id} className="border-t hover:bg-muted/30">
                   <td className="px-5 py-3">
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase tracking-wide">
@@ -209,6 +211,7 @@ function BenchPage() {
             </tbody>
           </table>
         </div>
+        <Pager {...pg} />
       </div>
 
       {onLeave.length > 0 && (

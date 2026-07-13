@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { ROLE_LABEL, SERVICE_LINES, type AppRole } from "@/lib/constants";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { setViewAsAccount } from "@/lib/impersonation";
+import { usePagination, Pager } from "@/components/Pager";
 import { Eye, ShieldAlert, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -79,6 +80,7 @@ function AdminUsersPage() {
       return (profiles ?? []).map((p) => ({ ...p, roles: roleMap.get(p.id) ?? [], serviceLines: slMap.get(p.id) ?? [] }));
     },
   });
+  const pg = usePagination(users.data ?? [], 10);
 
   const setRole = async (userId: string, newRole: string) => {
     const { error: delErr } = await supabase.from("user_roles").delete().eq("user_id", userId);
@@ -266,7 +268,7 @@ function AdminUsersPage() {
               </tr>
             </thead>
             <tbody>
-              {(users.data ?? []).map((u: any) => {
+              {pg.pageItems.map((u: any) => {
                 const primary = u.roles[0] ?? "resource";
                 const showSlToggle = primary === "service_line_lead";
                 return (
@@ -322,6 +324,7 @@ function AdminUsersPage() {
             </tbody>
           </table>
         </div>
+        <Pager {...pg} />
       </div>
     </AppShell>
   );

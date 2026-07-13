@@ -28,6 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { REGIONS, SERVICE_LINES, VERTICALS, type ServiceLine } from "@/lib/constants";
 import { useCurrentRole } from "@/lib/useCurrentRole";
+import { usePagination, Pager } from "@/components/Pager";
 
 export const Route = createFileRoute("/_authenticated/customers")({
   component: CustomersPage,
@@ -142,6 +143,7 @@ function CustomersPage() {
   const filtered = (customers.data ?? []).filter((c) =>
     c.customer_name.toLowerCase().includes(q.toLowerCase()),
   );
+  const pg = usePagination(filtered, 10);
 
   return (
     <AppShell
@@ -353,7 +355,7 @@ function CustomersPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((c) => (
+              {pg.pageItems.map((c) => (
                 <tr key={c.id} className="border-t hover:bg-muted/30">
                   <td className="px-5 py-3 font-medium">
                     <Link to={`/customers/${c.id}` as any} className="hover:underline">{c.customer_name}</Link>
@@ -394,6 +396,7 @@ function CustomersPage() {
             </tbody>
           </table>
         </div>
+        <Pager {...pg} />
       </div>
     </AppShell>
   );

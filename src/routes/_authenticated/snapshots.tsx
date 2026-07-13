@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePagination, Pager } from "@/components/Pager";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,6 +55,7 @@ function SnapshotsPage() {
       return data ?? [];
     },
   });
+  const pg = usePagination(rows.data ?? [], 10);
 
   const takeSnapshot = async () => {
     const { data, error } = await supabase.rpc("take_allocation_snapshot", { _d: date });
@@ -146,7 +148,7 @@ function SnapshotsPage() {
                 </tr>
               </thead>
               <tbody>
-                {(rows.data ?? []).map((r) => (
+                {pg.pageItems.map((r) => (
                   <tr key={r.id} className="border-t hover:bg-muted/30">
                     <td className="px-4 py-2">{r.resource_name}</td>
                     <td className="px-3 py-2 font-mono text-xs">{r.omni_id}</td>
@@ -164,6 +166,7 @@ function SnapshotsPage() {
               </tbody>
             </table>
           </div>
+          <Pager {...pg} />
         </div>
       </div>
     </AppShell>

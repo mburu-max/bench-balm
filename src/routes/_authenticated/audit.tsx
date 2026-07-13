@@ -6,6 +6,7 @@ import { useCurrentRole } from "@/lib/useCurrentRole";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { usePagination, Pager } from "@/components/Pager";
 
 export const Route = createFileRoute("/_authenticated/audit")({
   component: AuditPage,
@@ -29,6 +30,14 @@ function AuditPage() {
     },
   });
 
+  const filtered = (audit.data ?? []).filter((r) =>
+    !q ||
+    r.action?.toLowerCase().includes(q.toLowerCase()) ||
+    r.table_name?.toLowerCase().includes(q.toLowerCase()) ||
+    r.row_id?.toLowerCase().includes(q.toLowerCase()),
+  );
+  const pg = usePagination(filtered, 10);
+
   if (role && !allowed) {
     return (
       <AppShell title="Audit Trail">
@@ -38,13 +47,6 @@ function AuditPage() {
       </AppShell>
     );
   }
-
-  const filtered = (audit.data ?? []).filter((r) =>
-    !q ||
-    r.action?.toLowerCase().includes(q.toLowerCase()) ||
-    r.table_name?.toLowerCase().includes(q.toLowerCase()) ||
-    r.row_id?.toLowerCase().includes(q.toLowerCase()),
-  );
 
   return (
     <AppShell title="Audit Trail">
@@ -75,7 +77,7 @@ function AuditPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r) => {
+              {pg.pageItems.map((r) => {
                 const diff: string[] = [];
                 if (r.action === "UPDATE" && r.old_data && r.new_data) {
                   const o = r.old_data as Record<string, unknown>;
@@ -115,6 +117,7 @@ function AuditPage() {
             </tbody>
           </table>
         </div>
+        <Pager {...pg} />
       </div>
     </AppShell>
   );

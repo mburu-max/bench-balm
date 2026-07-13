@@ -24,6 +24,7 @@ import { Plus, Pencil, Trash2, Eye } from "lucide-react";
 import { useResources } from "@/lib/queries";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { inSlScope, scopedServiceLines, usePmScope, inPmResources } from "@/lib/scope";
+import { usePagination, Pager } from "@/components/Pager";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -168,6 +169,7 @@ function ResourcesPage() {
       (slFilter === "all" || r.service_line === slFilter) &&
       (statusFilter === "all" || r.status === statusFilter),
   );
+  const pg = usePagination(filtered, 10);
 
   const counts = {
     total: all.length,
@@ -397,7 +399,7 @@ function ResourcesPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r) => (
+              {pg.pageItems.map((r) => (
                 <tr key={r.id} className="border-t hover:bg-muted/30">
                   <td className="px-5 py-3 font-mono text-xs">{r.omni_id}</td>
                   <td className="px-3 py-3 font-medium">{r.full_name}</td>
@@ -425,6 +427,7 @@ function ResourcesPage() {
             </tbody>
           </table>
         </div>
+        <Pager {...pg} />
       </div>
     </AppShell>
   );

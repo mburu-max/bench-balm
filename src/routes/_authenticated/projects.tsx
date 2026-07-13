@@ -29,6 +29,7 @@ import { ProjectStatusBadge } from "@/components/StatusBadge";
 import { Combobox } from "@/components/Combobox";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { inSlScope, scopedServiceLines } from "@/lib/scope";
+import { usePagination, Pager } from "@/components/Pager";
 
 export const Route = createFileRoute("/_authenticated/projects")({
   component: ProjectsPage,
@@ -281,6 +282,7 @@ function ProjectsPage() {
   const draftsPending = (projects.data ?? []).filter(
     (p) => p.status === "Draft" && inSlScope(role, p.service_line),
   );
+  const pg = usePagination(filtered, 10);
 
   return (
     <AppShell
@@ -510,7 +512,7 @@ function ProjectsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p: any) => {
+              {pg.pageItems.map((p: any) => {
                 const resCount = resCountByProject[p.id]?.size ?? 0;
                 return (
                   <tr key={p.id} className="border-t hover:bg-muted/30">
@@ -554,6 +556,7 @@ function ProjectsPage() {
             </tbody>
           </table>
         </div>
+        <Pager {...pg} />
       </div>
     </AppShell>
   );
