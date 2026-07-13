@@ -78,10 +78,12 @@ function AllocationReportPage() {
     return [{ value: "all", label: "All customers" }, ...set.map((c) => ({ value: c, label: c }))];
   }, [base]);
 
+  // Project options follow the selected customer — pick a customer, only its projects show.
   const projectOptions: ComboOption[] = useMemo(() => {
-    const set = Array.from(new Set(base.map((r) => r.projectCode))).sort();
+    const rows = customer === "all" ? base : base.filter((r) => r.customer === customer);
+    const set = Array.from(new Set(rows.map((r) => r.projectCode))).sort();
     return [{ value: "all", label: "All projects" }, ...set.map((c) => ({ value: c, label: c }))];
-  }, [base]);
+  }, [base, customer]);
 
   const filtered = useMemo(
     () =>
@@ -179,10 +181,10 @@ function AllocationReportPage() {
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label>Customer</Label>
+          <Label className="block">Customer</Label>
           <Combobox
             value={customer}
-            onChange={setCustomer}
+            onChange={(v) => { setCustomer(v); setProject("all"); }}
             options={customerOptions}
             className="w-56"
             placeholder="All customers"
@@ -190,7 +192,7 @@ function AllocationReportPage() {
           />
         </div>
         <div className="space-y-1.5">
-          <Label>Project</Label>
+          <Label className="block">Project</Label>
           <Combobox
             value={project}
             onChange={setProject}

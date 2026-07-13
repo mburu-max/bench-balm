@@ -94,7 +94,7 @@ export function PmDashboard() {
   return (
     <AppShell title="My Projects">
       {/* KPI cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <KpiCard label="Active Projects" value={loading ? "—" : activeProjects.length} icon={FolderKanban} accent="info" to="/projects" search={{ status: "Active" }} />
         <KpiCard label="Team" value={loading ? "—" : teamSize} icon={Users} hint="on your projects" to="/project-allocations" />
         <KpiCard label="Unstaffed Active" value={loading ? "—" : unstaffedActive.length} icon={UserX} accent={unstaffedActive.length > 0 ? "destructive" : "success"} to="/projects" search={{ status: "Active" }} />
