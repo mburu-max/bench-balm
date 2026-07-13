@@ -228,15 +228,14 @@ function ProjectAllocationsPage() {
       <div className="rounded-xl border bg-card p-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <Label>Customer</Label>
-            <Select value={customerId} onValueChange={(v) => { setCustomerId(v); setProjectId(""); }}>
-              <SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger>
-              <SelectContent>
-                {scopedCustomers.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.customer_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label className="block">Customer</Label>
+            <Combobox
+              value={customerId}
+              onChange={(v) => { setCustomerId(v); setProjectId(""); }}
+              options={scopedCustomers.map((c) => ({ value: c.id, label: c.customer_name }))}
+              placeholder="Select customer"
+              searchPlaceholder="Search customer…"
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Project</Label>

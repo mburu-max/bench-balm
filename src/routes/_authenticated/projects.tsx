@@ -389,7 +389,7 @@ function ProjectsPage() {
 
       {/* View project — details + the contextual actions (moved out of the table row) */}
       <Dialog open={!!viewProject} onOpenChange={(o) => { if (!o) setViewProject(null); }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           {viewProject && (() => {
             const p = viewProject;
             const resCount = resCountByProject[p.id]?.size ?? 0;
@@ -405,7 +405,7 @@ function ProjectsPage() {
                     )}
                   </DialogTitle>
                 </DialogHeader>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3 py-1">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-4 py-2">
                   <Field label="Description" value={p.project_description} wide />
                   <Field label="Customer" value={p.customers?.customer_name ?? "—"} />
                   <Field label="Service Line" value={p.service_line} />

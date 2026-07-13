@@ -32,6 +32,7 @@ import { AllocationTypeBadge } from "@/components/StatusBadge";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { inSlScope } from "@/lib/scope";
 import { usePagination, Pager } from "@/components/Pager";
+import { Combobox } from "@/components/Combobox";
 import { isExtendedLeave } from "@/lib/leave";
 
 export const Route = createFileRoute("/_authenticated/allocations")({
@@ -188,22 +189,17 @@ function AllocationsPage() {
         {/* LEFT — pick resource + show profile */}
         <div className="space-y-4">
           <div className="rounded-xl border bg-card p-5">
-            <Label>Resource</Label>
-            <Select value={resourceId} onValueChange={setResourceId}>
-              <SelectTrigger className="mt-1.5">
-                <SelectValue placeholder="Search and select a resource" />
-              </SelectTrigger>
-              <SelectContent>
-                {(resources.data ?? [])
-                  .filter((r) => r.status === "Active" && inSlScope(role, r.service_line))
-                  .map((r) => (
-                    <SelectItem key={r.id} value={r.id}>
-                      <span className="font-mono text-xs mr-2">{r.omni_id}</span>
-                      {r.full_name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+            <Label className="block">Resource</Label>
+            <Combobox
+              value={resourceId}
+              onChange={setResourceId}
+              options={(resources.data ?? [])
+                .filter((r) => r.status === "Active" && inSlScope(role, r.service_line))
+                .map((r) => ({ value: r.id, label: `${r.omni_id}  ${r.full_name}` }))}
+              className="mt-1.5"
+              placeholder="Search and select a resource"
+              searchPlaceholder="Search resource…"
+            />
 
             {resource && (
               <div className="mt-5 space-y-2.5 text-sm">
