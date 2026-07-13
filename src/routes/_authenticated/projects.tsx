@@ -389,7 +389,7 @@ function ProjectsPage() {
 
       {/* View project — details + the contextual actions (moved out of the table row) */}
       <Dialog open={!!viewProject} onOpenChange={(o) => { if (!o) setViewProject(null); }}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-4xl">
           {viewProject && (() => {
             const p = viewProject;
             const resCount = resCountByProject[p.id]?.size ?? 0;
