@@ -306,14 +306,14 @@ function GovernanceDashboard() {
       </div>
 
       {/* Draft approvals pending — Governance's flag: immediate view of projects to approve */}
-      {pending.kind === "verify" && pending.count > 0 && (
+      {pending.countOf("verify") > 0 && (
         <Link to="/projects" search={{ status: "Draft" }} className="block mt-6">
           <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-center justify-between gap-4 transition-colors hover:bg-muted/40">
             <div className="flex items-center gap-3">
               <ClipboardCheck className="size-5 text-primary" />
               <div>
                 <div className="text-sm font-medium">
-                  {pending.count} draft project{pending.count === 1 ? "" : "s"} pending your approval
+                  {pending.countOf("verify")} draft project{pending.countOf("verify") === 1 ? "" : "s"} pending your approval
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">Review and approve to activate them.</div>
               </div>

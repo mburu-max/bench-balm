@@ -225,16 +225,34 @@ export function SlLeadDashboard() {
       })()}
 
       {/* Awaiting your approval — active projects the PM has staffed, pending SL Lead sign-off */}
-      {pending.kind === "approve" && pending.count > 0 && (
+      {pending.countOf("approve") > 0 && (
         <Link to="/projects" search={{ status: "Active" }} className="block mt-4">
           <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-center justify-between gap-4 transition-colors hover:bg-muted/40">
             <div className="flex items-center gap-3">
               <ClipboardCheck className="size-5 text-primary" />
               <div>
                 <div className="text-sm font-medium">
-                  {pending.count} project{pending.count === 1 ? "" : "s"} staffed and awaiting your approval
+                  {pending.countOf("approve")} project{pending.countOf("approve") === 1 ? "" : "s"} staffed and awaiting your approval
                 </div>
                 <div className="text-xs text-muted-foreground mt-0.5">Review the staffing and sign off in Projects.</div>
+              </div>
+            </div>
+            <ArrowRight className="size-4 text-muted-foreground" />
+          </div>
+        </Link>
+      )}
+
+      {/* Rejected — Governance sent these back to you; edit & save to resubmit for approval */}
+      {pending.countOf("rework") > 0 && (
+        <Link to="/projects" search={{ status: "Rejected" }} className="block mt-4">
+          <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 flex items-center justify-between gap-4 transition-colors hover:bg-muted/40">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="size-5 text-destructive" />
+              <div>
+                <div className="text-sm font-medium">
+                  {pending.countOf("rework")} project{pending.countOf("rework") === 1 ? " was" : "s were"} rejected — fix &amp; resubmit
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">Open each, review the reason, then edit &amp; save to send it back for approval.</div>
               </div>
             </div>
             <ArrowRight className="size-4 text-muted-foreground" />

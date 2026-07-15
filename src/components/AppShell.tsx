@@ -136,17 +136,12 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
   const role = useCurrentRole();
 
   // Per-role "pending action" badge on the Projects nav item — Governance (drafts to verify),
-  // PM (projects to staff) or SL Lead (staffed projects to approve). One flag per role.
+  // PM (projects to staff), SL Lead (staffed projects to approve + rejected projects to rework).
   const pending = usePendingActions(role.data);
   // Notification-style: count only the items the user hasn't acknowledged yet (opened Projects).
   const [pendingSeen, setPendingSeen] = useState<string[]>(readPendingSeen);
   const pendingBadge = pending.items.filter((p) => !pendingSeen.includes(p.id)).length;
-  const pendingLabel =
-    pending.kind === "verify"
-      ? `${pendingBadge} draft${pendingBadge === 1 ? "" : "s"} to approve`
-      : pending.kind === "approve"
-        ? `${pendingBadge} project${pendingBadge === 1 ? "" : "s"} awaiting your approval`
-        : `${pendingBadge} project${pendingBadge === 1 ? "" : "s"} to staff`;
+  const pendingLabel = `${pendingBadge} action${pendingBadge === 1 ? "" : "s"} need your attention`;
   // Acknowledge the current pending items — clears the unread count on the bell + Projects badge.
   const markPendingSeen = () => {
     setPendingSeen((prev) => {
@@ -165,11 +160,17 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
   // Central notifications inbox — the pending actions, each linking to where the user acts.
   const notifications: AppNotification[] = pending.items.map((p: any) => {
     const customer = p.customers?.customer_name ?? "";
-    if (pending.kind === "verify")
-      return { id: p.id, code: p.project_code, title: "Approve this draft", subtitle: customer, to: "/projects", search: { status: "Draft" } };
-    if (pending.kind === "approve")
-      return { id: p.id, code: p.project_code, title: "Approve staffing", subtitle: customer, to: "/projects", search: { status: "Active" } };
-    return { id: p.id, code: p.project_code, title: "Assign resources", subtitle: customer, to: "/project-allocations", search: { projectId: p.id } };
+    const base = { id: p.id, code: p.project_code, subtitle: customer };
+    switch (p.pendingKind) {
+      case "verify":
+        return { ...base, title: "Approve this draft", to: "/projects", search: { status: "Draft" } };
+      case "approve":
+        return { ...base, title: "Approve staffing", to: "/projects", search: { status: "Active" } };
+      case "rework":
+        return { ...base, title: "Rejected — fix & resubmit", to: "/projects", search: { status: "Rejected" } };
+      default:
+        return { ...base, title: "Assign resources", to: "/project-allocations", search: { projectId: p.id } };
+    }
   });
 
   const labelledGroups = NAV_GROUPS.filter((g) => g.label !== null).map((g) => g.label as string);
