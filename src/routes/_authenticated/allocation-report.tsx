@@ -226,7 +226,7 @@ function AllocationReportPage() {
                 <th className="text-left px-3 py-2.5 font-medium">Project Code</th>
                 <th className="text-right px-3 py-2.5 font-medium whitespace-nowrap">Allocation %</th>
                 <th className="text-left px-3 py-2.5 font-medium">Type</th>
-                <th className="text-left px-3 py-2.5 font-medium whitespace-nowrap">Window</th>
+                <th className="text-left px-3 py-2.5 font-medium whitespace-nowrap">Allocation Duration</th>
                 <th className="text-left px-5 py-2.5 font-medium">HubSpot ID</th>
               </tr>
             </thead>
