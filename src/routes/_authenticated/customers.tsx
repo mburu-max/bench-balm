@@ -35,7 +35,6 @@ export const Route = createFileRoute("/_authenticated/customers")({
 });
 
 const ACCOUNT_TIERS = ["Tier 1", "Tier 2", "Tier 3"] as const;
-const CONTRACT_TYPES = ["T&M", "Fixed Price", "Retainer", "Managed Service"] as const;
 
 type Form = {
   id?: string;
@@ -44,7 +43,6 @@ type Form = {
   region: string;
   vertical: string;
   account_tier: string;
-  contract_type: string;
   account_manager: string;
   notes: string;
 };
@@ -55,7 +53,6 @@ const empty: Form = {
   region: "",
   vertical: "",
   account_tier: "",
-  contract_type: "",
   account_manager: "",
   notes: "",
 };
@@ -92,7 +89,6 @@ function CustomersPage() {
       region: c.region ?? "",
       vertical: c.vertical ?? "",
       account_tier: c.account_tier ?? "",
-      contract_type: c.contract_type ?? "",
       account_manager: c.account_manager ?? "",
       notes: c.notes ?? "",
     });
@@ -109,7 +105,6 @@ function CustomersPage() {
       region: form.region || null,
       vertical: form.vertical || null,
       account_tier: form.account_tier || null,
-      contract_type: form.contract_type || null,
       account_manager: form.account_manager || null,
       notes: form.notes || null,
     };
@@ -242,21 +237,9 @@ function CustomersPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Contract Type</Label>
-                  <Select
-                    value={form.contract_type}
-                    onValueChange={(v) => setForm({ ...form, contract_type: v })}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      {CONTRACT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
               <div className="space-y-1.5">
-                <Label>Account Manager</Label>
+                <Label>Sales Point of Contact</Label>
                 <Input
                   value={form.account_manager}
                   onChange={(e) => setForm({ ...form, account_manager: e.target.value })}
@@ -315,8 +298,7 @@ function CustomersPage() {
                     </div>
                   </div>
                   <Field label="Account Tier" value={c.account_tier ?? "—"} />
-                  <Field label="Contract Type" value={c.contract_type ?? "—"} />
-                  <Field label="Account Manager" value={c.account_manager ?? "—"} />
+                  <Field label="Sales Point of Contact" value={c.account_manager ?? "—"} />
                   <Field label="Region" value={c.region ?? "—"} />
                   <Field label="Vertical" value={c.vertical ?? "—"} />
                   <Field label="HubSpot" value={c.hubspot_sync_status ?? "not_configured"} />
@@ -346,8 +328,7 @@ function CustomersPage() {
                 <th className="text-left px-5 py-2.5 font-medium">Customer</th>
                 <th className="text-left px-3 py-2.5 font-medium">Service Lines</th>
                 <th className="text-left px-3 py-2.5 font-medium">Tier</th>
-                <th className="text-left px-3 py-2.5 font-medium">Contract</th>
-                <th className="text-left px-3 py-2.5 font-medium">AM</th>
+                <th className="text-left px-3 py-2.5 font-medium">Sales POC</th>
                 <th className="text-left px-3 py-2.5 font-medium">Region</th>
                 <th className="text-left px-3 py-2.5 font-medium">Vertical</th>
                 <th className="text-left px-3 py-2.5 font-medium">Sync</th>
@@ -370,7 +351,6 @@ function CustomersPage() {
                     </div>
                   </td>
                   <td className="px-3 py-3 text-muted-foreground text-xs">{(c as any).account_tier ?? "—"}</td>
-                  <td className="px-3 py-3 text-muted-foreground text-xs">{(c as any).contract_type ?? "—"}</td>
                   <td className="px-3 py-3 text-muted-foreground text-xs">{(c as any).account_manager ?? "—"}</td>
                   <td className="px-3 py-3 text-muted-foreground">{c.region ?? "—"}</td>
                   <td className="px-3 py-3 text-muted-foreground">{c.vertical ?? "—"}</td>

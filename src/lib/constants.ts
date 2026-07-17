@@ -72,6 +72,11 @@ export const VERTICALS = [
   "Other",
 ] as const;
 
+// Delivery Center master list — the countries a project can be delivered from. Multi-select
+// (a project may span several centers); stored comma-joined in projects.delivery_center.
+export const DELIVERY_CENTERS = ["India", "Kenya", "Philippines", "Singapore", "South Africa", "UK", "US"] as const;
+export type DeliveryCenter = (typeof DELIVERY_CENTERS)[number];
+
 // Roles (matches DB app_role enum). 'admin' & 'viewer' kept for backwards compat but unused by UI.
 export const APP_ROLES = [
   "developer",

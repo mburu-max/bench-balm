@@ -24,7 +24,8 @@ import { Plus, Pencil, Trash2, ArrowRight, XCircle, Lock, ClipboardCheck, CheckC
 import { useCustomers, useProjects, useAllocations } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { SERVICE_LINES, type ServiceLine, type ProjectStatus, PROJECT_STATUSES } from "@/lib/constants";
+import { SERVICE_LINES, DELIVERY_CENTERS, type ServiceLine, type ProjectStatus, PROJECT_STATUSES } from "@/lib/constants";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ProjectStatusBadge } from "@/components/StatusBadge";
 import { Combobox } from "@/components/Combobox";
 import { useCurrentRole } from "@/lib/useCurrentRole";
@@ -198,6 +199,17 @@ function ProjectsPage() {
     regenerateCode(form.service_line, v);
   };
 
+  // Delivery Center is a multi-select of countries, stored comma-joined in the existing text column.
+  const dcSelected = form.delivery_center
+    ? form.delivery_center.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+  const toggleDeliveryCenter = (country: string) => {
+    const set = new Set(dcSelected);
+    if (set.has(country)) set.delete(country);
+    else set.add(country);
+    setForm((f) => ({ ...f, delivery_center: DELIVERY_CENTERS.filter((c) => set.has(c)).join(", ") }));
+  };
+
   const save = async () => {
     if (!form.customer_id) return toast.error("Customer required");
     if (!form.service_line) return toast.error("Service line required");
@@ -366,12 +378,15 @@ function ProjectsPage() {
                   </Select>
                 </div>
                 <div className="col-span-2 space-y-1.5">
-                  <Label>Delivery Center</Label>
-                  <Input
-                    value={form.delivery_center}
-                    onChange={(e) => setForm({ ...form, delivery_center: e.target.value })}
-                    placeholder="e.g. Nairobi"
-                  />
+                  <Label className="block">Delivery Center <span className="font-normal text-muted-foreground">(one or more countries)</span></Label>
+                  <div className="flex flex-wrap gap-x-5 gap-y-2 pt-1">
+                    {DELIVERY_CENTERS.map((c) => (
+                      <label key={c} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox checked={dcSelected.includes(c)} onCheckedChange={() => toggleDeliveryCenter(c)} />
+                        {c}
+                      </label>
+                    ))}
+                  </div>
                 </div>
                 <div className="col-span-2 space-y-1.5">
                   <Label>Project Manager</Label>
