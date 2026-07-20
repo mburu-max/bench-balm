@@ -34,7 +34,6 @@ export const Route = createFileRoute("/_authenticated/customers")({
   component: CustomersPage,
 });
 
-const ACCOUNT_TIERS = ["Tier 1", "Tier 2", "Tier 3"] as const;
 
 type Form = {
   id?: string;
@@ -42,7 +41,6 @@ type Form = {
   service_lines: ServiceLine[];
   region: string;
   vertical: string;
-  account_tier: string;
   account_manager: string;
   notes: string;
 };
@@ -52,7 +50,6 @@ const empty: Form = {
   service_lines: [],
   region: "",
   vertical: "",
-  account_tier: "",
   account_manager: "",
   notes: "",
 };
@@ -88,7 +85,6 @@ function CustomersPage() {
       service_lines: c.service_lines ?? [],
       region: c.region ?? "",
       vertical: c.vertical ?? "",
-      account_tier: c.account_tier ?? "",
       account_manager: c.account_manager ?? "",
       notes: c.notes ?? "",
     });
@@ -104,7 +100,6 @@ function CustomersPage() {
       service_lines: form.service_lines,
       region: form.region || null,
       vertical: form.vertical || null,
-      account_tier: form.account_tier || null,
       account_manager: form.account_manager || null,
       notes: form.notes || null,
     };
@@ -224,20 +219,6 @@ function CustomersPage() {
                   </Select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label>Account Tier</Label>
-                  <Select
-                    value={form.account_tier}
-                    onValueChange={(v) => setForm({ ...form, account_tier: v })}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      {ACCOUNT_TIERS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
               <div className="space-y-1.5">
                 <Label>Sales Point of Contact</Label>
                 <Input
@@ -297,7 +278,6 @@ function CustomersPage() {
                       ))}
                     </div>
                   </div>
-                  <Field label="Account Tier" value={c.account_tier ?? "—"} />
                   <Field label="Sales Point of Contact" value={c.account_manager ?? "—"} />
                   <Field label="Region" value={c.region ?? "—"} />
                   <Field label="Vertical" value={c.vertical ?? "—"} />
@@ -327,7 +307,6 @@ function CustomersPage() {
               <tr>
                 <th className="text-left px-5 py-2.5 font-medium">Customer</th>
                 <th className="text-left px-3 py-2.5 font-medium">Service Lines</th>
-                <th className="text-left px-3 py-2.5 font-medium">Tier</th>
                 <th className="text-left px-3 py-2.5 font-medium">Sales POC</th>
                 <th className="text-left px-3 py-2.5 font-medium">Region</th>
                 <th className="text-left px-3 py-2.5 font-medium">Vertical</th>
@@ -350,7 +329,6 @@ function CustomersPage() {
                       ))}
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-muted-foreground text-xs">{(c as any).account_tier ?? "—"}</td>
                   <td className="px-3 py-3 text-muted-foreground text-xs">{(c as any).account_manager ?? "—"}</td>
                   <td className="px-3 py-3 text-muted-foreground">{c.region ?? "—"}</td>
                   <td className="px-3 py-3 text-muted-foreground">{c.vertical ?? "—"}</td>
