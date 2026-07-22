@@ -170,6 +170,10 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
         return { ...base, title: "Approve staffing", to: "/projects", search: { status: "Active" } };
       case "rework":
         return { ...base, title: "Rejected — fix & resubmit", to: "/projects", search: { status: "Rejected" } };
+      case "notify":
+        return { ...base, title: "New from HubSpot — no action needed", to: "/projects", search: { status: "Draft" } };
+      case "assign_pm":
+        return { ...base, title: "Assign a PM to activate", to: "/projects", search: { status: "Draft" } };
       default:
         return { ...base, title: "Assign resources", to: "/project-allocations", search: { projectId: p.id } };
     }

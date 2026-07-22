@@ -12,7 +12,7 @@ import { inSlScope } from "@/lib/scope";
 //                        "rework"   : projects Governance rejected, to fix & resubmit
 // Each item carries its own pendingKind so the nav badge, notification inbox and dashboard banners
 // can render mixed flags together. Add a kind here and it flows to all three automatically.
-export type PendingKind = "verify" | "staff" | "approve" | "rework";
+export type PendingKind = "verify" | "staff" | "approve" | "rework" | "notify" | "assign_pm";
 
 export type PendingItem = {
   id: string;
@@ -53,7 +53,13 @@ export function usePendingActions(role: CurrentRole | undefined | null) {
   const tag = (p: any, pendingKind: PendingKind) => items.push({ ...p, pendingKind });
 
   if (isGov) {
-    for (const p of all) if (p.status === "Draft") tag(p, "verify");
+    for (const p of all) {
+      if (p.status !== "Draft") continue;
+      // HubSpot-sourced drafts are pre-approved (HubSpot was the gate) — Governance is notified,
+      // not asked to verify. Manually-created drafts still need Governance verification.
+      if ((p as any).hubspot_deal_id) tag(p, "notify");
+      else tag(p, "verify");
+    }
   }
   if (isPm) {
     // PM: their OWN active, unstaffed projects. RLS scopes a real PM; the ownership check also
@@ -67,6 +73,9 @@ export function usePendingActions(role: CurrentRole | undefined | null) {
       if (!inSlScope(role, p.service_line)) continue;
       if (p.status === "Active" && staffed.has(p.id) && !p.staffing_approved_at) tag(p, "approve");
       else if (p.status === "Rejected") tag(p, "rework");
+      // HubSpot-sourced draft awaiting a PM — assigning one activates it (no Governance step).
+      else if (p.status === "Draft" && (p as any).hubspot_deal_id && !(p as any).project_manager_user_id)
+        tag(p, "assign_pm");
     }
   }
 

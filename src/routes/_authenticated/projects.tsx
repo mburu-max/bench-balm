@@ -229,12 +229,15 @@ function ProjectsPage() {
       end_date: form.end_date,
     };
     const resubmitting = form.id && form.status === "Rejected";
+    // HubSpot-sourced drafts are pre-approved: assigning a PM activates them (no Governance gate).
+    const activatingHubspot = !!(form.id && form.status === "Draft" && form.hubspot_deal_id && form.project_manager_user_id);
     let error;
     if (form.id) {
       const patch: any = { ...base };
       // Resubmission: editing a rejected project sends it back to the Draft approval queue,
       // clearing the old rejection reason so the fresh submission starts clean.
       if (resubmitting) { patch.status = "Draft"; patch.approval_notes = null; }
+      if (activatingHubspot) patch.status = "Active";
       ({ error } = await supabase.from("projects").update(patch).eq("id", form.id));
     } else {
       ({ error } = await supabase
@@ -246,9 +249,11 @@ function ProjectsPage() {
     toast.success(
       resubmitting
         ? "Resubmitted for approval — back in the Governance queue"
-        : form.id
-          ? "Project updated"
-          : "Draft created — assigned to the PM's dashboard",
+        : activatingHubspot
+          ? "PM assigned — project activated"
+          : form.id
+            ? "Project updated"
+            : "Draft created — assigned to the PM's dashboard",
     );
     setOpen(false);
     qc.invalidateQueries({ queryKey: ["projects"] });
@@ -310,7 +315,8 @@ function ProjectsPage() {
   });
 
   const draftsPending = (projects.data ?? []).filter(
-    (p) => p.status === "Draft" && inSlScope(role, p.service_line),
+    // HubSpot-sourced drafts are pre-approved — they don't enter Governance's verification queue.
+    (p) => p.status === "Draft" && !(p as any).hubspot_deal_id && inSlScope(role, p.service_line),
   );
   const pg = usePagination(filtered, 10);
 
@@ -457,10 +463,15 @@ function ProjectsPage() {
                   <Field label="HubSpot Deal" value={p.hubspot_deal_id ?? "—"} />
                 </div>
                 <DialogFooter className="mt-2 flex-wrap gap-2 sm:justify-start">
-                  {p.status === "Draft" && canVerify && (
+                  {p.status === "Draft" && canVerify && !p.hubspot_deal_id && (
                     <Button size="sm" onClick={() => act(() => updateStatus(p, "Active"))}>
                       Approve &amp; Activate <ArrowRight className="size-3.5 ml-1" />
                     </Button>
+                  )}
+                  {p.status === "Draft" && p.hubspot_deal_id && (
+                    <span className="text-xs text-muted-foreground">
+                      From HubSpot (pre-approved) — assign a PM &amp; save to activate.
+                    </span>
                   )}
                   {p.status === "Verified" && canActivate && (
                     <Button size="sm" onClick={() => act(() => updateStatus(p, "Active"))}>

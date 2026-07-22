@@ -16,6 +16,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const HUBSPOT_BASE = "https://api.hubapi.com";
+// Deals carry the service line in a HubSpot deal property named "service_line" whose value matches
+// one of these. A deal with a recognised value becomes a Draft project; anything else is staged.
+const SERVICE_LINES = new Set(["DLaaS", "CLM", "MS", "CCaaS", "Legacy"]);
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
@@ -95,37 +98,55 @@ Deno.serve(async (req) => {
     return created.id;
   }
 
-  // Deal -> staging inbox (only Closed-Won). Never clobbers a row already promoted/dismissed.
+  // Closed-Won deal -> a Draft project directly (if it has a customer + recognised service line);
+  // otherwise it's staged for triage. Idempotent; never clobbers a promoted/dismissed staging row.
   async function upsertDealImport(dealId: string) {
     const deal = await hs(
-      `/crm/v3/objects/deals/${dealId}?associations=companies&properties=dealname,amount,dealstage,pipeline,closedate,hs_is_closed_won`,
+      `/crm/v3/objects/deals/${dealId}?associations=companies&properties=dealname,amount,dealstage,pipeline,closedate,hs_is_closed_won,service_line`,
     );
     if (deal.properties?.hs_is_closed_won !== "true") return { deal: dealId, skipped: "not closed-won" };
 
     const companyId = deal.associations?.companies?.results?.[0]?.id ?? null;
     const customerId = companyId ? await upsertCustomerByCompanyId(String(companyId)) : null;
+    const serviceLine = String(deal.properties?.service_line ?? "").trim();
+    const startDate = deal.properties?.closedate ? String(deal.properties.closedate).slice(0, 10) : null;
 
+    // Complete deal -> Draft project (pre-approved). The SL Lead then assigns a PM to activate it.
+    if (customerId && SERVICE_LINES.has(serviceLine)) {
+      const { data: projectId, error } = await admin.rpc("import_hubspot_deal", {
+        p_deal_id: deal.id,
+        p_deal_name: deal.properties?.dealname ?? null,
+        p_service_line: serviceLine,
+        p_customer_id: customerId,
+        p_start: startDate,
+        p_end: null,
+      });
+      if (error) throw error;
+      return { deal: dealId, project: projectId, service_line: serviceLine, customer: customerId };
+    }
+
+    // Fallback: no company or no recognised service line -> staging inbox for triage.
     const row = {
       hubspot_deal_id: deal.id,
       deal_name: deal.properties?.dealname ?? null,
       amount: deal.properties?.amount ? Number(deal.properties.amount) : null,
-      close_date: deal.properties?.closedate ? String(deal.properties.closedate).slice(0, 10) : null,
+      close_date: startDate,
       pipeline: deal.properties?.pipeline ?? null,
       hubspot_company_id: companyId,
       customer_id: customerId,
       raw: deal,
     };
-
+    const reason = customerId ? "no recognised service line on deal" : "deal has no associated company";
     const { data: existing } = await admin
       .from("hubspot_deal_imports").select("id, status").eq("hubspot_deal_id", deal.id).maybeSingle();
     if (existing) {
       if (existing.status === "pending") await admin.from("hubspot_deal_imports").update(row).eq("id", existing.id);
-      return { deal: dealId, staged: existing.id, status: existing.status };
+      return { deal: dealId, staged: existing.id, status: existing.status, reason };
     }
     const { data: ins, error } = await admin
       .from("hubspot_deal_imports").insert(row).select("id").single();
     if (error) throw error;
-    return { deal: dealId, staged: ins.id, status: "pending", customer: customerId };
+    return { deal: dealId, staged: ins.id, status: "pending", reason };
   }
 
   try {
