@@ -49,7 +49,6 @@ import { NotificationBell, type AppNotification } from "@/components/Notificatio
 import { setViewAs } from "@/lib/impersonation";
 import { getHiddenPages, setHiddenPages } from "@/lib/demo-visibility";
 import { ROLE_LABEL, type AppRole } from "@/lib/constants";
-import { HubSpotSyncButton } from "@/components/HubSpotSyncButton";
 
 
 // Roles a developer can preview via the "view as" switcher.
@@ -427,7 +426,6 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
           </div>
           <div className="flex items-center gap-2">
             {actions}
-            <HubSpotSyncButton />
             <NotificationBell items={notifications} unseenCount={pendingBadge} onOpen={markPendingSeen} />
             <ThemeToggle />
           </div>

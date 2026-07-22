@@ -31,6 +31,7 @@ import { Combobox } from "@/components/Combobox";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { inSlScope, scopedServiceLines } from "@/lib/scope";
 import { usePagination, Pager } from "@/components/Pager";
+import { HubSpotSyncButton } from "@/components/HubSpotSyncButton";
 
 export const Route = createFileRoute("/_authenticated/projects")({
   component: ProjectsPage,
@@ -324,11 +325,14 @@ function ProjectsPage() {
     <AppShell
       title="Project Registry"
       actions={
-        canCreate ? (
-          <Button onClick={startNew}>
-            <Plus className="size-4 mr-1.5" /> New Project
-          </Button>
-        ) : undefined
+        <div className="flex items-center gap-2">
+          <HubSpotSyncButton />
+          {canCreate && (
+            <Button onClick={startNew}>
+              <Plus className="size-4 mr-1.5" /> New Project
+            </Button>
+          )}
+        </div>
       }
     >
       <Dialog open={open} onOpenChange={setOpen}>

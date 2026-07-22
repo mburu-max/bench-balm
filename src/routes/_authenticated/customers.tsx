@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { REGIONS, SERVICE_LINES, VERTICALS, type ServiceLine } from "@/lib/constants";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { usePagination, Pager } from "@/components/Pager";
+import { HubSpotSyncButton } from "@/components/HubSpotSyncButton";
 
 export const Route = createFileRoute("/_authenticated/customers")({
   component: CustomersPage,
@@ -139,7 +140,9 @@ function CustomersPage() {
     <AppShell
       title="Customers"
       actions={
-        canWrite ? (
+        <div className="flex items-center gap-2">
+          <HubSpotSyncButton />
+          {canWrite && (
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button onClick={startNew}>
@@ -246,7 +249,8 @@ function CustomersPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        ) : null
+          )}
+        </div>
       }
     >
       <div className="flex items-center gap-3 mb-4">
