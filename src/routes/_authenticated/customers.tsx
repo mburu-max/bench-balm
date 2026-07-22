@@ -223,7 +223,7 @@ function CustomersPage() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label>Sales Point of Contact</Label>
+                <Label>Deal Owner</Label>
                 <Input
                   value={form.account_manager}
                   onChange={(e) => setForm({ ...form, account_manager: e.target.value })}
@@ -282,7 +282,7 @@ function CustomersPage() {
                       ))}
                     </div>
                   </div>
-                  <Field label="Sales Point of Contact" value={c.account_manager ?? "—"} />
+                  <Field label="Deal Owner" value={c.account_manager ?? "—"} />
                   <Field label="Region" value={c.region ?? "—"} />
                   <Field label="Vertical" value={c.vertical ?? "—"} />
                   <Field label="HubSpot" value={c.hubspot_sync_status ?? "not_configured"} />
@@ -311,7 +311,7 @@ function CustomersPage() {
               <tr>
                 <th className="text-left px-5 py-2.5 font-medium">Customer</th>
                 <th className="text-left px-3 py-2.5 font-medium">Service Lines</th>
-                <th className="text-left px-3 py-2.5 font-medium">Sales POC</th>
+                <th className="text-left px-3 py-2.5 font-medium">Deal Owner</th>
                 <th className="text-left px-3 py-2.5 font-medium">Region</th>
                 <th className="text-left px-3 py-2.5 font-medium">Vertical</th>
                 <th className="text-left px-3 py-2.5 font-medium">Sync</th>
