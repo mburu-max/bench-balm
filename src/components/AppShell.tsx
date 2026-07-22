@@ -49,6 +49,8 @@ import { NotificationBell, type AppNotification } from "@/components/Notificatio
 import { setViewAs } from "@/lib/impersonation";
 import { getHiddenPages, setHiddenPages } from "@/lib/demo-visibility";
 import { ROLE_LABEL, type AppRole } from "@/lib/constants";
+import { HubSpotSyncButton } from "@/components/HubSpotSyncButton";
+
 
 // Roles a developer can preview via the "view as" switcher.
 const VIEW_AS_ROLES: AppRole[] = [
