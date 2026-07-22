@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrentRole } from "@/lib/useCurrentRole";
-import { syncHubSpotDealsFn } from "@/lib/integrations/hubspot.functions";
+import { backfillHubSpotFn } from "@/lib/integrations/hubspot.functions";
 
 export function HubSpotSyncButton() {
   const role = useCurrentRole();
-  const sync = useServerFn(syncHubSpotDealsFn);
+  const sync = useServerFn(backfillHubSpotFn);
   const [loading, setLoading] = useState(false);
 
   const allowed = !!(role.data?.isDeveloper || role.data?.isGovernanceLead);
@@ -17,14 +17,12 @@ export function HubSpotSyncButton() {
   const onClick = async () => {
     setLoading(true);
     try {
-      const res = await sync();
-      if (res.status === "ok") {
-        toast.success(`HubSpot sync: ${res.deals} deal(s), ${res.companies} company(ies)`);
-      } else if (res.status === "not_configured") {
-        toast.error(res.message);
-      } else {
-        toast.error(res.message);
-      }
+      const r = await sync();
+      const customers = r.customersCreated + r.customersLinked;
+      toast.success(
+        `HubSpot synced — ${r.projects} project${r.projects === 1 ? "" : "s"}, ` +
+          `${r.staged} staged, ${customers} customer${customers === 1 ? "" : "s"}`,
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "HubSpot sync failed");
     } finally {

@@ -22,3 +22,25 @@ export const syncHubSpotDealsFn = createServerFn({ method: "POST" })
     const { syncHubSpotDeals } = await import("./hubspot");
     return await syncHubSpotDeals();
   });
+
+// Full backfill: imports ALL companies + closed-won deals into the DB (service role, inside the
+// handler). Same Developer/Governance gate as above.
+export const backfillHubSpotFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: roles, error: rolesErr } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    if (rolesErr) throw new Error(rolesErr.message);
+    const roleSet = new Set((roles ?? []).map((r) => r.role as string));
+    const allowed =
+      roleSet.has("developer") || roleSet.has("admin") || roleSet.has("governance_lead");
+    if (!allowed) {
+      throw new Error("Forbidden: Developer or Governance role required");
+    }
+
+    const { backfillHubSpot } = await import("./hubspot.backfill");
+    return await backfillHubSpot();
+  });

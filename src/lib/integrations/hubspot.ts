@@ -60,7 +60,7 @@ type HubSpotListResponse<T> = {
   paging?: { next?: { after: string; link?: string } };
 };
 
-const DEAL_PROPERTIES = ["dealname", "amount", "dealstage", "pipeline", "closedate", "hs_is_closed_won"];
+const DEAL_PROPERTIES = ["dealname", "amount", "dealstage", "pipeline", "closedate", "hs_is_closed_won", "service_line"];
 const COMPANY_PROPERTIES = ["name", "domain", "industry", "country", "city", "numberofemployees"];
 
 /**
@@ -99,6 +99,22 @@ export async function fetchClosedWonDeals(): Promise<Array<{ deal: HubSpotDeal; 
 export async function fetchCompany(companyId: string): Promise<HubSpotCompany> {
   const params = new URLSearchParams({ properties: COMPANY_PROPERTIES.join(",") });
   return hubspotFetch<HubSpotCompany>(`/crm/v3/objects/companies/${companyId}?${params.toString()}`);
+}
+
+/** Fetch ALL companies (paged) — used by the backfill to seed the Customer Master. */
+export async function fetchAllCompanies(): Promise<HubSpotCompany[]> {
+  const out: HubSpotCompany[] = [];
+  const params = new URLSearchParams({ limit: "100", properties: COMPANY_PROPERTIES.join(",") });
+  let after: string | undefined;
+  do {
+    if (after) params.set("after", after);
+    const page = await hubspotFetch<HubSpotListResponse<HubSpotCompany>>(
+      `/crm/v3/objects/companies?${params.toString()}`,
+    );
+    out.push(...page.results);
+    after = page.paging?.next?.after;
+  } while (after);
+  return out;
 }
 
 /**
