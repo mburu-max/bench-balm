@@ -31,9 +31,15 @@ export function HubSpotSyncButton() {
   };
 
   return (
-    <Button variant="outline" size="sm" onClick={onClick} disabled={loading}>
-      <RefreshCw className={`size-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-      {loading ? "Syncing…" : "Sync HubSpot"}
+    <Button
+      variant="outline"
+      size="icon"
+      onClick={onClick}
+      disabled={loading}
+      title="Sync from HubSpot"
+      aria-label="Sync from HubSpot"
+    >
+      <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
     </Button>
   );
 }
