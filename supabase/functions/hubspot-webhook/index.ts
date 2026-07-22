@@ -16,7 +16,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const HUBSPOT_BASE = "https://api.hubapi.com";
 const COMPANY_PROPS = "name,domain,industry,country,city";
-const DEAL_PROPS = "dealname,amount,dealstage,pipeline,closedate,hs_is_closed_won,service_line";
+const DEAL_PROPS = "dealname,amount,dealstage,pipeline,closedate,hs_is_closed_won,service_line,hubspot_owner_id";
 const SERVICE_LINES = ["DLaaS", "CLM", "MS", "CCaaS", "Legacy"];
 const resolveServiceLine = (raw: string): string | undefined =>
   SERVICE_LINES.find((s) => s.toLowerCase() === String(raw).trim().toLowerCase());
@@ -88,12 +88,38 @@ Deno.serve(async (req) => {
   const upsertCustomerByCompanyId = async (companyId: string) =>
     upsertCustomerFromCompany(await hs(`/crm/v3/objects/companies/${companyId}?properties=${COMPANY_PROPS}`));
 
+  // Resolve a HubSpot owner id to a display name (for the Sales POC).
+  async function ownerNameFor(ownerId: any): Promise<string | null> {
+    if (!ownerId) return null;
+    try {
+      const o = await hs(`/crm/v3/owners/${ownerId}`);
+      const name = [o.firstName, o.lastName].filter(Boolean).join(" ").trim();
+      return name || o.email || null;
+    } catch {
+      return null;
+    }
+  }
+
   async function processDeal(deal: any) {
     if (deal.properties?.hs_is_closed_won !== "true") return { deal: deal.id, skipped: "not closed-won" };
     const companyId = deal.associations?.companies?.results?.[0]?.id ?? null;
     const customerId = companyId ? (await upsertCustomerByCompanyId(String(companyId))).id : null;
     const sl = resolveServiceLine(deal.properties?.service_line ?? "");
     const start = deal.properties?.closedate ? String(deal.properties.closedate).slice(0, 10) : null;
+
+    // Enrich the linked customer from the deal: add its service line, and set the Sales POC to the
+    // deal owner (only if not already set — never clobber a human-entered value).
+    if (customerId) {
+      const { data: cust } = await admin.from("customers").select("service_lines, account_manager").eq("id", customerId).single();
+      const patch: any = {};
+      const current: string[] = cust?.service_lines ?? [];
+      if (sl && !current.includes(sl)) patch.service_lines = [...current, sl];
+      if (!cust?.account_manager) {
+        const owner = await ownerNameFor(deal.properties?.hubspot_owner_id);
+        if (owner) patch.account_manager = owner;
+      }
+      if (Object.keys(patch).length) await admin.from("customers").update(patch).eq("id", customerId);
+    }
 
     if (customerId && sl) {
       const { data: projectId, error } = await admin.rpc("import_hubspot_deal", {
