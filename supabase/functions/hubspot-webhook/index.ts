@@ -21,6 +21,30 @@ const SERVICE_LINES = ["DLaaS", "CLM", "MS", "CCaaS", "Legacy"];
 const resolveServiceLine = (raw: string): string | undefined =>
   SERVICE_LINES.find((s) => s.toLowerCase() === String(raw).trim().toLowerCase());
 
+// Map a HubSpot company Country to the app's Region group. Unknown countries fall back to the raw
+// value so at least something shows; a company with no country stays blank.
+const REGION_BY_COUNTRY: Record<string, string> = {
+  "united states": "North America", "united states of america": "North America", usa: "North America",
+  us: "North America", canada: "North America", mexico: "North America",
+  "united kingdom": "EMEA", uk: "EMEA", england: "EMEA", ireland: "EMEA", germany: "EMEA", france: "EMEA",
+  spain: "EMEA", italy: "EMEA", netherlands: "EMEA", belgium: "EMEA", sweden: "EMEA", norway: "EMEA",
+  denmark: "EMEA", finland: "EMEA", poland: "EMEA", switzerland: "EMEA", austria: "EMEA", portugal: "EMEA",
+  kenya: "EMEA", "south africa": "EMEA", nigeria: "EMEA", egypt: "EMEA", ghana: "EMEA", morocco: "EMEA",
+  india: "APAC", china: "APAC", japan: "APAC", singapore: "APAC", philippines: "APAC", australia: "APAC",
+  "new zealand": "APAC", indonesia: "APAC", malaysia: "APAC", thailand: "APAC", vietnam: "APAC",
+  "south korea": "APAC", "hong kong": "APAC", taiwan: "APAC",
+  brazil: "Latin America", argentina: "Latin America", chile: "Latin America", colombia: "Latin America",
+  peru: "Latin America",
+  "united arab emirates": "Middle East", uae: "Middle East", "saudi arabia": "Middle East",
+  qatar: "Middle East", kuwait: "Middle East", israel: "Middle East", turkey: "Middle East",
+  bahrain: "Middle East", oman: "Middle East",
+};
+const regionForCountry = (country: any): string | null => {
+  if (!country) return null;
+  const c = String(country).trim();
+  return REGION_BY_COUNTRY[c.toLowerCase()] ?? c;
+};
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
@@ -52,7 +76,7 @@ Deno.serve(async (req) => {
   async function upsertCustomerFromCompany(company: any): Promise<{ id: string | null; created: boolean }> {
     const name = String(company.properties?.name ?? "").trim();
     if (!name) return { id: null, created: false };
-    const country = company.properties?.country ?? null;
+    const region = regionForCountry(company.properties?.country);
     const industry = company.properties?.industry ?? null;
 
     const { data: byId } = await admin.from("customers").select("id").eq("hubspot_company_id", company.id).maybeSingle();
@@ -64,7 +88,7 @@ Deno.serve(async (req) => {
       await admin.from("customers").update({
         hubspot_company_id: company.id,
         hubspot_sync_status: "synced",
-        region: byName.region ?? country,
+        region: byName.region ?? region,
         vertical: byName.vertical ?? industry,
       }).eq("id", byName.id);
       return { id: byName.id, created: false };
@@ -72,7 +96,7 @@ Deno.serve(async (req) => {
 
     const { data: created, error } = await admin.from("customers").insert({
       customer_name: name, hubspot_company_id: company.id, hubspot_sync_status: "synced",
-      region: country, vertical: industry,
+      region, vertical: industry,
     }).select("id").single();
     if (error) {
       const { data: again } = await admin.from("customers").select("id").ilike("customer_name", name).limit(1);
