@@ -421,9 +421,11 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
           </div>
           <div className="flex items-center gap-2">
             {actions}
+            <HubSpotSyncButton />
             <NotificationBell items={notifications} unseenCount={pendingBadge} onOpen={markPendingSeen} />
             <ThemeToggle />
           </div>
+
         </header>
         <main className="flex-1 p-6 overflow-auto">{children}</main>
       </div>
