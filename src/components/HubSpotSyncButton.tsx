@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -10,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 // aren't served on the Lovable deploy.
 export function HubSpotSyncButton() {
   const role = useCurrentRole();
+  const qc = useQueryClient();
   const [loading, setLoading] = useState(false);
 
   const allowed = !!(role.data?.isDeveloper || role.data?.isGovernanceLead);
@@ -41,6 +43,9 @@ export function HubSpotSyncButton() {
         customersCreated: number;
         customersLinked: number;
       };
+      // Refresh the lists in place so the synced customers/projects show without a reload.
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["projects"] });
       const customers = r.customersCreated + r.customersLinked;
       toast.success(
         `HubSpot synced — ${r.projects} project${r.projects === 1 ? "" : "s"}, ` +
