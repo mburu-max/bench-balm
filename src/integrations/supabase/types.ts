@@ -227,6 +227,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           customer_name: string
+          hubspot_company_id: string | null
           hubspot_sync_status: string
           id: string
           notes: string | null
@@ -242,6 +243,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_name: string
+          hubspot_company_id?: string | null
           hubspot_sync_status?: string
           id?: string
           notes?: string | null
@@ -257,6 +259,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_name?: string
+          hubspot_company_id?: string | null
           hubspot_sync_status?: string
           id?: string
           notes?: string | null
@@ -364,6 +367,69 @@ export type Database = {
           service_line?: Database["public"]["Enums"]["service_line"]
         }
         Relationships: []
+      }
+      hubspot_deal_imports: {
+        Row: {
+          amount: number | null
+          close_date: string | null
+          created_at: string
+          customer_id: string | null
+          deal_name: string | null
+          hubspot_company_id: string | null
+          hubspot_deal_id: string
+          id: string
+          pipeline: string | null
+          promoted_project_id: string | null
+          raw: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          close_date?: string | null
+          created_at?: string
+          customer_id?: string | null
+          deal_name?: string | null
+          hubspot_company_id?: string | null
+          hubspot_deal_id: string
+          id?: string
+          pipeline?: string | null
+          promoted_project_id?: string | null
+          raw?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          close_date?: string | null
+          created_at?: string
+          customer_id?: string | null
+          deal_name?: string | null
+          hubspot_company_id?: string | null
+          hubspot_deal_id?: string
+          id?: string
+          pipeline?: string | null
+          promoted_project_id?: string | null
+          raw?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hubspot_deal_imports_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hubspot_deal_imports_promoted_project_id_fkey"
+            columns: ["promoted_project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -744,6 +810,17 @@ export type Database = {
           _uid?: string
         }
         Returns: boolean
+      }
+      import_hubspot_deal: {
+        Args: {
+          p_customer_id: string
+          p_deal_id: string
+          p_deal_name: string
+          p_end: string
+          p_service_line: Database["public"]["Enums"]["service_line"]
+          p_start: string
+        }
+        Returns: string
       }
       is_admin_like: { Args: { _user_id: string }; Returns: boolean }
       is_developer: { Args: { _uid?: string }; Returns: boolean }
