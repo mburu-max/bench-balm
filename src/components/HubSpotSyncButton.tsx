@@ -1,14 +1,15 @@
 import { useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useCurrentRole } from "@/lib/useCurrentRole";
-import { backfillHubSpotFn } from "@/lib/integrations/hubspot.functions";
+import { supabase } from "@/integrations/supabase/client";
 
+// Backfill button: invokes the hubspot-webhook edge function in backfill mode (JWT-authenticated).
+// Edge functions are the pattern that actually deploys here — TanStack server functions (_serverFn)
+// aren't served on the Lovable deploy.
 export function HubSpotSyncButton() {
   const role = useCurrentRole();
-  const sync = useServerFn(backfillHubSpotFn);
   const [loading, setLoading] = useState(false);
 
   const allowed = !!(role.data?.isDeveloper || role.data?.isGovernanceLead);
@@ -17,7 +18,29 @@ export function HubSpotSyncButton() {
   const onClick = async () => {
     setLoading(true);
     try {
-      const r = await sync();
+      const { data, error } = await supabase.functions.invoke("hubspot-webhook", {
+        body: { backfill: true },
+      });
+      if (error || (data as any)?.error) {
+        // supabase-js hides the function's JSON body on a non-2xx (FunctionsHttpError) — dig it out.
+        let msg = (data as any)?.error ?? error?.message ?? "HubSpot sync failed";
+        const ctx = (error as any)?.context;
+        if (ctx && typeof ctx.json === "function") {
+          try {
+            const b = await ctx.json();
+            if (b?.error) msg = b.error;
+          } catch {
+            /* body wasn't JSON */
+          }
+        }
+        return toast.error(msg);
+      }
+      const r = data as {
+        projects: number;
+        staged: number;
+        customersCreated: number;
+        customersLinked: number;
+      };
       const customers = r.customersCreated + r.customersLinked;
       toast.success(
         `HubSpot synced — ${r.projects} project${r.projects === 1 ? "" : "s"}, ` +

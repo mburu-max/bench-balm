@@ -1,27 +1,26 @@
-// HubSpot webhook receiver (public endpoint).
+// HubSpot sync edge function — two modes in one endpoint:
 //
-// HubSpot POSTs here when a company is created or a deal reaches Closed-Won. The webhook only
-// carries an object id — so we RE-FETCH that object from HubSpot with our token before writing
-// anything, which means a spoofed webhook can't inject data (worst case: a harmless re-fetch of a
-// real record). A shared secret (?secret= or x-webhook-secret) is checked first.
+//   • WEBHOOK  (HubSpot → us): body is an array of events, gated by a shared ?secret=. We re-fetch
+//     each object from HubSpot (so a spoofed webhook can't inject data) and upsert it.
+//   • BACKFILL (app → us): body is { backfill: true } with a Supabase JWT. We verify the caller is
+//     Developer/Governance, then import ALL companies + closed-won deals (for records that already
+//     exist — webhooks only fire on future changes).
 //
-// Mapping:
-//   company.*  -> upsert a customer (match by hubspot_company_id, then by name, else create)
-//   deal.*     -> if Closed-Won, upsert the deal's company as a customer + stage the deal in
-//                 hubspot_deal_imports for an SL Lead to promote into a Draft project.
+// company.*  -> customer (match by hubspot_company_id, then name, else create; never clobbers).
+// deal Closed-Won -> a Draft project (if it has a company + recognised service line) or staging.
 //
-// Secrets (set as edge-function env): HUBSPOT_TOKEN, HUBSPOT_WEBHOOK_SECRET,
-// SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
+// Secrets: HUBSPOT_TOKEN, HUBSPOT_WEBHOOK_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+// SUPABASE_ANON_KEY.
 // @ts-nocheck
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const HUBSPOT_BASE = "https://api.hubapi.com";
-// Deals carry the service line in a HubSpot deal property named "service_line". Matching is
-// case-insensitive (the property is free text) and resolves to one of these canonical values;
-// a deal with a recognised value becomes a Draft project, anything else is staged.
+const COMPANY_PROPS = "name,domain,industry,country,city";
+const DEAL_PROPS = "dealname,amount,dealstage,pipeline,closedate,hs_is_closed_won,service_line";
 const SERVICE_LINES = ["DLaaS", "CLM", "MS", "CCaaS", "Legacy"];
 const resolveServiceLine = (raw: string): string | undefined =>
-  SERVICE_LINES.find((s) => s.toLowerCase() === raw.trim().toLowerCase());
+  SERVICE_LINES.find((s) => s.toLowerCase() === String(raw).trim().toLowerCase());
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
@@ -35,19 +34,12 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
-  // 1) Shared-secret gate.
-  const expected = Deno.env.get("HUBSPOT_WEBHOOK_SECRET") ?? "";
-  const provided = new URL(req.url).searchParams.get("secret") ?? req.headers.get("x-webhook-secret") ?? "";
-  if (!expected || provided !== expected) return json({ error: "Forbidden" }, 403);
-
+  const url = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const HUBSPOT_TOKEN = Deno.env.get("HUBSPOT_TOKEN");
-  if (!HUBSPOT_TOKEN) return json({ error: "HUBSPOT_TOKEN not configured" }, 500);
+  if (!HUBSPOT_TOKEN) return json({ error: "HUBSPOT_TOKEN is not set as an edge-function secret." }, 500);
 
-  const admin = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    { auth: { persistSession: false } },
-  );
+  const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
   const hs = async (path: string) => {
     const r = await fetch(`${HUBSPOT_BASE}${path}`, { headers: { Authorization: `Bearer ${HUBSPOT_TOKEN}` } });
@@ -55,108 +47,139 @@ Deno.serve(async (req) => {
     return r.json();
   };
 
-  // Company -> customer. Match by hubspot id, then by (existing, manually-created) name, else create.
-  // On a match we only link the id + fill blank fields — never overwrite what a person entered.
-  async function upsertCustomerByCompanyId(companyId: string): Promise<string | null> {
-    const company = await hs(
-      `/crm/v3/objects/companies/${companyId}?properties=name,domain,industry,country,city`,
-    );
+  // ---- upsert helpers (operate on already-fetched HubSpot objects) --------------------------
+  async function upsertCustomerFromCompany(company: any): Promise<{ id: string | null; created: boolean }> {
     const name = String(company.properties?.name ?? "").trim();
-    if (!name) return null;
+    if (!name) return { id: null, created: false };
     const country = company.properties?.country ?? null;
     const industry = company.properties?.industry ?? null;
 
-    const { data: byId } = await admin
-      .from("customers").select("id").eq("hubspot_company_id", company.id).maybeSingle();
-    if (byId) return byId.id;
+    const { data: byId } = await admin.from("customers").select("id").eq("hubspot_company_id", company.id).maybeSingle();
+    if (byId) return { id: byId.id, created: false };
 
-    const { data: byNameRows } = await admin
-      .from("customers").select("id, region, vertical").ilike("customer_name", name).limit(1);
+    const { data: byNameRows } = await admin.from("customers").select("id, region, vertical").ilike("customer_name", name).limit(1);
     const byName = byNameRows?.[0];
     if (byName) {
       await admin.from("customers").update({
         hubspot_company_id: company.id,
+        hubspot_sync_status: "synced",
         region: byName.region ?? country,
         vertical: byName.vertical ?? industry,
       }).eq("id", byName.id);
-      return byName.id;
+      return { id: byName.id, created: false };
     }
 
     const { data: created, error } = await admin.from("customers").insert({
-      customer_name: name,
-      hubspot_company_id: company.id,
-      region: country,
-      vertical: industry,
+      customer_name: name, hubspot_company_id: company.id, hubspot_sync_status: "synced",
+      region: country, vertical: industry,
     }).select("id").single();
     if (error) {
-      // Lost a race on the unique customer_name — re-match and link.
-      const { data: again } = await admin
-        .from("customers").select("id").ilike("customer_name", name).limit(1);
+      const { data: again } = await admin.from("customers").select("id").ilike("customer_name", name).limit(1);
       if (again?.[0]) {
-        await admin.from("customers").update({ hubspot_company_id: company.id }).eq("id", again[0].id);
-        return again[0].id;
+        await admin.from("customers").update({ hubspot_company_id: company.id, hubspot_sync_status: "synced" }).eq("id", again[0].id);
+        return { id: again[0].id, created: false };
       }
       throw error;
     }
-    return created.id;
+    return { id: created.id, created: true };
   }
 
-  // Closed-Won deal -> a Draft project directly (if it has a customer + recognised service line);
-  // otherwise it's staged for triage. Idempotent; never clobbers a promoted/dismissed staging row.
-  async function upsertDealImport(dealId: string) {
-    const deal = await hs(
-      `/crm/v3/objects/deals/${dealId}?associations=companies&properties=dealname,amount,dealstage,pipeline,closedate,hs_is_closed_won,service_line`,
-    );
-    if (deal.properties?.hs_is_closed_won !== "true") return { deal: dealId, skipped: "not closed-won" };
+  const upsertCustomerByCompanyId = async (companyId: string) =>
+    upsertCustomerFromCompany(await hs(`/crm/v3/objects/companies/${companyId}?properties=${COMPANY_PROPS}`));
 
+  async function processDeal(deal: any) {
+    if (deal.properties?.hs_is_closed_won !== "true") return { deal: deal.id, skipped: "not closed-won" };
     const companyId = deal.associations?.companies?.results?.[0]?.id ?? null;
-    const customerId = companyId ? await upsertCustomerByCompanyId(String(companyId)) : null;
-    const serviceLine = resolveServiceLine(String(deal.properties?.service_line ?? ""));
-    const startDate = deal.properties?.closedate ? String(deal.properties.closedate).slice(0, 10) : null;
+    const customerId = companyId ? (await upsertCustomerByCompanyId(String(companyId))).id : null;
+    const sl = resolveServiceLine(deal.properties?.service_line ?? "");
+    const start = deal.properties?.closedate ? String(deal.properties.closedate).slice(0, 10) : null;
 
-    // Complete deal -> Draft project (pre-approved). The SL Lead then assigns a PM to activate it.
-    if (customerId && serviceLine) {
+    if (customerId && sl) {
       const { data: projectId, error } = await admin.rpc("import_hubspot_deal", {
-        p_deal_id: deal.id,
-        p_deal_name: deal.properties?.dealname ?? null,
-        p_service_line: serviceLine,
-        p_customer_id: customerId,
-        p_start: startDate,
-        p_end: null,
+        p_deal_id: deal.id, p_deal_name: deal.properties?.dealname ?? null,
+        p_service_line: sl, p_customer_id: customerId, p_start: start, p_end: null,
       });
       if (error) throw error;
-      return { deal: dealId, project: projectId, service_line: serviceLine, customer: customerId };
+      return { deal: deal.id, project: projectId };
     }
 
-    // Fallback: no company or no recognised service line -> staging inbox for triage.
     const row = {
-      hubspot_deal_id: deal.id,
-      deal_name: deal.properties?.dealname ?? null,
+      hubspot_deal_id: deal.id, deal_name: deal.properties?.dealname ?? null,
       amount: deal.properties?.amount ? Number(deal.properties.amount) : null,
-      close_date: startDate,
-      pipeline: deal.properties?.pipeline ?? null,
-      hubspot_company_id: companyId,
-      customer_id: customerId,
-      raw: deal,
+      close_date: start, pipeline: deal.properties?.pipeline ?? null,
+      hubspot_company_id: companyId, customer_id: customerId, raw: deal,
     };
-    const reason = customerId ? "no recognised service line on deal" : "deal has no associated company";
-    const { data: existing } = await admin
-      .from("hubspot_deal_imports").select("id, status").eq("hubspot_deal_id", deal.id).maybeSingle();
-    if (existing) {
-      if (existing.status === "pending") await admin.from("hubspot_deal_imports").update(row).eq("id", existing.id);
-      return { deal: dealId, staged: existing.id, status: existing.status, reason };
-    }
-    const { data: ins, error } = await admin
-      .from("hubspot_deal_imports").insert(row).select("id").single();
-    if (error) throw error;
-    return { deal: dealId, staged: ins.id, status: "pending", reason };
+    const { data: existing } = await admin.from("hubspot_deal_imports").select("id, status").eq("hubspot_deal_id", deal.id).maybeSingle();
+    if (existing) { if (existing.status === "pending") await admin.from("hubspot_deal_imports").update(row).eq("id", existing.id); }
+    else await admin.from("hubspot_deal_imports").insert(row);
+    return { deal: deal.id, staged: true };
   }
 
-  try {
-    const payload = await req.json().catch(() => []);
-    const events = Array.isArray(payload) ? payload : [payload];
+  const upsertDealById = async (dealId: string) =>
+    processDeal(await hs(`/crm/v3/objects/deals/${dealId}?associations=companies&properties=${DEAL_PROPS}`));
 
-    // De-dupe object ids within the batch so we fetch/upsert each once.
+  // Full backfill: page through ALL companies + closed-won deals.
+  async function runBackfill() {
+    const res = { companies: 0, customersCreated: 0, customersLinked: 0, deals: 0, projects: 0, staged: 0 };
+    let after: string | undefined;
+    do {
+      const q = new URLSearchParams({ limit: "100", properties: COMPANY_PROPS });
+      if (after) q.set("after", after);
+      const page = await hs(`/crm/v3/objects/companies?${q}`);
+      for (const c of page.results ?? []) {
+        res.companies++;
+        const { id, created } = await upsertCustomerFromCompany(c);
+        if (id) created ? res.customersCreated++ : res.customersLinked++;
+      }
+      after = page.paging?.next?.after;
+    } while (after);
+
+    after = undefined;
+    do {
+      const q = new URLSearchParams({ limit: "100", associations: "companies", properties: DEAL_PROPS });
+      if (after) q.set("after", after);
+      const page = await hs(`/crm/v3/objects/deals?${q}`);
+      for (const d of page.results ?? []) {
+        if (d.properties?.hs_is_closed_won !== "true") continue;
+        res.deals++;
+        const r = await processDeal(d);
+        if ((r as any).project) res.projects++;
+        else if ((r as any).staged) res.staged++;
+      }
+      after = page.paging?.next?.after;
+    } while (after);
+    return res;
+  }
+
+  const body = await req.json().catch(() => null);
+
+  // ---- BACKFILL mode (authenticated app call) -----------------------------------------------
+  if (body && body.backfill === true) {
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? serviceKey;
+    const asCaller = createClient(url, anonKey, {
+      global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+    });
+    const { data: { user } } = await asCaller.auth.getUser();
+    if (!user) return json({ error: "Not authenticated" }, 401);
+    const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", user.id);
+    const roleSet = new Set((roles ?? []).map((r: any) => r.role));
+    if (!(roleSet.has("developer") || roleSet.has("admin") || roleSet.has("governance_lead"))) {
+      return json({ error: "Forbidden: Developer or Governance role required" }, 403);
+    }
+    try {
+      return json({ ok: true, ...(await runBackfill()) });
+    } catch (e) {
+      return json({ error: String((e as Error)?.message ?? e) }, 500);
+    }
+  }
+
+  // ---- WEBHOOK mode (HubSpot events, shared-secret gated) ------------------------------------
+  const expected = Deno.env.get("HUBSPOT_WEBHOOK_SECRET") ?? "";
+  const provided = new URL(req.url).searchParams.get("secret") ?? req.headers.get("x-webhook-secret") ?? "";
+  if (!expected || provided !== expected) return json({ error: "Forbidden" }, 403);
+
+  try {
+    const events = Array.isArray(body) ? body : body ? [body] : [];
     const companyIds = new Set<string>();
     const dealIds = new Set<string>();
     for (const ev of events) {
@@ -166,24 +189,15 @@ Deno.serve(async (req) => {
       if (type.startsWith("company.")) companyIds.add(String(objectId));
       else if (type.startsWith("deal.")) dealIds.add(String(objectId));
     }
-
     const results: unknown[] = [];
     for (const id of companyIds) {
-      try {
-        const cid = await upsertCustomerByCompanyId(id);
-        results.push({ company: id, customer: cid });
-      } catch (e) {
-        results.push({ company: id, error: String((e as Error)?.message ?? e) });
-      }
+      try { const c = await upsertCustomerByCompanyId(id); results.push({ company: id, customer: c.id }); }
+      catch (e) { results.push({ company: id, error: String((e as Error)?.message ?? e) }); }
     }
     for (const id of dealIds) {
-      try {
-        results.push(await upsertDealImport(id));
-      } catch (e) {
-        results.push({ deal: id, error: String((e as Error)?.message ?? e) });
-      }
+      try { results.push(await upsertDealById(id)); }
+      catch (e) { results.push({ deal: id, error: String((e as Error)?.message ?? e) }); }
     }
-
     return json({ ok: true, processed: results.length, results });
   } catch (e) {
     return json({ error: String((e as Error)?.message ?? e) }, 500);
