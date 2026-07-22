@@ -34,6 +34,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
+  try {
   const url = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const HUBSPOT_TOKEN = Deno.env.get("HUBSPOT_TOKEN");
@@ -201,5 +202,9 @@ Deno.serve(async (req) => {
     return json({ ok: true, processed: results.length, results });
   } catch (e) {
     return json({ error: String((e as Error)?.message ?? e) }, 500);
+  }
+  } catch (outer) {
+    // Catch-all so any failure returns a readable message instead of dropping the connection.
+    return json({ error: String((outer as Error)?.message ?? outer) }, 500);
   }
 });
