@@ -16,9 +16,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const HUBSPOT_BASE = "https://api.hubapi.com";
-// Deals carry the service line in a HubSpot deal property named "service_line" whose value matches
-// one of these. A deal with a recognised value becomes a Draft project; anything else is staged.
-const SERVICE_LINES = new Set(["DLaaS", "CLM", "MS", "CCaaS", "Legacy"]);
+// Deals carry the service line in a HubSpot deal property named "service_line". Matching is
+// case-insensitive (the property is free text) and resolves to one of these canonical values;
+// a deal with a recognised value becomes a Draft project, anything else is staged.
+const SERVICE_LINES = ["DLaaS", "CLM", "MS", "CCaaS", "Legacy"];
+const resolveServiceLine = (raw: string): string | undefined =>
+  SERVICE_LINES.find((s) => s.toLowerCase() === raw.trim().toLowerCase());
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
@@ -108,11 +111,11 @@ Deno.serve(async (req) => {
 
     const companyId = deal.associations?.companies?.results?.[0]?.id ?? null;
     const customerId = companyId ? await upsertCustomerByCompanyId(String(companyId)) : null;
-    const serviceLine = String(deal.properties?.service_line ?? "").trim();
+    const serviceLine = resolveServiceLine(String(deal.properties?.service_line ?? ""));
     const startDate = deal.properties?.closedate ? String(deal.properties.closedate).slice(0, 10) : null;
 
     // Complete deal -> Draft project (pre-approved). The SL Lead then assigns a PM to activate it.
-    if (customerId && SERVICE_LINES.has(serviceLine)) {
+    if (customerId && serviceLine) {
       const { data: projectId, error } = await admin.rpc("import_hubspot_deal", {
         p_deal_id: deal.id,
         p_deal_name: deal.properties?.dealname ?? null,
