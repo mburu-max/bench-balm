@@ -232,6 +232,9 @@ function ProjectsPage() {
       end_date: form.end_date,
     };
     const resubmitting = form.id && form.status === "Rejected";
+    // Resolving a hold: editing & saving an On_Hold project reactivates it (the SL Lead has
+    // addressed whatever the hold remarks flagged).
+    const resolvingHold = form.id && form.status === "On_Hold";
     // HubSpot-sourced drafts are pre-approved: assigning a PM activates them (no Governance gate).
     const activatingHubspot = !!(form.id && form.status === "Draft" && form.hubspot_deal_id && form.project_manager_user_id);
     let error;
@@ -240,6 +243,8 @@ function ProjectsPage() {
       // Resubmission: editing a rejected project sends it back to the Draft approval queue,
       // clearing the old rejection reason so the fresh submission starts clean.
       if (resubmitting) { patch.status = "Draft"; patch.approval_notes = null; }
+      // Hold resolved: back to Active, clearing the hold remarks.
+      if (resolvingHold) { patch.status = "Active"; patch.hold_notes = null; }
       if (activatingHubspot) patch.status = "Active";
       ({ error } = await supabase.from("projects").update(patch).eq("id", form.id));
     } else {
@@ -252,11 +257,13 @@ function ProjectsPage() {
     toast.success(
       resubmitting
         ? "Resubmitted for approval — back in the Governance queue"
-        : activatingHubspot
-          ? "PM assigned — project activated"
-          : form.id
-            ? "Project updated"
-            : "Draft created — assigned to the PM's dashboard",
+        : resolvingHold
+          ? "Hold resolved — project reactivated"
+          : activatingHubspot
+            ? "PM assigned — project activated"
+            : form.id
+              ? "Project updated"
+              : "Draft created — assigned to the PM's dashboard",
     );
     setOpen(false);
     qc.invalidateQueries({ queryKey: ["projects"] });
