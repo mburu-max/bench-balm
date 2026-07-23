@@ -71,8 +71,10 @@ export function useCurrentRole() {
       const isFinance = isGovernanceLead || src.includes("finance");
       // Delivery Lead role cut (July sync) — validation sits entirely with the Service Line Lead.
       // isDl is kept as an alias of the SL-Lead validator capability so existing gates still read.
-      const isDl = isDeveloper || src.includes("service_line_lead");
-      const isSlLead = isDeveloper || src.includes("service_line_lead");
+      // Governance also covers Service-Line-Lead duties (fallback when an SL Lead is absent / on
+      // leave) on top of its own role, so SL-Lead capability includes Governance.
+      const isDl = isDeveloper || isGovernanceLead || src.includes("service_line_lead");
+      const isSlLead = isDeveloper || isGovernanceLead || src.includes("service_line_lead");
       const isPm = isDeveloper || src.includes("project_manager");
       const isResource = src.includes("resource");
       const hasAnyOtherRole = isDeveloper || isGovernanceLead || isFinance || isDl || isSlLead || isPm;

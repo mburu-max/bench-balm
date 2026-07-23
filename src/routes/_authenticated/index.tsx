@@ -323,6 +323,31 @@ function GovernanceDashboard() {
         </Link>
       )}
 
+      {/* SL-Lead coverage — Governance also handles Service-Line-Lead tasks when they're out. */}
+      {(() => {
+        const slCount =
+          pending.countOf("approve") + pending.countOf("rework") + pending.countOf("assign_pm");
+        if (slCount === 0) return null;
+        return (
+          <Link to="/projects" className="block mt-4">
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-center justify-between gap-4 transition-colors hover:bg-muted/40">
+              <div className="flex items-center gap-3">
+                <Briefcase className="size-5 text-primary" />
+                <div>
+                  <div className="text-sm font-medium">
+                    {slCount} service-line task{slCount === 1 ? "" : "s"} awaiting action
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    Covering for Service Line Leads — approve staffing, assign PMs, or fix rejected projects.
+                  </div>
+                </div>
+              </div>
+              <ArrowRight className="size-4 text-muted-foreground" />
+            </div>
+          </Link>
+        );
+      })()}
+
       {/* Cliff-edge alert banner */}
       {(() => {
         const cliffData = fCliff;

@@ -12,7 +12,9 @@ import { inSlScope } from "@/lib/scope";
 //                        "rework"   : projects Governance rejected, to fix & resubmit
 // Each item carries its own pendingKind so the nav badge, notification inbox and dashboard banners
 // can render mixed flags together. Add a kind here and it flows to all three automatically.
-export type PendingKind = "verify" | "staff" | "approve" | "rework" | "notify" | "assign_pm";
+// Governance covers SL-Lead duties too (fallback when an SL Lead is out), so it receives the SL
+// flags ("approve"/"rework"/"assign_pm") on top of its own "verify".
+export type PendingKind = "verify" | "staff" | "approve" | "rework" | "assign_pm";
 
 export type PendingItem = {
   id: string;
@@ -25,11 +27,12 @@ export type PendingItem = {
 };
 
 export function usePendingActions(role: CurrentRole | undefined | null) {
-  // Role gating mirrors the old priority (Governance > PM > SL Lead); Developer counts as
-  // Governance. Only the SL Lead branch emits two kinds.
+  // Governance carries its own "verify" flag AND the SL-Lead flags (it covers SL duties). isSlLead
+  // already includes Governance/Developer, so the SL branch runs for them too. A pure PM (not SL/Gov)
+  // gets "staff".
   const isGov = !!role?.isGovernanceLead;
-  const isPm = !!role?.isPm && !isGov && !role?.isSlLead;
-  const isSl = !!role?.isSlLead && !isGov;
+  const isSl = !!role?.isSlLead;
+  const isPm = !!role?.isPm && !isSl;
   const enabled = isGov || isPm || isSl;
   const needsAllocations = isPm || isSl;
   const projects = useProjects({ enabled });
@@ -53,13 +56,11 @@ export function usePendingActions(role: CurrentRole | undefined | null) {
   const tag = (p: any, pendingKind: PendingKind) => items.push({ ...p, pendingKind });
 
   if (isGov) {
-    for (const p of all) {
-      if (p.status !== "Draft") continue;
-      // HubSpot-sourced drafts are pre-approved (HubSpot was the gate) — Governance is notified,
-      // not asked to verify. Manually-created drafts still need Governance verification.
-      if ((p as any).hubspot_deal_id) tag(p, "notify");
-      else tag(p, "verify");
-    }
+    // Manually-created drafts still need Governance verification. HubSpot-sourced drafts are
+    // pre-approved (HubSpot was the gate) and surface below via the SL branch as an "assign a PM"
+    // task instead.
+    for (const p of all)
+      if (p.status === "Draft" && !(p as any).hubspot_deal_id) tag(p, "verify");
   }
   if (isPm) {
     // PM: their OWN active, unstaffed projects. RLS scopes a real PM; the ownership check also
