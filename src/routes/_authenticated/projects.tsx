@@ -267,11 +267,11 @@ function ProjectsPage() {
     if (status === "On_Hold" && !canActivate) return toast.error("Only the Governance Lead can put a project on hold");
     if (status === "Rejected" && !canReject) return toast.error("You can't reject this project");
     const patch: any = { status };
-    // Optional notes stored on the project: a rejection reason (SL Lead sees it when resubmitting)
-    // or hold remarks (shown on the held project). `notes === undefined` = a direct hold with no
-    // remarks prompt, so leave any existing notes untouched.
+    // Optional notes stored on the project, in separate columns: a rejection reason in approval_notes
+    // (SL Lead sees it when resubmitting), hold remarks in hold_notes (shown on the held project).
+    // `notes === undefined` = a direct hold with no remarks prompt, so leave existing notes untouched.
     if (status === "Rejected") patch.approval_notes = notes && notes.trim() ? notes.trim() : null;
-    else if (status === "On_Hold" && notes !== undefined) patch.approval_notes = notes && notes.trim() ? notes.trim() : null;
+    else if (status === "On_Hold" && notes !== undefined) patch.hold_notes = notes && notes.trim() ? notes.trim() : null;
     const { error } = await supabase.from("projects").update(patch).eq("id", p.id);
     if (error) return toast.error(error.message);
     toast.success(status === "Active" ? "Approved → Active" : `Status → ${status.replace("_", " ")}`);
@@ -461,10 +461,10 @@ function ProjectsPage() {
                     </span>
                   </div>
                 )}
-                {p.status === "On_Hold" && p.approval_notes && (
+                {p.status === "On_Hold" && p.hold_notes && (
                   <div className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs">
                     <span className="font-medium text-warning-foreground">On hold.</span>{" "}
-                    <span className="text-muted-foreground">{p.approval_notes}</span>
+                    <span className="text-muted-foreground">{p.hold_notes}</span>
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-x-8 gap-y-4 py-2">
