@@ -87,6 +87,8 @@ function ProjectsPage() {
   const [viewProject, setViewProject] = useState<any | null>(null);
   const [rejectTarget, setRejectTarget] = useState<any | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [holdTarget, setHoldTarget] = useState<any | null>(null);
+  const [holdRemarks, setHoldRemarks] = useState("");
   const [form, setForm] = useState<Form>(empty);
   const [saving, setSaving] = useState(false);
   const [q, setQ] = useState("");
@@ -265,8 +267,11 @@ function ProjectsPage() {
     if (status === "On_Hold" && !canActivate) return toast.error("Only the Governance Lead can put a project on hold");
     if (status === "Rejected" && !canReject) return toast.error("You can't reject this project");
     const patch: any = { status };
-    // Rejection reason (optional) is stored on the project so the SL Lead sees why when resubmitting.
+    // Optional notes stored on the project: a rejection reason (SL Lead sees it when resubmitting)
+    // or hold remarks (shown on the held project). `notes === undefined` = a direct hold with no
+    // remarks prompt, so leave any existing notes untouched.
     if (status === "Rejected") patch.approval_notes = notes && notes.trim() ? notes.trim() : null;
+    else if (status === "On_Hold" && notes !== undefined) patch.approval_notes = notes && notes.trim() ? notes.trim() : null;
     const { error } = await supabase.from("projects").update(patch).eq("id", p.id);
     if (error) return toast.error(error.message);
     toast.success(status === "Active" ? "Approved → Active" : `Status → ${status.replace("_", " ")}`);
@@ -456,6 +461,12 @@ function ProjectsPage() {
                     </span>
                   </div>
                 )}
+                {p.status === "On_Hold" && p.approval_notes && (
+                  <div className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs">
+                    <span className="font-medium text-warning-foreground">On hold.</span>{" "}
+                    <span className="text-muted-foreground">{p.approval_notes}</span>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-x-8 gap-y-4 py-2">
                   <Field label="Description" value={p.project_description} wide />
                   <Field label="Customer" value={p.customers?.customer_name ?? "—"} />
@@ -491,7 +502,12 @@ function ProjectsPage() {
                     <Button size="sm" variant="ghost" onClick={() => act(() => approveStaffing(p, false))}>Unapprove</Button>
                   )}
                   {p.status === "Active" && canActivate && (
-                    <Button size="sm" variant="outline" onClick={() => act(() => updateStatus(p, "On_Hold"))}>Hold</Button>
+                    <Button size="sm" variant="outline" onClick={() => act(() => {
+                      // A project the SL Lead already approved gets a remarks prompt before going on
+                      // hold; a not-yet-approved one holds directly.
+                      if (p.staffing_approved_at) { setHoldRemarks(""); setHoldTarget(p); }
+                      else updateStatus(p, "On_Hold");
+                    })}>Hold</Button>
                   )}
                   {(p.status === "Draft" || p.status === "Verified") && canReject && (
                     <Button size="sm" variant="ghost" onClick={() => act(() => { setRejectReason(""); setRejectTarget(p); })}>
@@ -540,6 +556,35 @@ function ProjectsPage() {
               onClick={async () => { const t = rejectTarget; setRejectTarget(null); await updateStatus(t, "Rejected", rejectReason); }}
             >
               <XCircle className="size-4 mr-1" /> Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Hold — Governance adds optional remarks when pausing a project the SL Lead already approved */}
+      <Dialog open={!!holdTarget} onOpenChange={(o) => { if (!o) setHoldTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="font-mono text-sm">{holdTarget?.project_code}</span>
+              <span className="text-base">— Put On Hold</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5 py-1">
+            <Label>Remarks <span className="font-normal text-muted-foreground">(optional)</span></Label>
+            <Textarea
+              value={holdRemarks}
+              onChange={(e) => setHoldRemarks(e.target.value)}
+              placeholder="Why is this approved project being put on hold?"
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setHoldTarget(null)}>Cancel</Button>
+            <Button
+              onClick={async () => { const t = holdTarget; setHoldTarget(null); await updateStatus(t, "On_Hold", holdRemarks); }}
+            >
+              Put On Hold
             </Button>
           </DialogFooter>
         </DialogContent>
