@@ -464,6 +464,7 @@ export type Database = {
           delivery_lead_id: string | null
           end_date: string
           governance_lead_id: string | null
+          hold_notes: string | null
           hubspot_deal_id: string | null
           id: string
           project_code: string
@@ -490,6 +491,7 @@ export type Database = {
           delivery_lead_id?: string | null
           end_date: string
           governance_lead_id?: string | null
+          hold_notes?: string | null
           hubspot_deal_id?: string | null
           id?: string
           project_code: string
@@ -516,6 +518,7 @@ export type Database = {
           delivery_lead_id?: string | null
           end_date?: string
           governance_lead_id?: string | null
+          hold_notes?: string | null
           hubspot_deal_id?: string | null
           id?: string
           project_code?: string
