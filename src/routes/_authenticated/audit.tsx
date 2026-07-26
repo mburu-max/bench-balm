@@ -57,6 +57,10 @@ function AuditPage() {
             <SelectItem value="all">All tables</SelectItem>
             <SelectItem value="projects">Projects</SelectItem>
             <SelectItem value="allocations">Allocations</SelectItem>
+            <SelectItem value="resources">Resources</SelectItem>
+            <SelectItem value="customers">Customers</SelectItem>
+            <SelectItem value="demand_requests">Demand Requests</SelectItem>
+            <SelectItem value="profiles">Profiles</SelectItem>
           </SelectContent>
         </Select>
         <Input placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
