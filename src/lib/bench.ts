@@ -1,4 +1,5 @@
 import type { AllocationRow, ResourceRow } from "./queries";
+import { isExtendedLeave } from "./leave";
 
 export type BenchRow = {
   resource: ResourceRow;
@@ -31,7 +32,15 @@ export function computeBench(
       return true;
     });
     const totalPct = counted.reduce((s, a) => s + (a.allocation_pct ?? 0), 0);
-    const benchPct = 100 - totalPct;
-    return { resource: r, totalPct, benchPct, rows };
+    // Extended leave (>5 days) frees the resource's held allocation for backfill while they're out —
+    // their allocation is retained (they resume it on return), but it doesn't count as "allocated"
+    // for bench purposes, so their capacity shows as available. Short leave doesn't free anything.
+    const extLeavePct = Math.min(
+      100,
+      rows.filter((a) => isExtendedLeave(a)).reduce((s, a) => s + (a.allocation_pct ?? 0), 0),
+    );
+    const effectiveAllocated = Math.max(0, totalPct - extLeavePct);
+    const benchPct = 100 - effectiveAllocated;
+    return { resource: r, totalPct: effectiveAllocated, benchPct, rows };
   });
 }

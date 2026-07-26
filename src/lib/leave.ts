@@ -31,3 +31,27 @@ export function isCurrentLeave(a: Leaveish, on: Date = new Date()): boolean {
   const d = on.toISOString().slice(0, 10);
   return a.allocation_start_date <= d && a.allocation_end_date >= d;
 }
+
+type AllocLike = Leaveish & { resource_id?: string | null };
+const inEffect = (a: AllocLike, onDate: string) =>
+  a.allocation_type === "Leave" &&
+  !!a.resource_id &&
+  !!a.allocation_start_date &&
+  !!a.allocation_end_date &&
+  a.allocation_start_date <= onDate &&
+  a.allocation_end_date >= onDate;
+
+/** Resource ids on a SHORT current leave (<= 5 days) — these are excluded from the bench. */
+export function shortLeaveResourceIds(allocations: AllocLike[], onDate: string): Set<string> {
+  const s = new Set<string>();
+  for (const a of allocations ?? []) if (inEffect(a, onDate) && !isExtendedLeave(a)) s.add(a.resource_id!);
+  return s;
+}
+
+/** Resource ids on an EXTENDED current leave (> 5 days) — these still appear on the bench, with
+ *  the leave freeing their (retained) allocation for backfill until they return. */
+export function extendedLeaveResourceIds(allocations: AllocLike[], onDate: string): Set<string> {
+  const s = new Set<string>();
+  for (const a of allocations ?? []) if (inEffect(a, onDate) && isExtendedLeave(a)) s.add(a.resource_id!);
+  return s;
+}

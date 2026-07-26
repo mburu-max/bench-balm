@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/select";
 import { useAllocations, useResources } from "@/lib/queries";
 import { computeBench, type BenchRow } from "@/lib/bench";
-import { leaveResourceIds, isResourceOnLeave } from "@/lib/dashboard";
+import { shortLeaveResourceIds, extendedLeaveResourceIds } from "@/lib/leave";
 import { SERVICE_LINES } from "@/lib/constants";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { inSlScope, scopedServiceLines, usePmScope, inPmResources } from "@/lib/scope";
@@ -44,16 +44,21 @@ function BenchPage() {
   const all = (resources.data ?? []).filter(
     (r) => inSlScope(role, r.service_line) && inPmResources(pm, r.id),
   );
-  // On leave (for the selected date) is derived from in-effect Leave allocations OR a manual
-  // On_Leave status — those resources are excluded from the bench (they aren't available).
-  const leaveIds = useMemo(() => leaveResourceIds(allocations.data ?? [], date), [allocations.data, date]);
-  const active = all.filter((r) => r.status === "Active" && !leaveIds.has(r.id));
+  // Short current leave (and manual On_Leave) are excluded from the bench. EXTENDED leave (>5 days)
+  // stays on the bench — computeBench frees their held allocation so their capacity shows as
+  // available for backfill until they return and resume it.
+  const shortLeaveIds = useMemo(() => shortLeaveResourceIds(allocations.data ?? [], date), [allocations.data, date]);
+  const extLeaveIds = useMemo(() => extendedLeaveResourceIds(allocations.data ?? [], date), [allocations.data, date]);
+  const excludedByLeave = (r: { id: string }) => shortLeaveIds.has(r.id) && !extLeaveIds.has(r.id);
+  const active = all.filter((r) => r.status === "Active" && !excludedByLeave(r));
   const bench = useMemo(
     () => computeBench(active, allocations.data ?? [], date),
     [active, allocations.data, date],
   );
 
-  const onLeave = all.filter((r) => isResourceOnLeave(r, leaveIds));
+  // "On Leave (excluded from bench)" = short current leave + manual On_Leave. Extended-leave people
+  // appear in the bench table above (flagged On Leave) rather than here.
+  const onLeave = all.filter((r) => r.status !== "Exited" && (r.status === "On_Leave" || excludedByLeave(r)));
   const onLeaveRef = useRef<HTMLDivElement>(null);
   // Clicking a KPI card filters the table by that band (toggles off if already active).
   const toggleBand = (b: string) => setBand((cur: string) => (cur === b ? "all" : b));
@@ -86,7 +91,7 @@ function BenchPage() {
   const benchRows = () => filtered.map((b) => [
     b.resource.omni_id, b.resource.full_name, b.resource.position ?? "",
     b.resource.service_line, b.resource.manager_name ?? "", b.resource.location ?? "",
-    b.totalPct, b.benchPct, b.resource.status,
+    b.totalPct, b.benchPct, extLeaveIds.has(b.resource.id) ? "On_Leave" : b.resource.status,
   ]);
 
   const exportCsv = () => {
@@ -202,7 +207,7 @@ function BenchPage() {
                   <td className="px-3 py-3 text-muted-foreground">{b.resource.location ?? "—"}</td>
                   <td className="px-3 py-3 text-right tabular-nums font-medium">{b.totalPct}%</td>
                   <td className="px-3 py-3"><BenchBandBadge pct={b.benchPct} /></td>
-                  <td className="px-5 py-3"><ResourceStatusBadge status={b.resource.status} /></td>
+                  <td className="px-5 py-3"><ResourceStatusBadge status={extLeaveIds.has(b.resource.id) ? "On_Leave" : b.resource.status} /></td>
                 </tr>
               ))}
               {filtered.length === 0 && (

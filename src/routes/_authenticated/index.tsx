@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/select";
 import { useAllocations, useProjects, useResources } from "@/lib/queries";
 import { computeBench } from "@/lib/bench";
-import { isExtendedLeave, isCurrentLeave } from "@/lib/leave";
+import { isExtendedLeave, isCurrentLeave, shortLeaveResourceIds, extendedLeaveResourceIds } from "@/lib/leave";
 import { SERVICE_LINES } from "@/lib/constants";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { usePendingActions } from "@/lib/staffing";
@@ -127,10 +127,17 @@ function GovernanceDashboard() {
 
   const activeProjects = fProjects.filter((p) => p.status === "Active");
   const activeResources = fResources.filter((r) => r.status === "Active");
-  // On leave (today) is derived from in-effect Leave allocations or a manual On_Leave status; those
-  // resources are excluded from the bench so they aren't counted as idle capacity.
-  const leaveIds = leaveResourceIds(allocations.data ?? [], todayStr());
-  const bench = computeBench(activeResources.filter((r) => !leaveIds.has(r.id)), allocations.data ?? []);
+  // Short current leave is excluded from the bench; extended leave (>5 days) stays on it
+  // (computeBench frees their held allocation). The "on leave" hint counts any current leave or a
+  // manual On_Leave status.
+  const today = todayStr();
+  const shortLeaveIds = shortLeaveResourceIds(allocations.data ?? [], today);
+  const extLeaveIds = extendedLeaveResourceIds(allocations.data ?? [], today);
+  const leaveIds = leaveResourceIds(allocations.data ?? [], today);
+  const bench = computeBench(
+    activeResources.filter((r) => !(shortLeaveIds.has(r.id) && !extLeaveIds.has(r.id))),
+    allocations.data ?? [],
+  );
   // On Bench = genuinely idle (0% allocated), not merely under 100%.
   const benchCount = bench.filter((b) => b.benchPct === 100).length;
   const overAllocated = bench.filter((b) => b.benchPct < 0).length;
