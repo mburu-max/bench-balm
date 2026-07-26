@@ -30,11 +30,31 @@ function AuditPage() {
     },
   });
 
+  // Resolve the actor UUID (auth.uid()) to a name/email via profiles (profiles.id == auth user id).
+  const profiles = useQuery({
+    queryKey: ["audit-profiles"],
+    enabled: allowed,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles").select("id, full_name, email");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const actorMap = new Map<string, { full_name: string | null; email: string | null }>(
+    (profiles.data ?? []).map((p) => [p.id as string, { full_name: p.full_name, email: p.email }]),
+  );
+  const actorLabel = (id: string | null | undefined) => {
+    if (!id) return "system";
+    const p = actorMap.get(id);
+    return p?.full_name || p?.email || `${id.slice(0, 8)}…`;
+  };
+
   const filtered = (audit.data ?? []).filter((r) =>
     !q ||
     r.action?.toLowerCase().includes(q.toLowerCase()) ||
     r.table_name?.toLowerCase().includes(q.toLowerCase()) ||
-    r.row_id?.toLowerCase().includes(q.toLowerCase()),
+    r.row_id?.toLowerCase().includes(q.toLowerCase()) ||
+    actorLabel(r.actor).toLowerCase().includes(q.toLowerCase()),
   );
   const pg = usePagination(filtered, 10);
 
@@ -106,7 +126,7 @@ function AuditPage() {
                       }`}>{r.action}</span>
                     </td>
                     <td className="px-3 py-3 text-[11px] font-mono text-muted-foreground">{r.row_id?.slice(0, 8)}</td>
-                    <td className="px-3 py-3 text-[11px] font-mono text-muted-foreground">{r.actor?.slice(0, 8) ?? "system"}</td>
+                    <td className="px-3 py-3 text-xs text-muted-foreground" title={r.actor ?? "system"}>{actorLabel(r.actor)}</td>
                     <td className="px-5 py-3 text-xs max-w-md">
                       {r.action === "UPDATE"
                         ? <div className="space-y-0.5">{diff.slice(0, 5).map((d, i) => <div key={i} className="truncate">{d}</div>)}{diff.length > 5 && <div className="text-muted-foreground">+{diff.length - 5} more</div>}</div>
