@@ -11,6 +11,28 @@ export const SL_COLORS: Record<string, string> = {
 
 export const todayStr = () => new Date().toISOString().slice(0, 10);
 
+// "Currently on leave" is derived: a resource is on leave on a given date if they have an in-effect
+// Leave allocation covering it, OR their status is manually set to On_Leave. Omni time-off writes
+// date-ranged Leave allocations, so this surfaces them without a background job. Exited resources are
+// never "on leave".
+export function leaveResourceIds(
+  allocations: { resource_id?: string | null; allocation_type?: string | null; allocation_start_date: string; allocation_end_date: string }[],
+  onDate: string,
+): Set<string> {
+  const s = new Set<string>();
+  for (const a of allocations ?? []) {
+    if (a.allocation_type === "Leave" && a.resource_id && a.allocation_start_date <= onDate && a.allocation_end_date >= onDate) {
+      s.add(a.resource_id);
+    }
+  }
+  return s;
+}
+
+export function isResourceOnLeave(r: { id: string; status?: string | null }, leaveIds: Set<string>): boolean {
+  if (r.status === "Exited") return false;
+  return r.status === "On_Leave" || leaveIds.has(r.id);
+}
+
 export const horizonStr = (days: number) => {
   const d = new Date();
   d.setDate(d.getDate() + days);

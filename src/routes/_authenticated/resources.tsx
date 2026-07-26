@@ -21,7 +21,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Pencil, Trash2, Eye } from "lucide-react";
-import { useResources } from "@/lib/queries";
+import { useResources, useAllocations } from "@/lib/queries";
+import { leaveResourceIds, isResourceOnLeave, todayStr } from "@/lib/dashboard";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { inSlScope, scopedServiceLines, usePmScope, inPmResources } from "@/lib/scope";
 import { usePagination, Pager } from "@/components/Pager";
@@ -90,6 +91,7 @@ function Field({ label, value, wide }: { label: string; value: string; wide?: bo
 
 function ResourcesPage() {
   const resources = useResources();
+  const allocations = useAllocations();
   const { data: role } = useCurrentRole();
   const pm = usePmScope();
   const canWrite = !!(role?.isGovernanceLead || role?.isDeveloper || role?.isSlLead);
@@ -163,19 +165,32 @@ function ResourcesPage() {
   const all = (resources.data ?? []).filter(
     (r) => inSlScope(role, r.service_line) && inPmResources(pm, r.id),
   );
+  // "On leave" (today) is derived from in-effect Leave allocations OR a manual On_Leave status, so
+  // Omni time-off surfaces here; Active excludes those on leave so counts/filter stay a partition.
+  const leaveIds = leaveResourceIds(allocations.data ?? [], todayStr());
+  // Effective status for the badge: reflect derived leave even when the raw status is still Active.
+  const effStatus = (r: any): ResourceStatus => (isResourceOnLeave(r, leaveIds) ? "On_Leave" : r.status);
+  const matchesStatus = (r: any) =>
+    statusFilter === "all"
+      ? true
+      : statusFilter === "On_Leave"
+        ? isResourceOnLeave(r, leaveIds)
+        : statusFilter === "Active"
+          ? r.status === "Active" && !leaveIds.has(r.id)
+          : r.status === statusFilter;
   const filtered = all.filter(
     (r) =>
       (r.full_name.toLowerCase().includes(q.toLowerCase()) ||
         r.omni_id.toLowerCase().includes(q.toLowerCase())) &&
       (slFilter === "all" || r.service_line === slFilter) &&
-      (statusFilter === "all" || r.status === statusFilter),
+      matchesStatus(r),
   );
   const pg = usePagination(filtered, 10);
 
   const counts = {
     total: all.length,
-    active: all.filter((r) => r.status === "Active").length,
-    onLeave: all.filter((r) => r.status === "On_Leave").length,
+    active: all.filter((r) => r.status === "Active" && !leaveIds.has(r.id)).length,
+    onLeave: all.filter((r) => isResourceOnLeave(r, leaveIds)).length,
     exited: all.filter((r) => r.status === "Exited").length,
   };
 
@@ -357,7 +372,7 @@ function ResourcesPage() {
                   <DialogTitle className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-sm">{r.omni_id}</span>
                     {r.full_name}
-                    <ResourceStatusBadge status={r.status} />
+                    <ResourceStatusBadge status={effStatus(r)} />
                   </DialogTitle>
                 </DialogHeader>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3 py-1">
@@ -413,7 +428,7 @@ function ResourcesPage() {
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase tracking-wide">{r.service_line}</span>
                   </td>
                   <td className="px-3 py-3 text-muted-foreground">{r.employment_type}</td>
-                  <td className="px-3 py-3"><ResourceStatusBadge status={r.status} /></td>
+                  <td className="px-3 py-3"><ResourceStatusBadge status={effStatus(r)} /></td>
                   <td className="px-5 py-3 text-right">
                     <Button size="sm" variant="outline" onClick={() => setViewResource(r)}>
                       <Eye className="size-3.5 mr-1" /> View

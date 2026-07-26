@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { useAllocations, useResources } from "@/lib/queries";
 import { computeBench, type BenchRow } from "@/lib/bench";
+import { leaveResourceIds, isResourceOnLeave } from "@/lib/dashboard";
 import { SERVICE_LINES } from "@/lib/constants";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { inSlScope, scopedServiceLines, usePmScope, inPmResources } from "@/lib/scope";
@@ -43,13 +44,16 @@ function BenchPage() {
   const all = (resources.data ?? []).filter(
     (r) => inSlScope(role, r.service_line) && inPmResources(pm, r.id),
   );
-  const active = all.filter((r) => r.status === "Active");
+  // On leave (for the selected date) is derived from in-effect Leave allocations OR a manual
+  // On_Leave status — those resources are excluded from the bench (they aren't available).
+  const leaveIds = useMemo(() => leaveResourceIds(allocations.data ?? [], date), [allocations.data, date]);
+  const active = all.filter((r) => r.status === "Active" && !leaveIds.has(r.id));
   const bench = useMemo(
     () => computeBench(active, allocations.data ?? [], date),
     [active, allocations.data, date],
   );
 
-  const onLeave = all.filter((r) => r.status === "On_Leave");
+  const onLeave = all.filter((r) => isResourceOnLeave(r, leaveIds));
   const onLeaveRef = useRef<HTMLDivElement>(null);
   // Clicking a KPI card filters the table by that band (toggles off if already active).
   const toggleBand = (b: string) => setBand((cur: string) => (cur === b ? "all" : b));

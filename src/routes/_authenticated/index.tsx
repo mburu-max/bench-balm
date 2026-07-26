@@ -18,7 +18,7 @@ import { usePendingActions } from "@/lib/staffing";
 import { SlLeadDashboard } from "@/components/SlLeadDashboard";
 import { PmDashboard } from "@/components/PmDashboard";
 import { UtilBullets } from "@/components/UtilBullets";
-import { SL_COLORS, todayStr, horizonStr, computeUtilTrend, type UtilView } from "@/lib/dashboard";
+import { SL_COLORS, todayStr, horizonStr, computeUtilTrend, leaveResourceIds, isResourceOnLeave, type UtilView } from "@/lib/dashboard";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "@tanstack/react-router";
@@ -127,11 +127,14 @@ function GovernanceDashboard() {
 
   const activeProjects = fProjects.filter((p) => p.status === "Active");
   const activeResources = fResources.filter((r) => r.status === "Active");
-  const bench = computeBench(activeResources, allocations.data ?? []);
+  // On leave (today) is derived from in-effect Leave allocations or a manual On_Leave status; those
+  // resources are excluded from the bench so they aren't counted as idle capacity.
+  const leaveIds = leaveResourceIds(allocations.data ?? [], todayStr());
+  const bench = computeBench(activeResources.filter((r) => !leaveIds.has(r.id)), allocations.data ?? []);
   // On Bench = genuinely idle (0% allocated), not merely under 100%.
   const benchCount = bench.filter((b) => b.benchPct === 100).length;
   const overAllocated = bench.filter((b) => b.benchPct < 0).length;
-  const onLeave = fResources.filter((r) => r.status === "On_Leave").length;
+  const onLeave = fResources.filter((r) => isResourceOnLeave(r, leaveIds)).length;
   // Partially allocated (1–99%) — has spare capacity but isn't idle; shown on none of the
   // other capacity cards, so surface it directly (bench already means genuinely idle).
   const partiallyAllocated = bench.filter((b) => b.benchPct > 0 && b.benchPct < 100).length;
