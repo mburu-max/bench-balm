@@ -25,6 +25,7 @@ import { useResources } from "@/lib/queries";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { inSlScope, scopedServiceLines, usePmScope, inPmResources } from "@/lib/scope";
 import { usePagination, Pager } from "@/components/Pager";
+import { OmniSyncButton } from "@/components/OmniSyncButton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -182,7 +183,9 @@ function ResourcesPage() {
     <AppShell
       title="Resources"
       actions={
-        canWrite ? (
+        <div className="flex items-center gap-2">
+          <OmniSyncButton />
+          {canWrite && (
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button onClick={startNew}>
@@ -308,7 +311,8 @@ function ResourcesPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        ) : null
+          )}
+        </div>
       }
     >
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
