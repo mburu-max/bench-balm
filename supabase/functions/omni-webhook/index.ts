@@ -138,6 +138,53 @@ Deno.serve(async (req) => {
       if (error) throw error;
     };
 
+    // Approved time-off -> a Leave allocation on the resource (deduped by the time-off request id).
+    const upsertLeave = async (d: any) => {
+      const empId = String(d.user?.employee_id ?? d.user?.id ?? "");
+      const timeOffId = String(d.id ?? "");
+      if (!empId || !timeOffId) return { skipped: "missing user or request id" };
+      const { data: res } = await admin
+        .from("resources")
+        .select("id, full_name, omni_id, service_line")
+        .eq("omni_id", empId)
+        .maybeSingle();
+      if (!res) return { skipped: `no resource for employee ${empId}` };
+      const row = {
+        resource_id: res.id,
+        omni_id: res.omni_id,
+        resource_name: res.full_name,
+        service_line: res.service_line,
+        allocation_type: "Leave",
+        allocation_start_date: d.start_date,
+        allocation_end_date: d.end_date,
+        allocation_pct: 100,
+        remarks: `Omni time-off${d.time_off_type ? ` (${d.time_off_type})` : ""}${d.reason ? ` — ${d.reason}` : ""}`,
+        omni_time_off_id: timeOffId,
+      };
+      const { data: existing } = await admin
+        .from("allocations")
+        .select("id")
+        .eq("omni_time_off_id", timeOffId)
+        .maybeSingle();
+      if (existing) {
+        const { error } = await admin.from("allocations").update(row).eq("id", existing.id);
+        if (error) throw error;
+        return { leave: "updated", omni_time_off_id: timeOffId };
+      }
+      const { error } = await admin.from("allocations").insert(row);
+      if (error) throw error;
+      return { leave: "created", omni_time_off_id: timeOffId };
+    };
+
+    // Cancelled / rejected time-off -> remove the Leave allocation it created (if any).
+    const removeLeave = async (d: any) => {
+      const timeOffId = String(d.id ?? "");
+      if (!timeOffId) return { skipped: "missing request id" };
+      const { error } = await admin.from("allocations").delete().eq("omni_time_off_id", timeOffId);
+      if (error) throw error;
+      return { leave: "removed", omni_time_off_id: timeOffId };
+    };
+
     // ---- List employees (best-effort; refine mapping once we see real data) ----
     const listEmployees = async (): Promise<any[]> => {
       const out: any[] = [];
@@ -222,6 +269,13 @@ Deno.serve(async (req) => {
         result.omni_id = omniId;
         break;
       }
+      case "time_off.request_approved":
+        result = { event, ...(await upsertLeave(d)) };
+        break;
+      case "time_off.request_cancelled":
+      case "time_off.request_rejected":
+        result = { event, ...(await removeLeave(d)) };
+        break;
       default:
         result = { event, handled: false, note: "no-op for this event" };
     }
