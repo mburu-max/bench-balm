@@ -88,6 +88,7 @@ export type Database = {
           location: string | null
           manager: string | null
           omni_id: string
+          omni_time_off_id: string | null
           project_id: string | null
           remarks: string | null
           resource_id: string
@@ -115,6 +116,7 @@ export type Database = {
           location?: string | null
           manager?: string | null
           omni_id: string
+          omni_time_off_id?: string | null
           project_id?: string | null
           remarks?: string | null
           resource_id: string
@@ -144,6 +146,7 @@ export type Database = {
           location?: string | null
           manager?: string | null
           omni_id?: string
+          omni_time_off_id?: string | null
           project_id?: string | null
           remarks?: string | null
           resource_id?: string
