@@ -181,7 +181,8 @@ function ResourcesPage() {
   const filtered = all.filter(
     (r) =>
       (r.full_name.toLowerCase().includes(q.toLowerCase()) ||
-        r.omni_id.toLowerCase().includes(q.toLowerCase())) &&
+        r.omni_id.toLowerCase().includes(q.toLowerCase()) ||
+        (r.department ?? "").toLowerCase().includes(q.toLowerCase())) &&
       (slFilter === "all" || r.service_line === slFilter) &&
       matchesStatus(r),
   );
@@ -339,7 +340,7 @@ function ResourcesPage() {
 
       <div className="flex items-center gap-3 mb-4">
         <Input
-          placeholder="Search by name or Omni ID…"
+          placeholder="Search by name, Omni ID, or department…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           className="max-w-xs"
@@ -412,6 +413,7 @@ function ResourcesPage() {
                 <th className="text-left px-3 py-2.5 font-medium">Role</th>
                 <th className="text-left px-3 py-2.5 font-medium">Manager</th>
                 <th className="text-left px-3 py-2.5 font-medium">SL</th>
+                <th className="text-left px-3 py-2.5 font-medium">Department</th>
                 <th className="text-left px-3 py-2.5 font-medium">Type</th>
                 <th className="text-left px-3 py-2.5 font-medium">Status</th>
                 <th className="px-5 py-2.5"></th>
@@ -427,6 +429,7 @@ function ResourcesPage() {
                   <td className="px-3 py-3">
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase tracking-wide">{r.service_line}</span>
                   </td>
+                  <td className="px-3 py-3 text-muted-foreground">{r.department ?? "—"}</td>
                   <td className="px-3 py-3 text-muted-foreground">{r.employment_type}</td>
                   <td className="px-3 py-3"><ResourceStatusBadge status={effStatus(r)} /></td>
                   <td className="px-5 py-3 text-right">
