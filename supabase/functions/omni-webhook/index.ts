@@ -202,10 +202,16 @@ Deno.serve(async (req) => {
       return { leave: "removed", omni_time_off_id: timeOffId };
     };
 
-    // ---- List employees (best-effort; refine mapping once we see real data) ----
+    // ---- List employees ----
+    // Default to the report endpoint: /employee/report/employees/ almost certainly returns the
+    // "Resource Type Report" data (Service Line / Department / Classification / Emp Type / Manager /
+    // Location) whose shape we've validated against the Excel export. Alternatives if that doesn't
+    // fit: /employee/list/ or /employee/list/min-v2/. Override via OMNI_LIST_PATH without a redeploy.
+    // Field mapping (mapEmployee) is finalised on the first authenticated call — the docs' response
+    // samples are interactive and not in the reference text.
     const listEmployees = async (): Promise<any[]> => {
       const out: any[] = [];
-      let path: string | null = "/employee/list/";
+      let path: string | null = Deno.env.get("OMNI_LIST_PATH") ?? "/employee/report/employees/";
       let guard = 0;
       while (path && guard++ < 50) {
         const page: any = await omni(path);
