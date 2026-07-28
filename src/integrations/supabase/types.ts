@@ -920,8 +920,8 @@ export type Database = {
         | "Rejected"
         | "Verified"
       project_type:
-        | "Billable_Delivery"
-        | "Non_Billable"
+        | "COS"
+        | "OPEX"
         | "Bench_Available"
         | "Training"
         | "Internal_Operations"
@@ -1086,8 +1086,8 @@ export const Constants = {
         "Verified",
       ],
       project_type: [
-        "Billable_Delivery",
-        "Non_Billable",
+        "COS",
+        "OPEX",
         "Bench_Available",
         "Training",
         "Internal_Operations",
