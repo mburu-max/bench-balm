@@ -12,8 +12,16 @@ const OMNI_BASE = (Deno.env.get("OMNI_BASE_URL") ?? "https://api.omnihr.co/api/v
 const SERVICE_LINES = ["DLaaS", "CLM", "MS", "CCaaS", "Legacy"];
 const DEFAULT_SERVICE_LINE = "Legacy";
 
-// Service line lives in the Omni department. Match case-insensitively against the 5 lines, with a
-// few common aliases; anything unmatched falls back to the default line for an SL Lead to correct.
+// Omni org tree: Service Line (TOP level) -> Department (2nd level) -> employee. The service line is
+// the department's PARENT, not the department name itself. It can arrive two ways:
+//   (a) Omni includes the parent/top-level unit in the payload -> we read it directly (mapEmployee).
+//   (b) Omni only sends the leaf department -> we map that department UP to its parent line here.
+// Fill DEPARTMENT_TO_SERVICE_LINE with each department (lowercase) -> one of SERVICE_LINES.
+const DEPARTMENT_TO_SERVICE_LINE: Record<string, string> = {
+  // "contract management": "CLM",
+  // "managed services desk": "MS",
+  // "<department name lowercase>": "<DLaaS|CLM|MS|CCaaS|Legacy>",
+};
 const SL_ALIASES: Record<string, string> = {
   dlaas: "DLaaS", "digital ledger": "DLaaS", "data & ledger": "DLaaS",
   clm: "CLM", "contract lifecycle": "CLM", "contract management": "CLM", "contract mgmt": "CLM",
@@ -21,12 +29,16 @@ const SL_ALIASES: Record<string, string> = {
   ccaas: "CCaaS", "contact center": "CCaaS", "contact centre": "CCaaS",
   legacy: "Legacy",
 };
-function resolveServiceLine(dept: any): string {
-  if (!dept) return DEFAULT_SERVICE_LINE;
-  const key = String(dept).trim().toLowerCase();
+// Resolve a value to a service line: it may already BE a service line (top-level unit / alias), or a
+// 2nd-level department that maps up to one. Unmatched -> default line for an SL Lead to correct.
+function resolveServiceLine(value: any): string {
+  if (!value) return DEFAULT_SERVICE_LINE;
+  const key = String(value).trim().toLowerCase();
   const direct = SERVICE_LINES.find((s) => s.toLowerCase() === key);
-  if (direct) return direct;
-  return SL_ALIASES[key] ?? DEFAULT_SERVICE_LINE;
+  if (direct) return direct;                                  // already a service line
+  if (SL_ALIASES[key]) return SL_ALIASES[key];                // alias of a service line
+  if (DEPARTMENT_TO_SERVICE_LINE[key]) return DEPARTMENT_TO_SERVICE_LINE[key]; // department -> parent line
+  return DEFAULT_SERVICE_LINE;
 }
 
 const EMPLOYMENT_TYPES = ["FTE", "Contractor", "Vendor"];
@@ -57,6 +69,11 @@ function mapEmployee(d: any) {
     (d.full_legal_name && String(d.full_legal_name).trim()) ||
     (d.employee_id ? `Employee ${d.employee_id}` : "Unknown");
   const department = job.department ?? d.department ?? null;
+  // Service line = the TOP-level org unit. Prefer an explicit parent field if Omni sends one; else
+  // fall back to mapping the (2nd-level) department up to its parent line via resolveServiceLine.
+  const serviceLineRaw =
+    job.service_line ?? job.business_unit ?? job.division ?? job.department_group ??
+    d.service_line ?? d.business_unit ?? null;
   const mgr = job.manager ?? d.manager ?? null;
   const managerName = mgr
     ? [mgr.first_name ?? mgr.preferred_name, mgr.last_name].filter(Boolean).join(" ").trim() || (typeof mgr === "string" ? mgr : null)
@@ -69,7 +86,7 @@ function mapEmployee(d: any) {
     department,
     location: job.location ?? d.location ?? null,
     manager_name: managerName,
-    service_line: resolveServiceLine(department),
+    service_line: resolveServiceLine(serviceLineRaw ?? department),
     employment_type: resolveEmploymentType(emp),
     omni_hr_sync_status: "synced",
   };
@@ -253,11 +270,12 @@ Deno.serve(async (req) => {
         break;
       case "employee.scheduled_job_change": {
         const nj = d.job_change?.new_job ?? {};
+        const njSl = nj.service_line ?? nj.business_unit ?? nj.division ?? nj.department;
         await applyChange(omniId, {
           position: nj.position ?? nj.title ?? undefined,
           department: nj.department ?? undefined,
           location: nj.location ?? undefined,
-          service_line: nj.department ? resolveServiceLine(nj.department) : undefined,
+          service_line: njSl ? resolveServiceLine(njSl) : undefined,
         });
         result.omni_id = omniId;
         break;
