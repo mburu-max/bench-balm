@@ -48,8 +48,8 @@ export function ResourceStatusBadge({ status }: { status: ResourceStatus }) {
 
 export function AllocationTypeBadge({ type }: { type: AllocationType }) {
   const map: Record<AllocationType, keyof typeof tone> = {
-    Billable: "success",
-    "Non-Billable": "info",
+    COS: "success",
+    OPEX: "info",
     Bench: "warning",
     Leave: "muted",
   };

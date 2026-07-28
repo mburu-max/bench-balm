@@ -161,12 +161,12 @@ function GovernanceDashboard() {
 
   const shownSls = slFilter === "all" ? [...SERVICE_LINES] : SERVICE_LINES.filter((s) => s === slFilter);
 
-  // Coverage: does a resource have a billable/non-billable allocation covering a horizon date?
+  // Coverage: does a resource have a COS/OPEX allocation covering a horizon date?
   const coveredAt = (resourceId: string, dateStr: string) =>
     (allocations.data ?? []).some(
       (a) =>
         a.resource_id === resourceId &&
-        (a.allocation_type === "Billable" || a.allocation_type === "Non-Billable") &&
+        (a.allocation_type === "COS" || a.allocation_type === "OPEX") &&
         a.allocation_start_date <= dateStr &&
         a.allocation_end_date >= dateStr,
     );
@@ -180,32 +180,32 @@ function GovernanceDashboard() {
       .map((a) => a.project_id),
   );
 
-  // ---- Practice composition (billable mix, FTE/contractor, cross-SL loans) ----
+  // ---- Practice composition (COS/OPEX mix, FTE/contractor) ----
   // Respects the SL filter via activeResources; capacity-weighted by allocation %.
   const activeResIds = new Set(activeResources.map((r) => r.id));
   const currentAllocs = (allocations.data ?? []).filter(
     (a) => activeResIds.has(a.resource_id) && a.allocation_type !== "Leave" && a.allocation_start_date <= nowStr && a.allocation_end_date >= nowStr,
   );
-  let billablePctSum = 0, nonBillablePctSum = 0;
+  let cosPctSum = 0, opexPctSum = 0;
   for (const a of currentAllocs) {
     const pct = a.allocation_pct ?? 0;
-    if (a.allocation_type === "Billable") billablePctSum += pct; else nonBillablePctSum += pct;
+    if (a.allocation_type === "COS") cosPctSum += pct; else opexPctSum += pct;
   }
-  const billTotal = billablePctSum + nonBillablePctSum;
-  const billablePct = billTotal ? Math.round((billablePctSum / billTotal) * 100) : 0;
-  // Billable share split by employment cohort — are contractors kept on revenue work?
+  const mixTotal = cosPctSum + opexPctSum;
+  const cosPct = mixTotal ? Math.round((cosPctSum / mixTotal) * 100) : 0;
+  // COS share split by employment cohort — are contractors kept on revenue work?
   const empOf = new Map(activeResources.map((r) => [r.id, r.employment_type]));
-  let fteBill = 0, fteTot = 0, conBill = 0, conTot = 0;
+  let fteCos = 0, fteTot = 0, conCos = 0, conTot = 0;
   for (const a of currentAllocs) {
     const pct = a.allocation_pct ?? 0;
-    if (empOf.get(a.resource_id) === "FTE") { fteTot += pct; if (a.allocation_type === "Billable") fteBill += pct; }
-    else { conTot += pct; if (a.allocation_type === "Billable") conBill += pct; }
+    if (empOf.get(a.resource_id) === "FTE") { fteTot += pct; if (a.allocation_type === "COS") fteCos += pct; }
+    else { conTot += pct; if (a.allocation_type === "COS") conCos += pct; }
   }
-  const fteBillShare = fteTot ? Math.round((fteBill / fteTot) * 100) : null;
-  const conBillShare = conTot ? Math.round((conBill / conTot) * 100) : null;
-  const cohortBillLine = [
-    fteBillShare != null ? `FTE ${fteBillShare}%` : null,
-    conBillShare != null ? `Contractor ${conBillShare}%` : null,
+  const fteCosShare = fteTot ? Math.round((fteCos / fteTot) * 100) : null;
+  const conCosShare = conTot ? Math.round((conCos / conTot) * 100) : null;
+  const cohortCosLine = [
+    fteCosShare != null ? `FTE ${fteCosShare}%` : null,
+    conCosShare != null ? `Contractor ${conCosShare}%` : null,
   ].filter(Boolean).join(" · ");
   const contractorHeads = activeResources.filter((r) => r.employment_type !== "FTE").length;
   const contractorPct = activeResources.length ? Math.round((contractorHeads / activeResources.length) * 100) : 0;
@@ -595,25 +595,25 @@ function GovernanceDashboard() {
         </div>
       </div>
 
-      {/* Practice composition — billable mix, margin exposure */}
+      {/* Practice composition — COS/OPEX mix, margin exposure */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
         <div className="rounded-xl border bg-card p-5">
-          <h2 className="font-display text-base font-semibold">Billable Mix</h2>
+          <h2 className="font-display text-base font-semibold">COS / OPEX Mix</h2>
           <p className="text-xs text-muted-foreground mt-0.5">Current allocations driving revenue</p>
-          {billTotal === 0 ? (
+          {mixTotal === 0 ? (
             <div className="h-24 grid place-items-center text-sm text-muted-foreground">No current allocations</div>
           ) : (
             <div className="mt-5">
               <div className="flex items-end justify-between mb-2">
-                <div><div className="font-display text-3xl font-semibold text-success">{billablePct}%</div><div className="text-xs text-muted-foreground">Billable</div></div>
-                <div className="text-right"><div className="font-display text-3xl font-semibold text-muted-foreground">{100 - billablePct}%</div><div className="text-xs text-muted-foreground">Non-billable</div></div>
+                <div><div className="font-display text-3xl font-semibold text-success">{cosPct}%</div><div className="text-xs text-muted-foreground">COS</div></div>
+                <div className="text-right"><div className="font-display text-3xl font-semibold text-muted-foreground">{100 - cosPct}%</div><div className="text-xs text-muted-foreground">OPEX</div></div>
               </div>
               <div className="h-3 rounded-full overflow-hidden bg-muted flex">
-                <div className="bg-success h-full" style={{ width: `${billablePct}%` }} />
-                <div className="bg-warning h-full" style={{ width: `${100 - billablePct}%` }} />
+                <div className="bg-success h-full" style={{ width: `${cosPct}%` }} />
+                <div className="bg-warning h-full" style={{ width: `${100 - cosPct}%` }} />
               </div>
-              <div className="text-xs text-muted-foreground mt-3">≈{Math.round(billablePctSum / 100)} FTE billable · ≈{Math.round(nonBillablePctSum / 100)} non-billable / bench / internal</div>
-              {cohortBillLine && <div className="text-xs text-muted-foreground mt-1">{cohortBillLine} billable</div>}
+              <div className="text-xs text-muted-foreground mt-3">≈{Math.round(cosPctSum / 100)} FTE COS · ≈{Math.round(opexPctSum / 100)} OPEX / bench / internal</div>
+              {cohortCosLine && <div className="text-xs text-muted-foreground mt-1">{cohortCosLine} COS</div>}
             </div>
           )}
         </div>

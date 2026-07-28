@@ -897,7 +897,7 @@ export type Database = {
         | "Time_Boxed"
         | "Surge_Flex"
         | "Shadow_Training"
-      allocation_type: "Billable" | "Non-Billable" | "Bench" | "Leave"
+      allocation_type: "COS" | "OPEX" | "Bench" | "Leave"
       app_role:
         | "admin"
         | "governance_lead"
@@ -1061,7 +1061,7 @@ export const Constants = {
         "Surge_Flex",
         "Shadow_Training",
       ],
-      allocation_type: ["Billable", "Non-Billable", "Bench", "Leave"],
+      allocation_type: ["COS", "OPEX", "Bench", "Leave"],
       app_role: [
         "admin",
         "governance_lead",

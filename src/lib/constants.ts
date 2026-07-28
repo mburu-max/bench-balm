@@ -1,15 +1,14 @@
 export const SERVICE_LINES = ["DLaaS", "CLM", "MS", "CCaaS", "Legacy"] as const;
 export type ServiceLine = (typeof SERVICE_LINES)[number];
 
-export const ALLOCATION_TYPES = ["Billable", "Non-Billable", "Bench", "Leave"] as const;
+export const ALLOCATION_TYPES = ["COS", "OPEX", "Bench", "Leave"] as const;
 export type AllocationType = (typeof ALLOCATION_TYPES)[number];
 
-// Cost/Opex framing for classifying a booking (RA "billable vs non-billable" surfaced to PMs as
-// a finance decision): Cost = billable to the client, Opex = internal/non-billable overhead.
-// Stored values stay the enum above; these are display-only.
+// COS = Cost of Sales (client-facing / delivery work); OPEX = Operating Expense (internal overhead).
+// These are the stored enum values; the labels below are for display.
 export const ALLOCATION_TYPE_LABEL: Record<AllocationType, string> = {
-  Billable: "COS",
-  "Non-Billable": "OPEX",
+  COS: "COS",
+  OPEX: "OPEX",
   Bench: "Bench",
   Leave: "Leave",
 };

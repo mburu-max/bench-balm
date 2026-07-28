@@ -109,7 +109,7 @@ function CliffEdgePage() {
       }
     >
       <p className="text-sm text-muted-foreground mb-6">
-        Active resources whose last billable/non-billable allocation ends soon with no follow-on lined up.
+        Active resources whose last COS/OPEX allocation ends soon with no follow-on lined up.
         See bench risk before it happens, not after.
       </p>
 

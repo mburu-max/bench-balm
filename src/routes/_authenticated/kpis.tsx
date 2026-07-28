@@ -37,7 +37,7 @@ function KpisPage() {
   const overAllocatedCount = bench.filter((b) => b.benchPct < 0).length;
   // Bench Rate = unallocated (idle) resources / total (RA §6.1), not merely under 100%.
   const benchCount = bench.filter((b) => b.benchPct === 100).length;
-  const billableUtilisation = active.length > 0
+  const cosUtilisation = active.length > 0
     ? Math.round(bench.reduce((s, b) => s + Math.min(100, b.totalPct), 0) / active.length)
     : 0;
   const benchRate = active.length > 0 ? Math.round((benchCount / active.length) * 100) : 0;
@@ -50,7 +50,7 @@ function KpisPage() {
   const externalIds = new Set(active.filter((r) => r.employment_type !== "FTE").map((r) => r.id));
   const externalExpiring = (allocations.data ?? []).filter(
     (a) => externalIds.has(a.resource_id)
-      && (a.allocation_type === "Billable" || a.allocation_type === "Non-Billable")
+      && (a.allocation_type === "COS" || a.allocation_type === "OPEX")
       && a.allocation_end_date >= _today && a.allocation_end_date <= in90,
   );
   const alloc90 = new Set(externalExpiring.map((a) => a.resource_id)).size;
@@ -73,11 +73,11 @@ function KpisPage() {
   const varLo = slUtils[slUtils.length - 1];
   const utilVariance = slUtils.length >= 2 ? varHi.util - varLo.util : 0;
 
-  // Avg allocation horizon — mean weeks left on current billable/non-billable allocations.
+  // Avg allocation horizon — mean weeks left on current COS/OPEX allocations.
   const activeIds = new Set(active.map((r) => r.id));
   const currentEngaged = (allocations.data ?? []).filter(
     (a) => activeIds.has(a.resource_id)
-      && (a.allocation_type === "Billable" || a.allocation_type === "Non-Billable")
+      && (a.allocation_type === "COS" || a.allocation_type === "OPEX")
       && a.allocation_start_date <= _today && a.allocation_end_date >= _today,
   );
   const avgHorizonWeeks = currentEngaged.length
@@ -145,12 +145,12 @@ function KpisPage() {
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* KPI 1: Billable Utilisation % */}
+        {/* KPI 1: COS Utilisation % */}
         <KpiCard
-          label="Billable Utilisation"
-          value={`${billableUtilisation}%`}
+          label="COS Utilisation"
+          value={`${cosUtilisation}%`}
           icon={TrendingUp}
-          accent={rag(billableUtilisation, 75, 60)}
+          accent={rag(cosUtilisation, 75, 60)}
           hint="Green ≥75% · Amber 60–74% · Red <60%"
         />
 

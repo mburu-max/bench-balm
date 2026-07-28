@@ -59,7 +59,7 @@ type Row = {
 const blankRow = (): Row => ({
   key: crypto.randomUUID(),
   resource_id: "",
-  allocation_type: "Billable",
+  allocation_type: "COS",
   start: "",
   end: "",
   pct: 100,
@@ -162,7 +162,7 @@ function ProjectAllocationsPage() {
       parsed.push({
         key: crypto.randomUUID(),
         resource_id: r.id,
-        allocation_type: "Billable",
+        allocation_type: "COS",
         start: cols[2] || defaultStart(project),
         end: cols[3] || project?.end_date || "",
         pct: Math.min(100, Math.max(1, parseInt(cols[1] || "100", 10) || 100)),

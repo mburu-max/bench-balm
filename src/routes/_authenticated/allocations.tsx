@@ -64,7 +64,7 @@ function AllocationsPage() {
   const [resourceId, setResourceId] = useState<string>("");
   const [customerId, setCustomerId] = useState<string>("");
   const [projectId, setProjectId] = useState<string>("");
-  const [allocationType, setAllocationType] = useState<AllocationType>("Billable");
+  const [allocationType, setAllocationType] = useState<AllocationType>("COS");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [pct, setPct] = useState<number>(100);
@@ -124,7 +124,7 @@ function AllocationsPage() {
   const reset = () => {
     setCustomerId("");
     setProjectId("");
-    setAllocationType("Billable");
+    setAllocationType("COS");
     setStart("");
     setEnd("");
     setPct(100);
@@ -247,7 +247,7 @@ function AllocationsPage() {
                   {ALLOCATION_TYPES.filter((a) => a !== "Leave").map((a) => <SelectItem key={a} value={a}>{ALLOCATION_TYPE_LABEL[a]}</SelectItem>)}
                 </SelectContent>
               </Select>
-              {allocationType === "Billable" && resource?.employment_type === "Contractor" && (
+              {allocationType === "COS" && resource?.employment_type === "Contractor" && (
                 <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
                   R-07: Contractor billing — ensure correct employment type is set; cost treatment differs from FTE (downstream finance impact).
                 </p>
