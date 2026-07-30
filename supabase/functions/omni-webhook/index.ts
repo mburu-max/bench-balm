@@ -52,42 +52,53 @@ function resolveEmploymentType(emp: any): string {
   return direct ?? "FTE";
 }
 
+// Map an Omni employment status (e.g. "Active", "Terminated") to a resource_status.
+function resolveStatus(raw: any): string {
+  const s = String(raw ?? "").trim().toLowerCase();
+  if (s.includes("terminat") || s.includes("exit") || s.includes("resign")) return "Exited";
+  if (s.includes("leave")) return "On_Leave";
+  return "Active";
+}
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Build a resources row from an Omni employee object (webhook `data` or a list row). Defensive:
-// Omni may nest job fields under `job` or send them flat; we read both shapes.
+// Build a resources row from an Omni employee object. Field names verified against the live
+// /employee/list/ response (flat department, primary_email.value, employee_type,
+// employment_status_display, location_name); webhook `data` (nested job/employment) is handled as a
+// fallback so both the backfill and the webhook path work.
 function mapEmployee(d: any) {
   const job = d.job ?? {};
   const emp = d.employment ?? {};
   const fullName =
     (d.preferred_name && String(d.preferred_name).trim()) ||
+    (d.full_name && String(d.full_name).trim()) ||
     [d.first_name, d.last_name].filter(Boolean).join(" ").trim() ||
     (d.full_legal_name && String(d.full_legal_name).trim()) ||
     (d.employee_id ? `Employee ${d.employee_id}` : "Unknown");
-  const department = job.department ?? d.department ?? null;
-  // Service line = the TOP-level org unit. Prefer an explicit parent field if Omni sends one; else
-  // fall back to mapping the (2nd-level) department up to its parent line via resolveServiceLine.
+  const department = d.department ?? job.department ?? null;
+  // Service line is an Execo custom field ("Service Line") — the generic sandbox has none, so it
+  // falls back to mapping the department. Reads the custom field / a parent field if present.
   const serviceLineRaw =
-    job.service_line ?? job.business_unit ?? job.division ?? job.department_group ??
-    d.service_line ?? d.business_unit ?? null;
-  const mgr = job.manager ?? d.manager ?? null;
-  const managerName = mgr
-    ? [mgr.first_name ?? mgr.preferred_name, mgr.last_name].filter(Boolean).join(" ").trim() || (typeof mgr === "string" ? mgr : null)
-    : null;
+    d.service_line ?? d["Service Line"] ?? job.service_line ?? job.business_unit ?? job.division ?? null;
+  const mgrRaw = d.manager_name ?? d.manager ?? job.manager ?? null;
+  const managerName = typeof mgrRaw === "string"
+    ? mgrRaw
+    : (mgrRaw ? [mgrRaw.first_name ?? mgrRaw.preferred_name, mgrRaw.last_name].filter(Boolean).join(" ").trim() : null);
   return {
     omni_id: String(d.employee_id ?? d.id),
     full_name: fullName,
-    email: d.email ?? null,
-    position: job.position ?? job.title ?? job.job_title ?? d.position ?? null,
+    email: d.primary_email?.value ?? d.email ?? d.work_email ?? null,
+    position: d.position ?? job.position ?? job.title ?? null,
     department,
-    location: job.location ?? d.location ?? null,
-    manager_name: managerName,
+    location: d.location_name ?? d.location ?? job.location ?? d.country ?? null,
+    manager_name: managerName || null,
     service_line: resolveServiceLine(serviceLineRaw ?? department),
-    employment_type: resolveEmploymentType(emp),
+    employment_type: resolveEmploymentType({ employment_type: d.employee_type ?? emp.employment_type ?? emp.type }),
+    status: resolveStatus(d.employment_status_display ?? d.status),
     omni_hr_sync_status: "synced",
   };
 }
@@ -120,12 +131,18 @@ Deno.serve(async (req) => {
     const url = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const OMNI_TOKEN = Deno.env.get("OMNI_TOKEN");
+    // Omni scopes the API to a tenant via an X-Subdomain header (e.g. "integrationtest"). REQUIRED —
+    // without it the API returns "invalid email or password" / 404s, as it can't resolve the tenant.
+    const OMNI_SUBDOMAIN = Deno.env.get("OMNI_SUBDOMAIN");
     const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
     const omni = async (path: string) => {
-      const res = await fetch(`${OMNI_BASE}${path}`, {
-        headers: { Authorization: `Bearer ${OMNI_TOKEN}`, "Content-Type": "application/json" },
-      });
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${OMNI_TOKEN}`,
+        "Content-Type": "application/json",
+      };
+      if (OMNI_SUBDOMAIN) headers["X-Subdomain"] = OMNI_SUBDOMAIN;
+      const res = await fetch(`${OMNI_BASE}${path}`, { headers });
       if (!res.ok) throw new Error(`Omni ${path} -> ${res.status} ${await res.text().catch(() => "")}`.slice(0, 300));
       return res.json();
     };
@@ -203,15 +220,14 @@ Deno.serve(async (req) => {
     };
 
     // ---- List employees ----
-    // Default to the report endpoint: /employee/report/employees/ almost certainly returns the
-    // "Resource Type Report" data (Service Line / Department / Classification / Emp Type / Manager /
-    // Location) whose shape we've validated against the Excel export. Alternatives if that doesn't
-    // fit: /employee/list/ or /employee/list/min-v2/. Override via OMNI_LIST_PATH without a redeploy.
-    // Field mapping (mapEmployee) is finalised on the first authenticated call — the docs' response
-    // samples are interactive and not in the reference text.
+    // /employee/list/ returns clean paginated JSON ({count,next,results:[...]}) with the core fields
+    // (verified live in the integrationtest sandbox): employee_id, full_name/preferred_name,
+    // primary_email.value, position, department, location_name, employee_type, employment_status_display.
+    // It has NO manager/service-line/classification — those are custom fields that come from the CSV
+    // report endpoint (/employee/report/employees/) in the real Execo tenant. Override via OMNI_LIST_PATH.
     const listEmployees = async (): Promise<any[]> => {
       const out: any[] = [];
-      let path: string | null = Deno.env.get("OMNI_LIST_PATH") ?? "/employee/report/employees/";
+      let path: string | null = Deno.env.get("OMNI_LIST_PATH") ?? "/employee/list/";
       let guard = 0;
       while (path && guard++ < 50) {
         const page: any = await omni(path);
