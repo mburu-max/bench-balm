@@ -136,13 +136,29 @@ Deno.serve(async (req) => {
     const OMNI_SUBDOMAIN = Deno.env.get("OMNI_SUBDOMAIN");
     const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 
+    const omniHeaders = (auth: string): Record<string, string> => {
+      const h: Record<string, string> = { Authorization: `Bearer ${auth}`, "Content-Type": "application/json" };
+      if (OMNI_SUBDOMAIN) h["X-Subdomain"] = OMNI_SUBDOMAIN;
+      return h;
+    };
+    // A PAT (omni_pat_...) is NOT accepted directly on data endpoints — it must be exchanged for a
+    // short-lived JWT via /auth/token/pat/. Exchange once per invocation and reuse. (A non-PAT value
+    // is assumed to already be a JWT.)
+    let omniJwt: string | null = null;
+    const getOmniJwt = async (): Promise<string> => {
+      if (omniJwt) return omniJwt;
+      if (OMNI_TOKEN && OMNI_TOKEN.startsWith("omni_pat_")) {
+        const res = await fetch(`${OMNI_BASE}/auth/token/pat/`, { method: "POST", headers: omniHeaders(OMNI_TOKEN) });
+        if (!res.ok) throw new Error(`Omni PAT exchange -> ${res.status} ${await res.text().catch(() => "")}`.slice(0, 300));
+        omniJwt = (await res.json()).access;
+      } else {
+        omniJwt = OMNI_TOKEN ?? "";
+      }
+      return omniJwt!;
+    };
     const omni = async (path: string) => {
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${OMNI_TOKEN}`,
-        "Content-Type": "application/json",
-      };
-      if (OMNI_SUBDOMAIN) headers["X-Subdomain"] = OMNI_SUBDOMAIN;
-      const res = await fetch(`${OMNI_BASE}${path}`, { headers });
+      const jwt = await getOmniJwt();
+      const res = await fetch(`${OMNI_BASE}${path}`, { headers: omniHeaders(jwt) });
       if (!res.ok) throw new Error(`Omni ${path} -> ${res.status} ${await res.text().catch(() => "")}`.slice(0, 300));
       return res.json();
     };
