@@ -70,6 +70,43 @@ via IT.
 enabled but unused** (harmless) — no need to change the IT request. If Execo later mandates Identity
 Platform org-wide, B2 is a contained follow-up.
 
+**Cost of GoTrue:** it's **open-source (MIT)** — no licence fee. Self-hosted on Cloud Run it's ~**$0**
+at this scale (scale-to-zero, free tier), storing its `auth` schema in the same Cloud SQL. With
+**Google-only SSO** it needs **no SMTP** (no magic-link/password emails). So B1 adds **no licence or
+service cost** — only a container to run/patch. **B1 confirmed.**
+
+### Execution method: clean rebuild in a fresh folder (chosen)
+De-Lovable **by construction** — scaffold a clean app in a *new folder* and port `src/` in dependency
+order; never bring the Lovable files across. **This repo stays untouched** as reference + rollback.
+
+**Port order (foundation → leaves):**
+0. Scaffold fresh **TanStack Start** (official starter) → Tailwind v4 + shadcn, **Nitro `node-server`**,
+   standard `vite.config.ts`, **new git repo**. *(Zero `@lovable.dev` deps.)*
+1. **Integration + auth:** `supabase/client.ts` + `client.server.ts`; `auth.tsx` with **direct
+   `supabase.auth.signInWithOAuth({ provider: 'google' })`** (replaces the Lovable wrapper);
+   `auth-middleware.ts` / `auth-attacher.ts`.
+2. **`src/lib/*`** (constants, queries, dashboard, leave, bench, scope, staffing, useCurrentRole, export)
+   — everything imports these, so they come before components.
+3. **UI primitives** (`npx shadcn add` — don't copy) + shared components (AppShell, KpiCard, badges,
+   Pager, Combobox, sync buttons).
+4. **Routes feature-by-feature** (`__root` → `_authenticated` → resources → projects → customers →
+   allocations → **bench + Upcoming Leave** → cliff-edge → kpis → snapshots → my-profile), verifying each.
+5. **Edge functions → Cloud Run** (`hubspot-webhook`, `omni-webhook`).
+6. **DB:** bring `supabase/migrations/*` **as-is**; build Cloud SQL (auth-foundation first, per Phase 1).
+
+**Techniques:** develop the new app against the **existing Supabase** while porting (real data), and
+repoint at self-hosted / Cloud SQL only at cutover; **regenerate** Lovable-generated files (shadcn CLI,
+`npx supabase gen types`) — never copy them.
+
+**Never port these (de-Lovable):** `src/integrations/lovable/`, `src/lib/lovable-error-reporting.ts`,
+`bunfig.toml`, `.lovable/`, deps `@lovable.dev/vite-tanstack-config` + `@lovable.dev/cloud-auth-js`; drop
+the `reportLovableError` calls + `*.lovable.app` preview images in `__root.tsx`, and reword the "Lovable
+Cloud" messages in the supabase client files. **Final check:** `grep -ri lovable src/ vite.config.ts
+package.json` → empty.
+
+> **Canonical doc:** this file supersedes `gcp-migration.md` (which assumed Firebase Auth — now B2,
+> deferred) and `indimigration.md`. Keep those only as reference.
+
 ---
 
 ## 2. Target architecture (recap)
