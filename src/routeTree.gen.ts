@@ -9,32 +9,32 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
-import { Route as AuthenticatedSnapshotsRouteImport } from './routes/_authenticated/snapshots'
-import { Route as AuthenticatedResourcesRouteImport } from './routes/_authenticated/resources'
-import { Route as AuthenticatedProjectsRouteImport } from './routes/_authenticated/projects'
-import { Route as AuthenticatedProjectAllocationsRouteImport } from './routes/_authenticated/project-allocations'
-import { Route as AuthenticatedMyProfileRouteImport } from './routes/_authenticated/my-profile'
-import { Route as AuthenticatedKpisRouteImport } from './routes/_authenticated/kpis'
-import { Route as AuthenticatedCustomersRouteImport } from './routes/_authenticated/customers'
-import { Route as AuthenticatedCliffEdgeRouteImport } from './routes/_authenticated/cliff-edge'
-import { Route as AuthenticatedBenchRouteImport } from './routes/_authenticated/bench'
-import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
-import { Route as AuthenticatedAllocationsRouteImport } from './routes/_authenticated/allocations'
 import { Route as AuthenticatedAllocationReportRouteImport } from './routes/_authenticated/allocation-report'
-import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
-import { Route as AuthenticatedCustomersCustomerIdRouteImport } from './routes/_authenticated/customers.$customerId'
+import { Route as AuthenticatedAllocationsRouteImport } from './routes/_authenticated/allocations'
+import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
+import { Route as AuthenticatedBenchRouteImport } from './routes/_authenticated/bench'
+import { Route as AuthenticatedCliffEdgeRouteImport } from './routes/_authenticated/cliff-edge'
+import { Route as AuthenticatedCustomersRouteImport } from './routes/_authenticated/customers'
+import { Route as AuthenticatedKpisRouteImport } from './routes/_authenticated/kpis'
+import { Route as AuthenticatedMyProfileRouteImport } from './routes/_authenticated/my-profile'
+import { Route as AuthenticatedProjectAllocationsRouteImport } from './routes/_authenticated/project-allocations'
+import { Route as AuthenticatedProjectsRouteImport } from './routes/_authenticated/projects'
+import { Route as AuthenticatedResourcesRouteImport } from './routes/_authenticated/resources'
+import { Route as AuthenticatedSnapshotsRouteImport } from './routes/_authenticated/snapshots'
 import { Route as AuthenticatedAdminUsersRouteImport } from './routes/_authenticated/admin.users'
+import { Route as AuthenticatedCustomersCustomerIdRouteImport } from './routes/_authenticated/customers.$customerId'
+import { Route as AuthenticatedProjectsProjectIdRouteImport } from './routes/_authenticated/projects.$projectId'
 
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
-  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
@@ -42,19 +42,46 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedSnapshotsRoute = AuthenticatedSnapshotsRouteImport.update({
-  id: '/snapshots',
-  path: '/snapshots',
+const AuthenticatedAllocationReportRoute =
+  AuthenticatedAllocationReportRouteImport.update({
+    id: '/allocation-report',
+    path: '/allocation-report',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAllocationsRoute =
+  AuthenticatedAllocationsRouteImport.update({
+    id: '/allocations',
+    path: '/allocations',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAuditRoute = AuthenticatedAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedResourcesRoute = AuthenticatedResourcesRouteImport.update({
-  id: '/resources',
-  path: '/resources',
+const AuthenticatedBenchRoute = AuthenticatedBenchRouteImport.update({
+  id: '/bench',
+  path: '/bench',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedProjectsRoute = AuthenticatedProjectsRouteImport.update({
-  id: '/projects',
-  path: '/projects',
+const AuthenticatedCliffEdgeRoute = AuthenticatedCliffEdgeRouteImport.update({
+  id: '/cliff-edge',
+  path: '/cliff-edge',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCustomersRoute = AuthenticatedCustomersRouteImport.update({
+  id: '/customers',
+  path: '/customers',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedKpisRoute = AuthenticatedKpisRouteImport.update({
+  id: '/kpis',
+  path: '/kpis',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMyProfileRoute = AuthenticatedMyProfileRouteImport.update({
+  id: '/my-profile',
+  path: '/my-profile',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedProjectAllocationsRoute =
@@ -63,47 +90,31 @@ const AuthenticatedProjectAllocationsRoute =
     path: '/project-allocations',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedMyProfileRoute = AuthenticatedMyProfileRouteImport.update({
-  id: '/my-profile',
-  path: '/my-profile',
+const AuthenticatedProjectsRoute = AuthenticatedProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedKpisRoute = AuthenticatedKpisRouteImport.update({
-  id: '/kpis',
-  path: '/kpis',
+const AuthenticatedResourcesRoute = AuthenticatedResourcesRouteImport.update({
+  id: '/resources',
+  path: '/resources',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedCustomersRoute = AuthenticatedCustomersRouteImport.update({
-  id: '/customers',
-  path: '/customers',
+const AuthenticatedSnapshotsRoute = AuthenticatedSnapshotsRouteImport.update({
+  id: '/snapshots',
+  path: '/snapshots',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedCliffEdgeRoute = AuthenticatedCliffEdgeRouteImport.update({
-  id: '/cliff-edge',
-  path: '/cliff-edge',
+const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedBenchRoute = AuthenticatedBenchRouteImport.update({
-  id: '/bench',
-  path: '/bench',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedAuditRoute = AuthenticatedAuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedAllocationsRoute =
-  AuthenticatedAllocationsRouteImport.update({
-    id: '/allocations',
-    path: '/allocations',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedAllocationReportRoute =
-  AuthenticatedAllocationReportRouteImport.update({
-    id: '/allocation-report',
-    path: '/allocation-report',
-    getParentRoute: () => AuthenticatedRouteRoute,
+const AuthenticatedCustomersCustomerIdRoute =
+  AuthenticatedCustomersCustomerIdRouteImport.update({
+    id: '/$customerId',
+    path: '/$customerId',
+    getParentRoute: () => AuthenticatedCustomersRoute,
   } as any)
 const AuthenticatedProjectsProjectIdRoute =
   AuthenticatedProjectsProjectIdRouteImport.update({
@@ -111,17 +122,6 @@ const AuthenticatedProjectsProjectIdRoute =
     path: '/$projectId',
     getParentRoute: () => AuthenticatedProjectsRoute,
   } as any)
-const AuthenticatedCustomersCustomerIdRoute =
-  AuthenticatedCustomersCustomerIdRouteImport.update({
-    id: '/$customerId',
-    path: '/$customerId',
-    getParentRoute: () => AuthenticatedCustomersRoute,
-  } as any)
-const AuthenticatedAdminUsersRoute = AuthenticatedAdminUsersRouteImport.update({
-  id: '/admin/users',
-  path: '/admin/users',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -250,18 +250,18 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/': {
@@ -271,74 +271,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/snapshots': {
-      id: '/_authenticated/snapshots'
-      path: '/snapshots'
-      fullPath: '/snapshots'
-      preLoaderRoute: typeof AuthenticatedSnapshotsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/resources': {
-      id: '/_authenticated/resources'
-      path: '/resources'
-      fullPath: '/resources'
-      preLoaderRoute: typeof AuthenticatedResourcesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/projects': {
-      id: '/_authenticated/projects'
-      path: '/projects'
-      fullPath: '/projects'
-      preLoaderRoute: typeof AuthenticatedProjectsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/project-allocations': {
-      id: '/_authenticated/project-allocations'
-      path: '/project-allocations'
-      fullPath: '/project-allocations'
-      preLoaderRoute: typeof AuthenticatedProjectAllocationsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/my-profile': {
-      id: '/_authenticated/my-profile'
-      path: '/my-profile'
-      fullPath: '/my-profile'
-      preLoaderRoute: typeof AuthenticatedMyProfileRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/kpis': {
-      id: '/_authenticated/kpis'
-      path: '/kpis'
-      fullPath: '/kpis'
-      preLoaderRoute: typeof AuthenticatedKpisRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/customers': {
-      id: '/_authenticated/customers'
-      path: '/customers'
-      fullPath: '/customers'
-      preLoaderRoute: typeof AuthenticatedCustomersRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/cliff-edge': {
-      id: '/_authenticated/cliff-edge'
-      path: '/cliff-edge'
-      fullPath: '/cliff-edge'
-      preLoaderRoute: typeof AuthenticatedCliffEdgeRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/bench': {
-      id: '/_authenticated/bench'
-      path: '/bench'
-      fullPath: '/bench'
-      preLoaderRoute: typeof AuthenticatedBenchRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/audit': {
-      id: '/_authenticated/audit'
-      path: '/audit'
-      fullPath: '/audit'
-      preLoaderRoute: typeof AuthenticatedAuditRouteImport
+    '/_authenticated/allocation-report': {
+      id: '/_authenticated/allocation-report'
+      path: '/allocation-report'
+      fullPath: '/allocation-report'
+      preLoaderRoute: typeof AuthenticatedAllocationReportRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/allocations': {
@@ -348,19 +285,82 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAllocationsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/allocation-report': {
-      id: '/_authenticated/allocation-report'
-      path: '/allocation-report'
-      fullPath: '/allocation-report'
-      preLoaderRoute: typeof AuthenticatedAllocationReportRouteImport
+    '/_authenticated/audit': {
+      id: '/_authenticated/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AuthenticatedAuditRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/projects/$projectId': {
-      id: '/_authenticated/projects/$projectId'
-      path: '/$projectId'
-      fullPath: '/projects/$projectId'
-      preLoaderRoute: typeof AuthenticatedProjectsProjectIdRouteImport
-      parentRoute: typeof AuthenticatedProjectsRoute
+    '/_authenticated/bench': {
+      id: '/_authenticated/bench'
+      path: '/bench'
+      fullPath: '/bench'
+      preLoaderRoute: typeof AuthenticatedBenchRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/cliff-edge': {
+      id: '/_authenticated/cliff-edge'
+      path: '/cliff-edge'
+      fullPath: '/cliff-edge'
+      preLoaderRoute: typeof AuthenticatedCliffEdgeRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/customers': {
+      id: '/_authenticated/customers'
+      path: '/customers'
+      fullPath: '/customers'
+      preLoaderRoute: typeof AuthenticatedCustomersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/kpis': {
+      id: '/_authenticated/kpis'
+      path: '/kpis'
+      fullPath: '/kpis'
+      preLoaderRoute: typeof AuthenticatedKpisRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/my-profile': {
+      id: '/_authenticated/my-profile'
+      path: '/my-profile'
+      fullPath: '/my-profile'
+      preLoaderRoute: typeof AuthenticatedMyProfileRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/project-allocations': {
+      id: '/_authenticated/project-allocations'
+      path: '/project-allocations'
+      fullPath: '/project-allocations'
+      preLoaderRoute: typeof AuthenticatedProjectAllocationsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/projects': {
+      id: '/_authenticated/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof AuthenticatedProjectsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/resources': {
+      id: '/_authenticated/resources'
+      path: '/resources'
+      fullPath: '/resources'
+      preLoaderRoute: typeof AuthenticatedResourcesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/snapshots': {
+      id: '/_authenticated/snapshots'
+      path: '/snapshots'
+      fullPath: '/snapshots'
+      preLoaderRoute: typeof AuthenticatedSnapshotsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/users': {
+      id: '/_authenticated/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/customers/$customerId': {
       id: '/_authenticated/customers/$customerId'
@@ -369,12 +369,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCustomersCustomerIdRouteImport
       parentRoute: typeof AuthenticatedCustomersRoute
     }
-    '/_authenticated/admin/users': {
-      id: '/_authenticated/admin/users'
-      path: '/admin/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AuthenticatedAdminUsersRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+    '/_authenticated/projects/$projectId': {
+      id: '/_authenticated/projects/$projectId'
+      path: '/$projectId'
+      fullPath: '/projects/$projectId'
+      preLoaderRoute: typeof AuthenticatedProjectsProjectIdRouteImport
+      parentRoute: typeof AuthenticatedProjectsRoute
     }
   }
 }
