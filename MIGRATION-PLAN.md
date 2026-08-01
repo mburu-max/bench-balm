@@ -101,17 +101,30 @@ Platform org-wide, B2 is a contained follow-up.
   Manager, (Compute Engine for Path A / Identity Platform for **[C]**).
 - **IAM:** project roles for Pucci + Sharad + Marius.
 - **Budget + alerts** ($15 / $20 thresholds).
-- **Confirm the frontend build mode:** is TanStack Start used as an **SSR** app (server routes) or an
-  effectively client-only SPA? SPA → Firebase Hosting; SSR → Cloud Run. Decide here.
+- **Frontend build mode — RESOLVED (2026-08-01): it's SSR.** `@tanstack/react-start` + **Nitro** +
+  `src/server.ts`, with **server functions** that run auth server-side (`requireSupabaseAuth` validates
+  the bearer token via `supabase.auth.getClaims`; `attachSupabaseAuth` sends it). → **frontend deploys to
+  Cloud Run, NOT Firebase Hosting** (needs a Node server). Two build tasks fall out: the Lovable vite
+  preset builds Nitro for **Cloudflare** by default → switch the Nitro target to **node-server**; and
+  plan to **shed the Lovable packages** (`@lovable.dev/vite-tanstack-config`, `@lovable.dev/cloud-auth-js`).
+  *(This means the Firebase Hosting API in the IT request is unneeded — harmless to leave enabled.)*
 
-### Phase 1 — Database
-- Provision **Cloud SQL** Postgres (`db-f1-micro`, single-zone) **[B/C]**, or Postgres inside the
-  self-host stack **[A]**.
-- Recreate the schema by **replaying `supabase/migrations/*`** (they're the source of truth) — do **not**
-  hand-copy.
-- Migrate data: `pg_dump` from Supabase → restore into the new DB. Verify **row counts** per table.
-- Verify carry-over: **RLS policies, triggers, `SECURITY DEFINER` functions, enums (COS/OPEX)**, and the
-  **pg_cron** daily snapshot (install the extension; on Cloud SQL set the `cloudsql.enable_pg_cron` flag).
+### Phase 1 — Database  *(surveyed the 47 migrations — feasible, one hard prerequisite)*
+- Provision **Cloud SQL** Postgres (`db-f1-micro`, single-zone).
+- **PREREQUISITE — bootstrap the Supabase auth foundation FIRST.** The migrations lean on
+  **`auth.uid()` / `auth.users`** (RLS + user refs), so the DB must already have the `auth` schema,
+  the `auth.uid()`/`auth.role()`/`auth.jwt()` functions, and the roles `anon` / `authenticated` /
+  `service_role`. In **Path B this comes for free** — GoTrue + the Supabase init scripts create it.
+  Bootstrap that, *then* replay app migrations. (Without it, every RLS-bearing migration fails.)
+- **Extensions:** `gen_random_uuid()` is native (fine). **pg_cron** is used by exactly **one** migration
+  (`20260630020000`, the daily snapshot) and is **defensively guarded** — it's wrapped in a
+  `DO … EXCEPTION` that only *warns* if pg_cron is absent, so **migrations won't fail without it.** Enable
+  the Cloud SQL `cloudsql.enable_pg_cron` flag to get automated snapshots; otherwise the manual
+  Snapshots-page trigger covers it.
+- **No Supabase Storage, no Realtime, no custom schemas** in the migrations → nothing extra to port.
+- **Replay `supabase/migrations/*` in order** (they're the source of truth — don't hand-copy).
+- Migrate data: `pg_dump --data-only` from Supabase → restore. Verify **row counts** per table + that
+  RLS/triggers/`SECURITY DEFINER` functions/enums (COS/OPEX) came across.
 
 ### Phase 2 — Auth (Path B → **B1: GoTrue + Google SSO**)
 - Run **GoTrue** on Cloud Run → issues the same Supabase-style JWTs, so `auth.uid()` + RLS are
@@ -141,9 +154,14 @@ Platform org-wide, B2 is a contained follow-up.
 - **Re-point external webhooks:** update callback URLs in **HubSpot** and **Omni** to the new endpoints;
   keep public + signature verification (HMAC).
 
-### Phase 5 — Frontend
-- Build the app; point the client env vars at the new API + auth URLs.
-- Deploy to **Firebase Hosting** (free SSL/CDN/custom domain), or **Cloud Run** if SSR (per Phase 0).
+### Phase 5 — Frontend (SSR → **Cloud Run**)
+- Switch the **Nitro build target to `node-server`** (the Lovable preset defaults to Cloudflare); replace/
+  override `@lovable.dev/vite-tanstack-config` with a standard TanStack Start vite config, and remove
+  `@lovable.dev/cloud-auth-js`.
+- Repoint `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY` at the new self-hosted gateway.
+- Containerize the Node SSR server and deploy to **Cloud Run** — one service serves the UI **and** its
+  server functions (`requireSupabaseAuth` etc.). Custom domain + HTTPS come with Cloud Run. Cost stays
+  ~$0 at this scale (scale-to-zero, free tier).
 
 ### Phase 6 — Cutover
 - Short **write freeze** on Supabase → final `pg_dump` delta → restore → flip **DNS**/domain →
