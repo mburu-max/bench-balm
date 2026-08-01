@@ -351,7 +351,9 @@ Deno.serve(async (req) => {
       const objs = csvToObjects(await omniText(path));
       const byId = new Map<string, Record<string, string>>();
       for (const o of objs) {
-        const id = String(o["Employee ID"] ?? o["System ID"] ?? "").trim();
+        // Employee ID can be blank (e.g. a just-created hire) — the CSV gives "" not null, so `??`
+        // won't fall through. Use `||` so an empty Employee ID falls back to the always-present System ID.
+        const id = String(o["Employee ID"] ?? "").trim() || String(o["System ID"] ?? "").trim();
         if (!id) continue;
         const existing = byId.get(id);
         if (!existing) { byId.set(id, o); continue; }
