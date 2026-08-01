@@ -402,11 +402,12 @@ Deno.serve(async (req) => {
       if (rows.length === 0) { rows = (await listEmployees()).map(mapEmployee); used = "list"; }
 
       let synced = 0;
+      let managers = 0;
       for (const row of rows) {
-        try { await upsertRow(row); synced++; }
+        try { await upsertRow(row); synced++; if (row.manager_name) managers++; }
         catch (err) { errors.push(String((err as Error)?.message ?? err).slice(0, 150)); }
       }
-      return json({ ok: true, source: used, employees: rows.length, synced, errors: errors.slice(0, 5) });
+      return json({ ok: true, source: used, employees: rows.length, synced, managers, errors: errors.slice(0, 5) });
     }
 
     // ---------- WEBHOOK MODE ----------

@@ -35,9 +35,12 @@ export function OmniSyncButton() {
         }
         return toast.error(msg);
       }
-      const r = data as { employees: number; synced: number };
+      const r = data as { employees: number; synced: number; source?: string; managers?: number };
       qc.invalidateQueries({ queryKey: ["resources"] });
-      toast.success(`Omni HR synced — ${r.synced} of ${r.employees} employee${r.employees === 1 ? "" : "s"}`);
+      // `source`/`managers` only exist on the new (CSV-report) build — so their presence, and the
+      // manager count, tells you at a glance whether the report path actually ran.
+      const via = r.source ? ` · via ${r.source}${r.managers != null ? `, ${r.managers} with manager` : ""}` : "";
+      toast.success(`Omni HR synced — ${r.synced} of ${r.employees} employee${r.employees === 1 ? "" : "s"}${via}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Omni HR sync failed");
     } finally {
