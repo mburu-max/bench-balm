@@ -55,3 +55,11 @@ export function extendedLeaveResourceIds(allocations: AllocLike[], onDate: strin
   for (const a of allocations ?? []) if (inEffect(a, onDate) && isExtendedLeave(a)) s.add(a.resource_id!);
   return s;
 }
+
+/** Leave rows that START in the future (start_date > onDate), sorted by start ascending — "upcoming"
+ *  leave. Surfaces approved time-off before it's in effect, so it's visible ahead of time. */
+export function upcomingLeave<T extends AllocLike>(allocations: T[], onDate: string): T[] {
+  return (allocations ?? [])
+    .filter((a) => a.allocation_type === "Leave" && !!a.resource_id && !!a.allocation_start_date && a.allocation_start_date > onDate)
+    .sort((a, b) => (a.allocation_start_date! < b.allocation_start_date! ? -1 : 1));
+}
