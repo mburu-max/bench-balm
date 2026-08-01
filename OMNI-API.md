@@ -95,5 +95,10 @@ curl -X DELETE https://api.omnihr.co/api/v1/auth/personal-access-tokens/<id>/ \
 - `getOmniJwt()` exchanges the PAT → JWT once per invocation (Step 3) and caches it; `omni()` sends
   `Authorization: Bearer <jwt>` + `X-Subdomain` on every call. If `OMNI_TOKEN` isn't a `omni_pat_`
   value it's treated as an already-valid JWT.
-- Backfill pulls `/employee/list/` (paginated) and upserts into `resources`; webhooks handle
-  real-time change events. See [[omni-hr-integration]] notes for the field mapping.
+- Backfill pulls the **CSV report** (`/employee/report/employees/`) — the only source with
+  **Manager Name** + the org's custom fields (**Service Line / Classification** in the real Execo
+  tenant) — parses the CSV, dedupes by `Employee ID` (prefers the Active row), maps each record
+  (`mapReportRow`), and upserts into `resources`. It **falls back to `/employee/list/`** if the
+  report is unavailable/empty; set `OMNI_BACKFILL_SOURCE=list` to force the JSON list. Webhooks
+  handle real-time change events (they carry JSON, mapped by `mapEmployee`). See
+  [[omni-hr-integration]] for the field mapping.

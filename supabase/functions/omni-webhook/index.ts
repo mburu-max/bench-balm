@@ -45,9 +45,9 @@ const EMPLOYMENT_TYPES = ["FTE", "Contractor", "Vendor"];
 function resolveEmploymentType(emp: any): string {
   const raw = String(emp?.employment_type ?? emp?.type ?? "").trim().toLowerCase();
   if (!raw) return "FTE";
-  if (raw.includes("contract")) return "Contractor";
+  if (raw.includes("contract") || raw.includes("freelanc") || raw.includes("consultant")) return "Contractor";
   if (raw.includes("vendor")) return "Vendor";
-  if (raw.includes("full") || raw.includes("permanent") || raw === "fte") return "FTE";
+  if (raw.includes("full") || raw.includes("permanent") || raw === "fte" || raw.includes("part")) return "FTE";
   const direct = EMPLOYMENT_TYPES.find((t) => t.toLowerCase() === raw);
   return direct ?? "FTE";
 }
@@ -58,6 +58,16 @@ function resolveStatus(raw: any): string {
   if (s.includes("terminat") || s.includes("exit") || s.includes("resign")) return "Exited";
   if (s.includes("leave")) return "On_Leave";
   return "Active";
+}
+
+// Map an Omni Classification (COS/OPEX) to a default_allocation_type. Null if not present/unknown
+// (the generic sandbox has no Classification field — this only fires in the real Execo tenant).
+function resolveClassification(raw: any): string | null {
+  const s = String(raw ?? "").trim().toLowerCase();
+  if (!s) return null;
+  if (s.includes("cos") || s.includes("cost of sale") || s.includes("billable")) return "COS";
+  if (s.includes("opex") || s.includes("operating") || s.includes("overhead") || s.includes("non-billable") || s.includes("non billable")) return "OPEX";
+  return null;
 }
 
 const cors = {
@@ -101,6 +111,77 @@ function mapEmployee(d: any) {
     status: resolveStatus(d.employment_status_display ?? d.status),
     omni_hr_sync_status: "synced",
   };
+}
+
+// ---- CSV report parsing ----
+// The report endpoint (/employee/report/employees/) returns text/csv — the only source that carries
+// Manager Name and the org's custom fields (Service Line / Classification in the real Execo tenant).
+// RFC-4180-ish parser: handles quoted fields, embedded commas/newlines, and "" escapes.
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let field = "", row: string[] = [], inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQuotes = false; }
+      else field += c;
+    } else if (c === '"') inQuotes = true;
+    else if (c === ",") { row.push(field); field = ""; }
+    else if (c === "\r") { /* ignore, handled by \n */ }
+    else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+    else field += c;
+  }
+  if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+  return rows;
+}
+function csvToObjects(text: string): Record<string, string>[] {
+  const rows = parseCsv(text);
+  if (rows.length < 2) return [];
+  const header = rows[0].map((h) => h.trim());
+  return rows.slice(1)
+    .filter((r) => r.some((c) => c.trim() !== ""))
+    .map((r) => { const o: Record<string, string> = {}; header.forEach((h, i) => (o[h] = r[i] ?? "")); return o; });
+}
+// Find a report value by fuzzy header match (case-insensitive substring) — custom fields arrive as
+// "Group | Field" columns, so the exact header is unknown (e.g. "Delivery | Service Line").
+function reportField(row: Record<string, string>, needle: string): string | null {
+  for (const key of Object.keys(row)) {
+    if (key.toLowerCase().includes(needle)) {
+      const v = row[key];
+      if (v != null && String(v).trim() !== "") return String(v).trim();
+    }
+  }
+  return null;
+}
+// Build a resources row from one CSV report record (standard columns by exact name; Service Line /
+// Classification by fuzzy match since they're custom fields).
+function mapReportRow(row: Record<string, string>) {
+  const get = (k: string) => { const v = row[k]; return v != null && String(v).trim() !== "" ? String(v).trim() : null; };
+  const empId = get("Employee ID") ?? get("System ID");
+  const fullName =
+    get("Preferred Name") ||
+    [get("First Name"), get("Last Name")].filter(Boolean).join(" ").trim() ||
+    get("Full Legal Name") ||
+    (empId ? `Employee ${empId}` : "Unknown");
+  const department = get("Department");
+  const serviceLineRaw = reportField(row, "service line");   // custom field — real tenant only
+  const classification = reportField(row, "classification"); // COS/OPEX — real tenant only
+  const out: Record<string, any> = {
+    omni_id: String(empId ?? ""),
+    full_name: fullName,
+    email: get("Work Email") ?? get("Personal Email"),
+    position: get("Position"),
+    department,
+    location: get("Location") ?? get("Location Country") ?? get("Country"),
+    manager_name: get("Manager Name"),
+    service_line: resolveServiceLine(serviceLineRaw ?? department),
+    employment_type: resolveEmploymentType({ employment_type: get("Employment Type") }),
+    status: resolveStatus(get("Employment Status")),
+    omni_hr_sync_status: "synced",
+  };
+  const alloc = resolveClassification(classification);
+  if (alloc) out.default_allocation_type = alloc; // only when Classification is present (real tenant)
+  return out;
 }
 
 function json(body: unknown, status = 200) {
@@ -161,6 +242,13 @@ Deno.serve(async (req) => {
       const res = await fetch(`${OMNI_BASE}${path}`, { headers: omniHeaders(jwt) });
       if (!res.ok) throw new Error(`Omni ${path} -> ${res.status} ${await res.text().catch(() => "")}`.slice(0, 300));
       return res.json();
+    };
+    // Same auth, but returns the raw body (the report endpoint serves text/csv, not JSON).
+    const omniText = async (path: string): Promise<string> => {
+      const jwt = await getOmniJwt();
+      const res = await fetch(`${OMNI_BASE}${path}`, { headers: omniHeaders(jwt) });
+      if (!res.ok) throw new Error(`Omni ${path} -> ${res.status} ${await res.text().catch(() => "")}`.slice(0, 300));
+      return res.text();
     };
 
     const upsertEmployee = async (d: any) => {
@@ -255,6 +343,32 @@ Deno.serve(async (req) => {
       return out;
     };
 
+    // Report-based roster: the CSV report is the only source with Manager Name + custom fields
+    // (Service Line / Classification). Returns already-mapped resources rows, deduped by Employee ID
+    // (the report can repeat a person across records — prefer their Active row).
+    const listFromReport = async (): Promise<any[]> => {
+      const path = Deno.env.get("OMNI_REPORT_PATH") ?? "/employee/report/employees/";
+      const objs = csvToObjects(await omniText(path));
+      const byId = new Map<string, Record<string, string>>();
+      for (const o of objs) {
+        const id = String(o["Employee ID"] ?? o["System ID"] ?? "").trim();
+        if (!id) continue;
+        const existing = byId.get(id);
+        if (!existing) { byId.set(id, o); continue; }
+        const isActive = String(o["Employment Status"] ?? "").toLowerCase().includes("active");
+        const existingActive = String(existing["Employment Status"] ?? "").toLowerCase().includes("active");
+        if (isActive && !existingActive) byId.set(id, o);
+      }
+      return [...byId.values()].map(mapReportRow);
+    };
+
+    // Upsert an already-mapped resources row (backfill path — rows come pre-mapped).
+    const upsertRow = async (row: any) => {
+      const { error } = await admin.from("resources").upsert(row, { onConflict: "omni_id", ignoreDuplicates: false });
+      if (error) throw error;
+      return row.omni_id;
+    };
+
     const body = await req.text();
 
     // ---------- BACKFILL MODE ----------
@@ -275,14 +389,24 @@ Deno.serve(async (req) => {
       const allowed = (roles ?? []).some((r: any) => ["developer", "admin", "governance_lead"].includes(r.role));
       if (!allowed) return json({ error: "Forbidden — Developer or Governance Lead only" }, 403);
 
-      const employees = await listEmployees();
-      let synced = 0;
+      // Default to the CSV report (has Manager Name + Service Line/Classification); fall back to the
+      // clean JSON list endpoint if the report is unavailable/empty. Force with OMNI_BACKFILL_SOURCE.
+      const source = (Deno.env.get("OMNI_BACKFILL_SOURCE") ?? "report").toLowerCase();
       const errors: string[] = [];
-      for (const e of employees) {
-        try { await upsertEmployee(e); synced++; }
+      let rows: any[] = [];
+      let used = "report";
+      if (source !== "list") {
+        try { rows = await listFromReport(); }
+        catch (err) { errors.push(`report source failed: ${String((err as Error)?.message ?? err).slice(0, 120)}`); }
+      }
+      if (rows.length === 0) { rows = (await listEmployees()).map(mapEmployee); used = "list"; }
+
+      let synced = 0;
+      for (const row of rows) {
+        try { await upsertRow(row); synced++; }
         catch (err) { errors.push(String((err as Error)?.message ?? err).slice(0, 150)); }
       }
-      return json({ ok: true, employees: employees.length, synced, errors: errors.slice(0, 5) });
+      return json({ ok: true, source: used, employees: rows.length, synced, errors: errors.slice(0, 5) });
     }
 
     // ---------- WEBHOOK MODE ----------
