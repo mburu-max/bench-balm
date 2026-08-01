@@ -235,7 +235,7 @@ function AllocationsPage() {
         {/* MIDDLE — new allocation form */}
         <div className="lg:col-span-2 rounded-xl border bg-card p-5">
           <h2 className="font-display text-base font-semibold mb-4">New Allocation</h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Allocation Type</Label>
               <Select

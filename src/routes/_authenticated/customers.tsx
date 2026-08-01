@@ -184,7 +184,7 @@ function CustomersPage() {
                   })}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Region</Label>
                   <Select
@@ -273,7 +273,7 @@ function CustomersPage() {
                 <DialogHeader>
                   <DialogTitle>{c.customer_name}</DialogTitle>
                 </DialogHeader>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3 py-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 py-1">
                   <div className="col-span-2">
                     <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Service Lines</div>
                     <div className="flex flex-wrap gap-1 mt-1">

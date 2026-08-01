@@ -61,7 +61,7 @@ function AuthPage() {
             One unified view across DLaaS, CLM, MS, CCaaS, and Legacy. Real-time bench,
             enforced 100% caps, and approval workflows from PM through Finance.
           </p>
-          <div className="grid grid-cols-3 gap-4 pt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
             {[
               { k: "5", v: "Service lines" },
               { k: "100%", v: "Cap enforced" },

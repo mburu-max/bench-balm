@@ -352,7 +352,7 @@ function ProjectsPage() {
               <DialogHeader>
                 <DialogTitle>{form.id ? "Edit Project" : "New Draft Project"}</DialogTitle>
               </DialogHeader>
-              <div className="grid grid-cols-2 gap-4 py-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
                 <div className="space-y-1.5">
                   <Label>Project Code</Label>
                   <div className="h-9 flex items-center rounded-md border bg-muted/40 px-3 font-mono text-sm">
@@ -474,7 +474,7 @@ function ProjectsPage() {
                     <span className="text-muted-foreground">{p.hold_notes}</span>
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-x-8 gap-y-4 py-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 py-2">
                   <Field label="Description" value={p.project_description} wide />
                   <Field label="Customer" value={p.customers?.customer_name ?? "—"} />
                   <Field label="Service Line" value={p.service_line} />
