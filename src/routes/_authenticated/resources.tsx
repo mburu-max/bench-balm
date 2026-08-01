@@ -212,7 +212,7 @@ function ResourcesPage() {
             <DialogHeader>
               <DialogTitle>{form.id ? "Edit Resource" : "New Resource"}</DialogTitle>
             </DialogHeader>
-            <div className="grid grid-cols-2 gap-4 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
               <div className="space-y-1.5">
                 <Label>Omni ID *</Label>
                 <Input
@@ -331,7 +331,7 @@ function ResourcesPage() {
         </div>
       }
     >
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <KpiCard label="Total" value={counts.total} icon={Users} />
         <KpiCard label="Active" value={counts.active} icon={UserCheck} accent="success" />
         <KpiCard label="On Leave" value={counts.onLeave} icon={UserMinus} accent="info" />
@@ -376,7 +376,7 @@ function ResourcesPage() {
                     <ResourceStatusBadge status={effStatus(r)} />
                   </DialogTitle>
                 </DialogHeader>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-3 py-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 py-1">
                   <Field label="Role" value={r.position ?? "—"} />
                   <Field label="Department" value={r.department ?? "—"} />
                   <Field label="Manager" value={r.manager_name ?? "—"} />
