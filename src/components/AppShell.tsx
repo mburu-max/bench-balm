@@ -241,196 +241,230 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
     navigate({ to: "/auth" });
   };
 
-  return (
-    <div className="flex min-h-screen bg-background text-foreground">
-      <aside className="hidden md:sticky md:top-0 md:flex md:h-screen md:max-h-screen w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border overflow-hidden">
-        <div className="px-6 py-5 flex items-center gap-2.5">
-          <div className="size-8 rounded-md bg-sidebar-primary text-sidebar-primary-foreground grid place-items-center">
-            <Layers className="size-4" />
-          </div>
-          <div className="leading-tight">
-            <div className="font-display font-semibold text-sm">Allocate</div>
-            <div className="text-[10px] uppercase tracking-widest text-sidebar-foreground/60">
-              Service Delivery
-            </div>
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // Close the mobile drawer whenever the route changes.
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
+
+  const sidebarContent = (
+    <>
+      <div className="px-6 py-5 flex items-center gap-2.5">
+        <div className="size-8 shrink-0 rounded-md bg-sidebar-primary text-sidebar-primary-foreground grid place-items-center">
+          <Layers className="size-4" />
+        </div>
+        <div className="leading-tight min-w-0">
+          <div className="font-display font-semibold text-sm">Allocate</div>
+          <div className="text-[10px] uppercase tracking-widest text-sidebar-foreground/60">
+            Service Delivery
           </div>
         </div>
-        <nav className="sidebar-scroll flex-1 px-3 overflow-y-auto min-h-0 py-2 space-y-1">
-          {NAV_GROUPS.map((group, gi) => {
-            const visibleItems = group.items.filter((n) => n.show(role.data) && !hiddenSet.has(n.to));
-            if (visibleItems.length === 0) return null;
-            const isOpen = group.label === null || openGroups[group.label];
-            return (
-              <div key={gi} className={group.label ? "pt-2" : ""}>
-                {group.label && (
-                  <button
-                    onClick={() => toggleGroup(group.label!)}
-                    className="w-full flex items-center justify-between px-3 py-1.5 rounded-md text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/50 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground/80 transition-colors"
-                  >
-                    {group.label}
-                    <ChevronDown
-                      className={cn("size-3 transition-transform duration-200", isOpen ? "rotate-0" : "-rotate-90")}
-                    />
-                  </button>
-                )}
-                <div
-                  className={cn(
-                    "space-y-0.5 overflow-hidden transition-all duration-200",
-                    isOpen ? "mt-0.5 max-h-96 opacity-100" : "max-h-0 opacity-0",
-                  )}
+      </div>
+      <nav className="sidebar-scroll flex-1 px-3 overflow-y-auto min-h-0 py-2 space-y-1">
+        {NAV_GROUPS.map((group, gi) => {
+          const visibleItems = group.items.filter((n) => n.show(role.data) && !hiddenSet.has(n.to));
+          if (visibleItems.length === 0) return null;
+          const isOpen = group.label === null || openGroups[group.label];
+          return (
+            <div key={gi} className={group.label ? "pt-2" : ""}>
+              {group.label && (
+                <button
+                  onClick={() => toggleGroup(group.label!)}
+                  className="w-full flex items-center justify-between px-3 py-1.5 rounded-md text-[10px] uppercase tracking-widest font-semibold text-sidebar-foreground/50 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground/80 transition-colors"
                 >
-                  {visibleItems.map((n) => {
-                    const active = n.exact
-                      ? location.pathname === n.to
-                      : location.pathname.startsWith(n.to);
-                    const Icon = n.icon;
-                    return (
-                      <Link
-                        key={n.to}
-                        to={n.to}
-                        className={cn(
-                          "flex items-center gap-3 rounded-md px-3 py-2 text-[15px] transition-colors",
-                          active
-                            ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                            : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
-                        )}
-                      >
-                        <Icon className="size-[17px]" />
-                        {n.label}
-                        {n.to === "/projects" && pendingBadge > 0 && (
-                          <span
-                            className="ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-warning/30 text-warning-foreground tabular-nums"
-                            title={pendingLabel}
-                          >
-                            {pendingBadge}
-                          </span>
-                        )}
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </nav>
-        <div className="p-3 border-t border-sidebar-border space-y-2">
-          {role.data?.role && (
-            <div className="px-3 py-2 rounded-md bg-sidebar-accent/40 text-[11px]">
-              <div className="uppercase tracking-widest text-sidebar-foreground/60">
-                {role.data.impersonating ? "Previewing" : "Signed in as"}
-              </div>
-              <div className="font-medium mt-0.5">
-                {role.data.impersonatingLabel ?? (ROLE_LABEL[role.data.role as string] ?? role.data.role)}
-              </div>
-              {role.data.impersonatingLabel && (
-                <div className="text-sidebar-foreground/60 mt-0.5">
-                  {ROLE_LABEL[role.data.role as string] ?? role.data.role}
-                  {role.data.serviceLines?.length ? ` · ${role.data.serviceLines.join(", ")}` : ""}
-                </div>
+                  {group.label}
+                  <ChevronDown
+                    className={cn("size-3 shrink-0 transition-transform duration-200", isOpen ? "rotate-0" : "-rotate-90")}
+                  />
+                </button>
               )}
-            </div>
-          )}
-          {role.data?.realIsDeveloper && role.data?.impersonating && (
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-              onClick={() => changeViewAs("developer")}
-            >
-              <Eye className="size-4 mr-2" /> Exit preview
-            </Button>
-          )}
-          {showDevControls && (
-            <div className="px-3 py-2 rounded-md text-[11px] space-y-1.5 bg-sidebar-accent/30">
-              <div className="flex items-center gap-1.5 uppercase tracking-widest text-sidebar-foreground/60">
-                <Eye className="size-3" /> View as
+              <div
+                className={cn(
+                  "space-y-0.5 overflow-hidden transition-all duration-200",
+                  isOpen ? "mt-0.5 max-h-96 opacity-100" : "max-h-0 opacity-0",
+                )}
+              >
+                {visibleItems.map((n) => {
+                  const active = n.exact
+                    ? location.pathname === n.to
+                    : location.pathname.startsWith(n.to);
+                  const Icon = n.icon;
+                  return (
+                    <Link
+                      key={n.to}
+                      to={n.to}
+                      className={cn(
+                        "flex items-center gap-3 rounded-md px-3 py-2 text-[15px] transition-colors",
+                        active
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                          : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                      )}
+                    >
+                      <Icon className="size-[17px] shrink-0" />
+                      <span className="min-w-0 truncate">{n.label}</span>
+                      {n.to === "/projects" && pendingBadge > 0 && (
+                        <span
+                          className="ml-auto shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-warning/30 text-warning-foreground tabular-nums"
+                          title={pendingLabel}
+                        >
+                          {pendingBadge}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
               </div>
-              <Select value="developer" onValueChange={changeViewAs}>
-                <SelectTrigger className="h-8 text-xs bg-sidebar text-sidebar-foreground border-sidebar-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {VIEW_AS_ROLES.map((r) => (
-                    <SelectItem key={r} value={r} className="text-xs">
-                      {r === "developer" ? "Developer (you)" : ROLE_LABEL[r]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
-          )}
-          {showDevControls && (
-            <Dialog open={demoOpen} onOpenChange={setDemoOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-                >
-                  <MonitorPlay className="size-4 mr-2" /> Demo pages
-                  {hidden.length > 0 && (
-                    <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-warning/30 text-warning-foreground">
-                      {hidden.length} hidden
-                    </span>
-                  )}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Pages visible in the sidebar</DialogTitle>
-                </DialogHeader>
-                <p className="text-xs text-muted-foreground -mt-1">
-                  Untick a page to hide it from the menu during your demo. This only affects what
-                  shows here — it doesn't change anyone's access.
-                </p>
-                <div className="flex gap-2 py-1">
-                  <Button size="sm" variant="outline" onClick={() => applyHidden([])}>Show all</Button>
-                  <Button size="sm" variant="outline" onClick={() => applyHidden(allNav.map((n) => n.to).filter((to) => to !== "/"))}>
-                    Dashboard only
-                  </Button>
-                </div>
-                <div className="max-h-80 overflow-y-auto space-y-0.5">
-                  {allNav.map((n) => {
-                    const Icon = n.icon;
-                    const visible = !hiddenSet.has(n.to);
-                    return (
-                      <label key={n.to} className="flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted cursor-pointer">
-                        <Checkbox checked={visible} onCheckedChange={() => togglePage(n.to)} />
-                        <Icon className="size-4 text-muted-foreground" />
-                        {n.label}
-                        <span className="ml-auto text-[10px] font-mono text-muted-foreground">{n.to}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-                <DialogFooter>
-                  <Button onClick={() => setDemoOpen(false)}>Done</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          )}
+          );
+        })}
+      </nav>
+      <div className="p-3 border-t border-sidebar-border space-y-2">
+        {role.data?.role && (
+          <div className="px-3 py-2 rounded-md bg-sidebar-accent/40 text-[11px]">
+            <div className="uppercase tracking-widest text-sidebar-foreground/60">
+              {role.data.impersonating ? "Previewing" : "Signed in as"}
+            </div>
+            <div className="font-medium mt-0.5">
+              {role.data.impersonatingLabel ?? (ROLE_LABEL[role.data.role as string] ?? role.data.role)}
+            </div>
+            {role.data.impersonatingLabel && (
+              <div className="text-sidebar-foreground/60 mt-0.5">
+                {ROLE_LABEL[role.data.role as string] ?? role.data.role}
+                {role.data.serviceLines?.length ? ` · ${role.data.serviceLines.join(", ")}` : ""}
+              </div>
+            )}
+          </div>
+        )}
+        {role.data?.realIsDeveloper && role.data?.impersonating && (
           <Button
             variant="ghost"
             className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
-            onClick={signOut}
+            onClick={() => changeViewAs("developer")}
           >
-            <LogOut className="size-4 mr-2" /> Sign out
+            <Eye className="size-4 mr-2" /> Exit preview
           </Button>
-        </div>
+        )}
+        {showDevControls && (
+          <div className="px-3 py-2 rounded-md text-[11px] space-y-1.5 bg-sidebar-accent/30">
+            <div className="flex items-center gap-1.5 uppercase tracking-widest text-sidebar-foreground/60">
+              <Eye className="size-3" /> View as
+            </div>
+            <Select value="developer" onValueChange={changeViewAs}>
+              <SelectTrigger className="h-8 text-xs bg-sidebar text-sidebar-foreground border-sidebar-border">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {VIEW_AS_ROLES.map((r) => (
+                  <SelectItem key={r} value={r} className="text-xs">
+                    {r === "developer" ? "Developer (you)" : ROLE_LABEL[r]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        {showDevControls && (
+          <Dialog open={demoOpen} onOpenChange={setDemoOpen}>
+            <DialogTrigger asChild>
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+              >
+                <MonitorPlay className="size-4 mr-2" /> Demo pages
+                {hidden.length > 0 && (
+                  <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-warning/30 text-warning-foreground">
+                    {hidden.length} hidden
+                  </span>
+                )}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Pages visible in the sidebar</DialogTitle>
+              </DialogHeader>
+              <p className="text-xs text-muted-foreground -mt-1">
+                Untick a page to hide it from the menu during your demo. This only affects what
+                shows here — it doesn't change anyone's access.
+              </p>
+              <div className="flex flex-wrap gap-2 py-1">
+                <Button size="sm" variant="outline" onClick={() => applyHidden([])}>Show all</Button>
+                <Button size="sm" variant="outline" onClick={() => applyHidden(allNav.map((n) => n.to).filter((to) => to !== "/"))}>
+                  Dashboard only
+                </Button>
+              </div>
+              <div className="max-h-80 overflow-y-auto space-y-0.5">
+                {allNav.map((n) => {
+                  const Icon = n.icon;
+                  const visible = !hiddenSet.has(n.to);
+                  return (
+                    <label key={n.to} className="flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted cursor-pointer">
+                      <Checkbox checked={visible} onCheckedChange={() => togglePage(n.to)} />
+                      <Icon className="size-4 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 truncate">{n.label}</span>
+                      <span className="ml-auto hidden sm:inline text-[10px] font-mono text-muted-foreground">{n.to}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              <DialogFooter>
+                <Button onClick={() => setDemoOpen(false)}>Done</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+        <Button
+          variant="ghost"
+          className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+          onClick={signOut}
+        >
+          <LogOut className="size-4 mr-2" /> Sign out
+        </Button>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="flex min-h-screen bg-background text-foreground">
+      <aside className="hidden md:sticky md:top-0 md:flex md:h-screen md:max-h-screen w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border overflow-hidden">
+        {sidebarContent}
       </aside>
 
+      {/* Mobile / small-screen navigation drawer */}
+      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+        <SheetContent
+          side="left"
+          className="w-[17rem] max-w-[85vw] p-0 flex flex-col bg-sidebar text-sidebar-foreground border-sidebar-border md:hidden"
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Navigation</SheetTitle>
+          </SheetHeader>
+          {sidebarContent}
+        </SheetContent>
+      </Sheet>
+
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 border-b bg-card/50 backdrop-blur flex items-center justify-between px-6">
-          <div>
-            <h1 className="text-lg font-display font-semibold tracking-tight">{title}</h1>
+        <header className="min-h-16 border-b bg-card/50 backdrop-blur flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden shrink-0"
+              aria-label="Open navigation menu"
+              onClick={() => setMobileNavOpen(true)}
+            >
+              <Menu className="size-5" />
+            </Button>
+            <h1 className="truncate text-base sm:text-lg font-display font-semibold tracking-tight">{title}</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {actions}
             <NotificationBell items={notifications} unseenCount={pendingBadge} onOpen={markPendingSeen} />
             <ThemeToggle />
           </div>
-
         </header>
-        <main className="flex-1 p-6 overflow-auto">{children}</main>
+        <main className="flex-1 p-4 sm:p-6 overflow-x-hidden overflow-y-auto">{children}</main>
       </div>
     </div>
   );
 }
+
