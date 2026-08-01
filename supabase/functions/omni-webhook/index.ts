@@ -70,6 +70,12 @@ function resolveClassification(raw: any): string | null {
   return null;
 }
 
+// Omni's leave/calendar endpoints return dates as DD/MM/YYYY; our allocations use ISO (YYYY-MM-DD).
+function ddmmyyyyToIso(s: any): string | null {
+  const m = String(s ?? "").trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+}
+
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -276,43 +282,51 @@ Deno.serve(async (req) => {
       if (error) throw error;
     };
 
-    // Approved time-off -> a Leave allocation on the resource (deduped by the time-off request id).
-    const upsertLeave = async (d: any) => {
-      const empId = String(d.user?.employee_id ?? d.user?.id ?? "");
-      const timeOffId = String(d.id ?? "");
-      if (!empId || !timeOffId) return { skipped: "missing user or request id" };
+    // Core: upsert a Leave allocation for a resource, deduped by the Omni time-off request id.
+    // Shared by the webhook (approved event) and the backfill (who-is-out sweep).
+    const upsertLeaveCore = async (omniId: string, timeOffId: string, startDate: string, endDate: string, remarks: string) => {
+      if (!omniId || !timeOffId || !startDate || !endDate) return { skipped: "missing omniId/timeOffId/dates" };
       const { data: res } = await admin
         .from("resources")
         .select("id, full_name, omni_id, service_line")
-        .eq("omni_id", empId)
+        .eq("omni_id", String(omniId))
         .maybeSingle();
-      if (!res) return { skipped: `no resource for employee ${empId}` };
+      if (!res) return { skipped: `no resource for ${omniId}` };
       const row = {
         resource_id: res.id,
         omni_id: res.omni_id,
         resource_name: res.full_name,
         service_line: res.service_line,
         allocation_type: "Leave",
-        allocation_start_date: d.start_date,
-        allocation_end_date: d.end_date,
+        allocation_start_date: startDate,
+        allocation_end_date: endDate,
         allocation_pct: 100,
-        remarks: `Omni time-off${d.time_off_type ? ` (${d.time_off_type})` : ""}${d.reason ? ` — ${d.reason}` : ""}`,
-        omni_time_off_id: timeOffId,
+        remarks: remarks || "Omni time-off",
+        omni_time_off_id: String(timeOffId),
       };
       const { data: existing } = await admin
         .from("allocations")
         .select("id")
-        .eq("omni_time_off_id", timeOffId)
+        .eq("omni_time_off_id", String(timeOffId))
         .maybeSingle();
       if (existing) {
         const { error } = await admin.from("allocations").update(row).eq("id", existing.id);
         if (error) throw error;
-        return { leave: "updated", omni_time_off_id: timeOffId };
+        return { leave: "updated", omni_time_off_id: String(timeOffId) };
       }
       const { error } = await admin.from("allocations").insert(row);
       if (error) throw error;
-      return { leave: "created", omni_time_off_id: timeOffId };
+      return { leave: "created", omni_time_off_id: String(timeOffId) };
     };
+    // Webhook shape (time_off.request_approved): dates are already ISO; user carries employee_id.
+    const upsertLeave = async (d: any) =>
+      upsertLeaveCore(
+        String(d.user?.employee_id ?? d.user?.id ?? ""),
+        String(d.id ?? ""),
+        d.start_date,
+        d.end_date,
+        `Omni time-off${d.time_off_type ? ` (${d.time_off_type})` : ""}${d.reason ? ` — ${d.reason}` : ""}`,
+      );
 
     // Cancelled / rejected time-off -> remove the Leave allocation it created (if any).
     const removeLeave = async (d: any) => {
@@ -346,7 +360,8 @@ Deno.serve(async (req) => {
     // Report-based roster: the CSV report is the only source with Manager Name + custom fields
     // (Service Line / Classification). Returns already-mapped resources rows, deduped by Employee ID
     // (the report can repeat a person across records — prefer their Active row).
-    const listFromReport = async (): Promise<any[]> => {
+    // Deduped raw report rows (keyed by Employee ID, or System ID when blank — prefers the Active row).
+    const fetchReportObjects = async (): Promise<Record<string, string>[]> => {
       const path = Deno.env.get("OMNI_REPORT_PATH") ?? "/employee/report/employees/";
       const objs = csvToObjects(await omniText(path));
       const byId = new Map<string, Record<string, string>>();
@@ -361,7 +376,16 @@ Deno.serve(async (req) => {
         const existingActive = String(existing["Employment Status"] ?? "").toLowerCase().includes("active");
         if (isActive && !existingActive) byId.set(id, o);
       }
-      return [...byId.values()].map(mapReportRow);
+      return [...byId.values()];
+    };
+    const listFromReport = async (): Promise<any[]> => (await fetchReportObjects()).map(mapReportRow);
+
+    // Approved leave, org-wide, from who-is-out — returns its `employee` array (approved absences only,
+    // verified: only status-3 requests appear). Each has user.system_id, effective_date/end_date
+    // (DD/MM/YYYY), payload (days), remark, and id (the time-off request id, for dedup).
+    const listApprovedLeave = async (fromDDMM: string, toDDMM: string): Promise<any[]> => {
+      const res: any = await omni(`/employee/who-is-out/?start_date=${fromDDMM}&end_date=${toDDMM}`);
+      return Array.isArray(res?.employee) ? res.employee : [];
     };
 
     // Upsert an already-mapped resources row (backfill path — rows come pre-mapped).
@@ -396,9 +420,10 @@ Deno.serve(async (req) => {
       const source = (Deno.env.get("OMNI_BACKFILL_SOURCE") ?? "report").toLowerCase();
       const errors: string[] = [];
       let rows: any[] = [];
+      let reportObjs: Record<string, string>[] = [];
       let used = "report";
       if (source !== "list") {
-        try { rows = await listFromReport(); }
+        try { reportObjs = await fetchReportObjects(); rows = reportObjs.map(mapReportRow); }
         catch (err) { errors.push(`report source failed: ${String((err as Error)?.message ?? err).slice(0, 120)}`); }
       }
       if (rows.length === 0) { rows = (await listEmployees()).map(mapEmployee); used = "list"; }
@@ -409,7 +434,39 @@ Deno.serve(async (req) => {
         try { await upsertRow(row); synced++; if (row.manager_name) managers++; }
         catch (err) { errors.push(String((err as Error)?.message ?? err).slice(0, 150)); }
       }
-      return json({ ok: true, source: used, employees: rows.length, synced, managers, errors: errors.slice(0, 5) });
+
+      // ---- Leave backfill (report mode) ----
+      // Pull approved time-off from who-is-out and upsert Leave allocations. Bridge who-is-out's
+      // user.system_id -> our omni_id via the report's System ID column. Window: ~1 month back
+      // (catch in-effect leave) to 1 year ahead (upcoming). Dedup + webhooks share omni_time_off_id.
+      let leave = 0;
+      if (reportObjs.length) {
+        try {
+          const sysToOmni = new Map<string, string>();
+          for (const o of reportObjs) {
+            const sysId = String(o["System ID"] ?? "").trim();
+            const omniId = String(o["Employee ID"] ?? "").trim() || sysId;
+            if (sysId) sysToOmni.set(sysId, omniId);
+          }
+          const pad = (n: number) => String(n).padStart(2, "0");
+          const ddmm = (dt: Date) => `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)}/${dt.getFullYear()}`;
+          const now = new Date();
+          const from = new Date(now); from.setDate(from.getDate() - 31);
+          const to = new Date(now); to.setFullYear(to.getFullYear() + 1);
+          for (const a of await listApprovedLeave(ddmm(from), ddmm(to))) {
+            const omniId = sysToOmni.get(String(a.user?.system_id ?? "").trim());
+            const startISO = ddmmyyyyToIso(a.effective_date);
+            const endISO = ddmmyyyyToIso(a.end_date);
+            if (!omniId || !startISO || !endISO) continue;
+            try {
+              const r = await upsertLeaveCore(omniId, String(a.id), startISO, endISO, a.remark ?? "Omni time-off");
+              if ((r as any).leave) leave++;
+            } catch (err) { errors.push(`leave ${a.id}: ${String((err as Error)?.message ?? err).slice(0, 100)}`); }
+          }
+        } catch (err) { errors.push(`leave backfill: ${String((err as Error)?.message ?? err).slice(0, 120)}`); }
+      }
+
+      return json({ ok: true, source: used, employees: rows.length, synced, managers, leave, errors: errors.slice(0, 5) });
     }
 
     // ---------- WEBHOOK MODE ----------
