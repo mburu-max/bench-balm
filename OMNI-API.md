@@ -82,6 +82,52 @@ curl -X DELETE https://api.omnihr.co/api/v1/auth/personal-access-tokens/<id>/ \
   -H "Authorization: Bearer <jwt>" -H "X-Subdomain: <tenant>"
 ```
 
+---
+
+## Production service account — least-privilege role
+
+Don't run the integration off a person's login or a full Admin. Create a **dedicated, read-only
+service account** and give it a custom role scoped to *only* what the integration reads. Configured in
+**Settings → Access Control** (Omni's role model is granular — per data category and per function).
+
+> **A PAT inherits the permissions of the account that creates it.** Whatever this role can/can't see,
+> the PAT sees the same — the API (including the CSV report and `who-is-out`) obeys the role. There is
+> no separate place to restrict the API; the role *is* the restriction.
+
+### 1. Access to employee profiles (the **ALL EMPLOYEES** column)
+| Category | Set to | Why |
+|---|---|---|
+| **Profile** | **Read only** — expand the ⊞ and keep only the **Job/Employment** sub-fields (+ **Service Line**, **Classification** custom fields); set **Personal/PII** sub-fields (DOB, national ID, address, emergency contacts) to **No access** | Roster: name, dept/team, position, location, employment type, status, manager |
+| **Time off** | **Read only** | Grants the *view* of others' leave that `who-is-out` needs (the read is here, not in the function toggles) |
+| **Payroll** | **No access** | Excludes bank + salary entirely (data minimisation) |
+| Workflows / Expense / OKR / Documents / Tasks | **No access** | Unused |
+
+Never set any category to **Edit** — the integration only reads.
+
+### 2. Access to system functions
+- **People** → expand: **only** ☑ *View people directory & other profiles* (scope **All employees**). Uncheck *Add employee*, *Delete employee*, *Manage pending hires*. *View organization chart* optional.
+- **Time off** → expand: **uncheck all four** actions (*Adjust balance*, *Request/update/cancel for others*, *Approve on behalf*, *Configure*) — they're all writes; the read comes from the profile-level Time off = Read only above.
+- **Reports** → expand: enable **view/run reports** (read-only). Backs `GET /employee/report/employees/`.
+- **Settings** → only if this account will also do the one-time PAT/webhook setup; otherwise off (have a Super Admin do that once).
+- Documents / Analytics / Workflows / Attendance / Expense / Apps → off.
+
+### 3. Two toggles that matter
+- ✅ **Include terminated employees** — keep checked, so terminations flow through as `Exited`.
+- **Assignable roles** → **none** (a read-only integration must never assign roles).
+
+### 4. Create the PAT *as this account*
+Log in **as the service account** (so the PAT inherits the restricted role — **not** as an admin), then
+create the PAT via Steps 1–2 above, or via the account's UI (*account menu / Settings → Personal Access
+Tokens*, if present). That PAT becomes the `OMNI_TOKEN` secret.
+
+### 5. ⚠️ Verify before trusting it in production
+Reporting endpoints can bypass field-level permissions, and every sandbox test used a full-admin token —
+so **confirm the restriction actually holds**: with the restricted PAT, pull
+`GET /employee/report/employees/` and `GET /employee/who-is-out/` and check that **payroll/PII columns
+are stripped/blank** while the **roster + approved leave still come through**. If who-is-out returns
+empty, one more read permission is needed (most likely *People → View directory* + profile *Time off =
+Read only*). Only trust the account once this passes.
+
 ## Employee endpoints
 | Endpoint | Format | Contents |
 |---|---|---|
