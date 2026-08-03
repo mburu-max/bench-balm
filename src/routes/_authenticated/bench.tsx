@@ -241,18 +241,28 @@ function BenchPage() {
             On Leave (excluded from bench)
           </h3>
           <div className="rounded-xl border bg-card overflow-hidden">
-            <table className="w-full text-sm">
-              <tbody>
-                {onLeave.map((r) => (
-                  <tr key={r.id} className="border-t first:border-0">
-                    <td className="px-5 py-3 font-medium">{r.full_name}</td>
-                    <td className="px-3 py-3 text-muted-foreground font-mono text-xs">{r.omni_id}</td>
-                    <td className="px-3 py-3 text-muted-foreground">{r.service_line}</td>
-                    <td className="px-3 py-3 text-muted-foreground">{r.manager_name ?? "—"}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
+                  <tr>
+                    <th className="text-left px-5 py-2.5 font-medium">Resource</th>
+                    <th className="text-left px-3 py-2.5 font-medium">Omni ID</th>
+                    <th className="text-left px-3 py-2.5 font-medium">SL</th>
+                    <th className="text-left px-3 py-2.5 font-medium">Manager</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {onLeave.map((r) => (
+                    <tr key={r.id} className="border-t hover:bg-muted/30">
+                      <td className="px-5 py-3 font-medium">{r.full_name}</td>
+                      <td className="px-3 py-3 text-muted-foreground font-mono text-xs">{r.omni_id}</td>
+                      <td className="px-3 py-3 text-muted-foreground">{r.service_line}</td>
+                      <td className="px-3 py-3 text-muted-foreground">{r.manager_name ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
