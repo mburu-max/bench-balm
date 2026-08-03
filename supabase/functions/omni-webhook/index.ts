@@ -243,19 +243,24 @@ Deno.serve(async (req) => {
       }
       return omniJwt!;
     };
-    const omni = async (path: string) => {
+    // Fetch with a hard timeout so a slow/hung Omni fails cleanly (caught -> 500) instead of leaving the
+    // whole invocation hanging until the platform kills it — which surfaces to the browser as
+    // ERR_CONNECTION_CLOSED (no HTTP response at all).
+    const omniFetch = async (path: string): Promise<Response> => {
       const jwt = await getOmniJwt();
-      const res = await fetch(`${OMNI_BASE}${path}`, { headers: omniHeaders(jwt) });
-      if (!res.ok) throw new Error(`Omni ${path} -> ${res.status} ${await res.text().catch(() => "")}`.slice(0, 300));
-      return res.json();
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 25000);
+      try {
+        const res = await fetch(`${OMNI_BASE}${path}`, { headers: omniHeaders(jwt), signal: ctrl.signal });
+        if (!res.ok) throw new Error(`Omni ${path} -> ${res.status} ${await res.text().catch(() => "")}`.slice(0, 300));
+        return res;
+      } finally {
+        clearTimeout(timer);
+      }
     };
+    const omni = async (path: string) => (await omniFetch(path)).json();
     // Same auth, but returns the raw body (the report endpoint serves text/csv, not JSON).
-    const omniText = async (path: string): Promise<string> => {
-      const jwt = await getOmniJwt();
-      const res = await fetch(`${OMNI_BASE}${path}`, { headers: omniHeaders(jwt) });
-      if (!res.ok) throw new Error(`Omni ${path} -> ${res.status} ${await res.text().catch(() => "")}`.slice(0, 300));
-      return res.text();
-    };
+    const omniText = async (path: string): Promise<string> => (await omniFetch(path)).text();
 
     const upsertEmployee = async (d: any) => {
       const row = mapEmployee(d);
@@ -428,12 +433,22 @@ Deno.serve(async (req) => {
       }
       if (rows.length === 0) { rows = (await listEmployees()).map(mapEmployee); used = "list"; }
 
+      // Bulk-upsert in ONE round-trip. Per-row was one request each — tolerable for 36, but 451 real
+      // Execo employees would blow the invocation's time budget and surface as ERR_CONNECTION_CLOSED.
+      // Fall back to per-row only if the batch fails, to isolate the offending record.
       let synced = 0;
-      let managers = 0;
-      for (const row of rows) {
-        try { await upsertRow(row); synced++; if (row.manager_name) managers++; }
-        catch (err) { errors.push(String((err as Error)?.message ?? err).slice(0, 150)); }
+      if (rows.length) {
+        const { error } = await admin.from("resources").upsert(rows, { onConflict: "omni_id", ignoreDuplicates: false });
+        if (error) {
+          for (const row of rows) {
+            try { await upsertRow(row); synced++; }
+            catch (err) { errors.push(String((err as Error)?.message ?? err).slice(0, 150)); }
+          }
+        } else {
+          synced = rows.length;
+        }
       }
+      const managers = rows.filter((r) => r.manager_name).length;
 
       // ---- Leave backfill (report mode) ----
       // Pull approved time-off from who-is-out and upsert Leave allocations. Bridge who-is-out's
