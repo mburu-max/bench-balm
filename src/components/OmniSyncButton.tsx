@@ -35,13 +35,13 @@ export function OmniSyncButton() {
         }
         return toast.error(msg);
       }
-      const r = data as { employees: number; synced: number; source?: string; managers?: number; leave?: number };
+      const r = data as { employees: number; synced: number; source?: string; managers?: number; leave?: number; leavePruned?: number };
       qc.invalidateQueries({ queryKey: ["resources"] });
       qc.invalidateQueries({ queryKey: ["allocations"] });
       // `source`/`managers`/`leave` only exist on the new (CSV-report) build — so their presence tells
-      // you at a glance whether the report path ran, plus how many managers + leave records synced.
+      // you at a glance whether the report path ran, plus how many managers + leave records synced/pruned.
       const via = r.source
-        ? ` · via ${r.source}${r.managers != null ? `, ${r.managers} with manager` : ""}${r.leave ? `, ${r.leave} on leave` : ""}`
+        ? ` · via ${r.source}${r.managers != null ? `, ${r.managers} with manager` : ""}${r.leave ? `, ${r.leave} on leave` : ""}${r.leavePruned ? `, ${r.leavePruned} stale removed` : ""}`
         : "";
       toast.success(`Omni HR synced — ${r.synced} of ${r.employees} employee${r.employees === 1 ? "" : "s"}${via}`);
     } catch (e) {

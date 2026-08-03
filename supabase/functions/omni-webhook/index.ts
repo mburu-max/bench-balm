@@ -455,6 +455,7 @@ Deno.serve(async (req) => {
       // user.system_id -> our omni_id via the report's System ID column. Window: ~1 month back
       // (catch in-effect leave) to 1 year ahead (upcoming). Dedup + webhooks share omni_time_off_id.
       let leave = 0;
+      let leavePruned = 0;
       if (reportObjs.length) {
         try {
           const sysToOmni = new Map<string, string>();
@@ -468,7 +469,14 @@ Deno.serve(async (req) => {
           const now = new Date();
           const from = new Date(now); from.setDate(from.getDate() - 31);
           const to = new Date(now); to.setFullYear(to.getFullYear() + 1);
-          for (const a of await listApprovedLeave(ddmm(from), ddmm(to))) {
+          const todayISO = now.toISOString().slice(0, 10);
+          const toISO = to.toISOString().slice(0, 10);
+          // NOTE: listApprovedLeave throws on a failed fetch (caught below), so the prune never runs on
+          // a transient Omni error — only on a genuine empty/updated approved set. That guard matters:
+          // an empty set legitimately prunes stale leave, but a *failed* fetch must not wipe everything.
+          const absences = await listApprovedLeave(ddmm(from), ddmm(to));
+          const approvedIds = new Set(absences.map((a: any) => String(a.id)));
+          for (const a of absences) {
             const omniId = sysToOmni.get(String(a.user?.system_id ?? "").trim());
             const startISO = ddmmyyyyToIso(a.effective_date);
             const endISO = ddmmyyyyToIso(a.end_date);
@@ -478,10 +486,28 @@ Deno.serve(async (req) => {
               if ((r as any).leave) leave++;
             } catch (err) { errors.push(`leave ${a.id}: ${String((err as Error)?.message ?? err).slice(0, 100)}`); }
           }
+          // Reconcile: delete Omni-sourced Leave rows that are current/upcoming (within the queried
+          // window) but absent from Omni's current approved set — i.e. cancelled/rejected/replaced since
+          // the last sync. Without this the backfill is additive-only and stale leave lingers forever.
+          const { data: existingLeave } = await admin
+            .from("allocations")
+            .select("id, omni_time_off_id")
+            .eq("allocation_type", "Leave")
+            .not("omni_time_off_id", "is", null)
+            .gte("allocation_end_date", todayISO)
+            .lte("allocation_start_date", toISO);
+          const staleIds = (existingLeave ?? [])
+            .filter((row: any) => !approvedIds.has(String(row.omni_time_off_id)))
+            .map((row: any) => row.id);
+          if (staleIds.length) {
+            const { error } = await admin.from("allocations").delete().in("id", staleIds);
+            if (error) errors.push(`leave prune: ${String(error.message).slice(0, 100)}`);
+            else leavePruned = staleIds.length;
+          }
         } catch (err) { errors.push(`leave backfill: ${String((err as Error)?.message ?? err).slice(0, 120)}`); }
       }
 
-      return json({ ok: true, source: used, employees: rows.length, synced, managers, leave, errors: errors.slice(0, 5) });
+      return json({ ok: true, source: used, employees: rows.length, synced, managers, leave, leavePruned, errors: errors.slice(0, 5) });
     }
 
     // ---------- WEBHOOK MODE ----------
