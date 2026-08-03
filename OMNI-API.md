@@ -148,3 +148,17 @@ Read only*). Only trust the account once this passes.
   report is unavailable/empty; set `OMNI_BACKFILL_SOURCE=list` to force the JSON list. Webhooks
   handle real-time change events (they carry JSON, mapped by `mapEmployee`). See
   [[omni-hr-integration]] for the field mapping.
+
+## Sync (backfill) vs webhooks — freshness & real-time
+- **The Sync button (backfill)** reflects Omni's **current** report. Newly-created records have a short
+  **propagation delay** on Omni's side before they appear in `/employee/report/employees/`, so a Sync
+  *right after* adding an employee may miss them — a Sync a minute or two later picks them up. This is
+  **Omni-side, not a bug**: the backfill is a **reconciliation backstop**, so it inherits that lag.
+- **Webhooks remove the lag** — Omni pushes `employee.created` / `time_off.request_approved` / etc. the
+  instant they happen, so changes appear in near-real-time with no Sync click.
+- **Webhook status:** the **receiver is built + deployed** (this function, HMAC-verified), but webhooks
+  are **NOT registered** — the shared sandbox has **no webhook admin**, so registration is a
+  **real-tenant** task: in Omni admin, generate the org **signing secret** → register the endpoint
+  `https://xuklhsjogcehyvtlvgzy.supabase.co/functions/v1/omni-webhook` → subscribe to the events → set
+  `OMNI_WEBHOOK_SECRET` to match. Until that's done, **the Sync button is the only mechanism** (with the
+  small propagation lag above).
