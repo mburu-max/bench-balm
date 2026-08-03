@@ -60,6 +60,23 @@ function BenchPage() {
   // appear in the bench table above (flagged On Leave) rather than here.
   const onLeave = all.filter((r) => r.status !== "Exited" && (r.status === "On_Leave" || excludedByLeave(r)));
   const onLeaveRef = useRef<HTMLDivElement>(null);
+  // The in-effect Leave allocation per on-leave resource, for showing the leave dates + when they come
+  // back. People with a manual On_Leave status but no leave row simply have no dates. If someone has
+  // more than one overlapping leave, keep the one ending latest (that's when they actually return).
+  const currentLeaveByRes = useMemo(() => {
+    const m = new Map<string, { start: string; end: string }>();
+    for (const a of allocations.data ?? []) {
+      if (
+        a.allocation_type === "Leave" && a.resource_id &&
+        a.allocation_start_date && a.allocation_end_date &&
+        a.allocation_start_date <= date && a.allocation_end_date >= date
+      ) {
+        const cur = m.get(a.resource_id);
+        if (!cur || a.allocation_end_date > cur.end) m.set(a.resource_id, { start: a.allocation_start_date, end: a.allocation_end_date });
+      }
+    }
+    return m;
+  }, [allocations.data, date]);
   // Upcoming leave = future-dated Leave allocations (start > "as of" date), joined to their (in-scope)
   // resource. Surfaces approved time-off BEFORE it begins, not only once it's in effect on the bench.
   const upcomingRef = useRef<HTMLDivElement>(null);
@@ -249,17 +266,33 @@ function BenchPage() {
                     <th className="text-left px-3 py-2.5 font-medium">Omni ID</th>
                     <th className="text-left px-3 py-2.5 font-medium">SL</th>
                     <th className="text-left px-3 py-2.5 font-medium">Manager</th>
+                    <th className="text-left px-3 py-2.5 font-medium">Dates</th>
+                    <th className="text-left px-5 py-2.5 font-medium">Ends in</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {onLeave.map((r) => (
-                    <tr key={r.id} className="border-t hover:bg-muted/30">
-                      <td className="px-5 py-3 font-medium">{r.full_name}</td>
-                      <td className="px-3 py-3 text-muted-foreground font-mono text-xs">{r.omni_id}</td>
-                      <td className="px-3 py-3 text-muted-foreground">{r.service_line}</td>
-                      <td className="px-3 py-3 text-muted-foreground">{r.manager_name ?? "—"}</td>
-                    </tr>
-                  ))}
+                  {onLeave.map((r) => {
+                    const lv = currentLeaveByRes.get(r.id);
+                    const fmt = (d: string) => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+                    // Days until they're back at work = the day after the leave's last day.
+                    const endsIn = lv
+                      ? Math.max(0, Math.round((new Date(lv.end).getTime() - new Date(date).getTime()) / 86_400_000)) + 1
+                      : null;
+                    return (
+                      <tr key={r.id} className="border-t hover:bg-muted/30">
+                        <td className="px-5 py-3 font-medium">{r.full_name}</td>
+                        <td className="px-3 py-3 text-muted-foreground font-mono text-xs">{r.omni_id}</td>
+                        <td className="px-3 py-3 text-muted-foreground">{r.service_line}</td>
+                        <td className="px-3 py-3 text-muted-foreground">{r.manager_name ?? "—"}</td>
+                        <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
+                          {lv ? `${fmt(lv.start)} – ${fmt(lv.end)}` : "—"}
+                        </td>
+                        <td className="px-5 py-3 text-muted-foreground whitespace-nowrap">
+                          {endsIn == null ? "—" : `${endsIn}d`}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
