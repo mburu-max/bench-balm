@@ -291,7 +291,11 @@ function BenchPage() {
                       <tr key={r.id} className="border-t hover:bg-muted/30">
                         <td className="px-5 py-3 font-medium">{r.full_name}</td>
                         <td className="px-3 py-3 text-muted-foreground font-mono text-xs">{r.omni_id}</td>
-                        <td className="px-3 py-3 text-muted-foreground">{r.service_line}</td>
+                        <td className="px-3 py-3">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase tracking-wide">
+                            {r.service_line}
+                          </span>
+                        </td>
                         <td className="px-3 py-3 text-muted-foreground">{r.manager_name ?? "—"}</td>
                         <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
                           {lv ? `${fmt(lv.start)} – ${fmt(lv.end)}` : "—"}
