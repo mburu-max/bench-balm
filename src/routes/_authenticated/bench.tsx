@@ -56,9 +56,13 @@ function BenchPage() {
     [active, allocations.data, date],
   );
 
-  // "On Leave (excluded from bench)" = short current leave + manual On_Leave. Extended-leave people
-  // appear in the bench table above (flagged On Leave) rather than here.
-  const onLeave = all.filter((r) => r.status !== "Exited" && (r.status === "On_Leave" || excludedByLeave(r)));
+  // "On Leave" = EVERYONE currently out: short leave (excluded from the bench), extended leave (>5d —
+  // stays on the bench with freed capacity, flagged EXT in the table), or a manual On_Leave status.
+  // Note: this is a display list only; the bench-exclusion math above still keys off `excludedByLeave`
+  // (short + manual), so including extended here does NOT change who's on the bench.
+  const onLeave = all.filter(
+    (r) => r.status !== "Exited" && (r.status === "On_Leave" || shortLeaveIds.has(r.id) || extLeaveIds.has(r.id)),
+  );
   const onLeaveRef = useRef<HTMLDivElement>(null);
   // The in-effect Leave allocation per on-leave resource, for showing the leave dates + when they come
   // back. People with a manual On_Leave status but no leave row simply have no dates. If someone has
@@ -159,7 +163,7 @@ function BenchPage() {
         <KpiCard label="Partial (50-99%)" value={counts.high} icon={Coffee} accent="info" onClick={() => toggleBand("high")} active={band === "high"} />
         <KpiCard label="Partial (1-49%)" value={counts.low} icon={Coffee} accent="info" onClick={() => toggleBand("low")} active={band === "low"} />
         <KpiCard label="Over-allocated" value={counts.over} icon={AlertTriangle} accent="destructive" onClick={() => toggleBand("over")} active={band === "over"} />
-        <KpiCard label="On Leave (excluded)" value={onLeave.length} icon={PauseCircle} accent="primary" onClick={() => onLeaveRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
+        <KpiCard label="On Leave" value={onLeave.length} icon={PauseCircle} accent="primary" onClick={() => onLeaveRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
         <KpiCard label="Upcoming leave" value={upcoming.length} icon={CalendarClock} accent="info" onClick={() => upcomingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
       </div>
 
@@ -254,9 +258,13 @@ function BenchPage() {
 
       {onLeave.length > 0 && (
         <div className="mt-8 scroll-mt-6" ref={onLeaveRef}>
-          <h3 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-            On Leave (excluded from bench)
+          <h3 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-1">
+            On Leave
           </h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            Everyone currently out. <span className="font-medium text-warning-foreground">EXT</span> = extended
+            leave (&gt;5d) — they stay on the bench with freed capacity; the rest are excluded from the bench.
+          </p>
           <div className="rounded-xl border bg-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -273,6 +281,7 @@ function BenchPage() {
                 <tbody>
                   {onLeave.map((r) => {
                     const lv = currentLeaveByRes.get(r.id);
+                    const isExt = extLeaveIds.has(r.id);
                     const fmt = (d: string) => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short" });
                     // Days until they're back at work = the day after the leave's last day.
                     const endsIn = lv
@@ -286,6 +295,11 @@ function BenchPage() {
                         <td className="px-3 py-3 text-muted-foreground">{r.manager_name ?? "—"}</td>
                         <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
                           {lv ? `${fmt(lv.start)} – ${fmt(lv.end)}` : "—"}
+                          {isExt && (
+                            <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-warning/20 text-warning-foreground font-medium uppercase tracking-wide">
+                              Ext
+                            </span>
+                          )}
                         </td>
                         <td className="px-5 py-3 text-muted-foreground whitespace-nowrap">
                           {endsIn == null ? "—" : `${endsIn}d`}
