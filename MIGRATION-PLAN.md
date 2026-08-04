@@ -248,3 +248,62 @@ package.json` → empty.
 **Rough effort:** Path A ≈ **days** (infra + data + DNS). Path B ≈ **1–2 weeks** (container wiring).
 Path C ≈ **3–5+ weeks** (auth + API rewrite + test). Real-Omni go-live happens **after** the platform is
 stable — never both at once.
+
+---
+
+## 6. Page-by-page GCP runbook (Path B)
+
+The **which-GCP-service-per-page** sequence. Ported pages are developed against the *existing* Supabase
+(per §1 clean rebuild); this table is the **GCP configuration + cutover** order. Most pages share the
+same backend — so once the **foundation** is up, each page is just "port the route + verify its tables."
+
+### Live status of `execo-allocate-prod` (audited 2026-08-05)
+- ✅ **Done by Marius:** project + Owners (you, Sharad, Marius) + APIs on (Cloud Run, Cloud SQL Admin,
+  Artifact Registry, Cloud Build, Secret Manager, Identity Platform, Firebase Hosting, Storage, IAM,
+  Logging, Monitoring).
+- ❌ **Still to create:** the **Cloud SQL instance** (0 exist), the **backend service account** (only the
+  default compute SA), the **OAuth 2.0 client** (verify in Console), and **Vertex AI** (`aiplatform` not
+  enabled).
+
+### Stage A — Foundation (build ONCE; every page sits on this)
+| # | Build | GCP service | Cost |
+|---|---|---|---|
+| A1 | Enable **Vertex AI** (`aiplatform`) for the later AI feature | Vertex AI | free until used |
+| A2 | **Backend service account** + roles: Cloud SQL Client, Secret Manager Accessor, Artifact Registry Reader, Logs Writer, Monitoring Metric Writer | IAM | free |
+| A3 | **Cloud SQL** instance (`db-f1-micro`, `us-central1`, single-zone, backups on) | Cloud SQL | **~$10–13/mo** (the only real cost) |
+| A4 | Bootstrap the **Supabase auth foundation** (`auth` schema, `auth.uid()`/`role()`/`jwt()`, roles `anon`/`authenticated`/`service_role`), then **replay `supabase/migrations/*`** + `pg_dump --data-only` across | Cloud SQL | — |
+| A5 | Store secrets — DB password, JWT secret, Google OAuth id/secret, Omni PAT/subdomain/webhook, **HubSpot token (ROTATE)** | Secret Manager | ~$0 |
+| A6 | **OAuth 2.0 client** for Google SSO, restricted to `@execo.com` | Identity Platform / OAuth credential | free |
+| A7 | Deploy **GoTrue** with the Google provider | Cloud Run | ~$0 |
+| A8 | Deploy **PostgREST** wired to the JWT secret (RLS enforces) | Cloud Run | ~$0 |
+| A9 | Deploy the empty **SSR frontend shell** (Nitro `node-server`) | Cloud Run + Artifact Registry + Cloud Build | ~$0 |
+
+### Stage B — Page by page (port the route + verify against the GCP backend)
+| # | Page | GCP touched | Tables it needs | Done when |
+|---|---|---|---|---|
+| B1 | **Login** (`auth.tsx`) | GoTrue + OAuth client + Secret Manager | `auth.users`, `profiles`, `user_roles` | Sign in with Google (@execo.com) → session + role resolve |
+| B2 | **App shell** (`__root`, `_authenticated`, `AppShell`) | Cloud Run (SSR) | — (auth guard) | Nav renders; unauth redirects to login |
+| B3 | **Dashboard** (`index.tsx`) | Cloud Run + PostgREST + Cloud SQL | resources, allocations, projects, customers | KPI tiles + SL summary load with real data |
+| B4 | **Resources** (`resources.tsx`) | PostgREST + Cloud SQL | resources, allocations | list + detail + Omni Sync button work |
+| B5 | **Projects** (`projects.tsx`) | PostgREST + Cloud SQL | projects, customers, profiles | list + create + status transitions |
+| B6 | **Customers** (`customers.tsx`) | PostgREST + Cloud SQL | customers | list + create |
+| B7 | **Allocations** (`allocations.tsx`, `project-allocations.tsx`) | PostgREST + Cloud SQL | allocations, projects, resources, customers | create/edit; cap + date rules fire |
+| B8 | **Bench** (`bench.tsx`) | PostgREST + Cloud SQL | resources, allocations | bands + On Leave + Upcoming Leave render |
+| B9 | **KPIs** (`kpis.tsx`) | PostgREST + Cloud SQL | resources, allocations, snapshots | 8 KPIs + RAG thresholds |
+| B10 | **Cliff-edge / Snapshots / My Profile / Admin Users** | PostgREST + Cloud SQL | (respective tables) | each renders + writes correctly |
+
+> Every data page uses the **same** Cloud Run (SSR route + PostgREST) + Cloud SQL — what differs is only
+> the **tables/RLS** it touches. So B3→B10 are fast once B1–B2 prove auth + the backend end-to-end.
+
+### Stage C — Backends & integrations
+| # | Build | GCP service | Notes |
+|---|---|---|---|
+| C1 | **omni-webhook** (roster + leave sync) | Cloud Run + Secret Manager | re-point Omni to the new URL; real tenant + service account |
+| C2 | **hubspot-webhook** | Cloud Run + Secret Manager | re-register HubSpot webhook; token rotated (A5) |
+| C3 | **pg_cron** daily snapshot | Cloud SQL (`cloudsql.enable_pg_cron` flag) | else the manual Snapshots page covers it |
+| C4 | **AI "Ask"** (optional, later) | **Vertex AI** (Gemini Flash-Lite) + Cloud Run endpoint | text-to-SQL + answer-cache-invalidated-on-sync; **complements** the KPI page, doesn't replace it |
+
+### Stage D — Cutover
+Repoint the new app's `SUPABASE_URL` / keys from Supabase → the **GoTrue + PostgREST Cloud Run** URLs →
+final `pg_dump` delta → DNS → smoke-test **B1–B10** → keep Supabase as live rollback for 1–2 weeks →
+decommission.
