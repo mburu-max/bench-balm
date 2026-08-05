@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,13 +13,13 @@ import {
 } from "@/components/ui/select";
 import { useAllocations, useResources } from "@/lib/queries";
 import { computeBench, type BenchRow } from "@/lib/bench";
-import { shortLeaveResourceIds, extendedLeaveResourceIds, upcomingLeave, leaveDurationDays } from "@/lib/leave";
+import { shortLeaveResourceIds, extendedLeaveResourceIds } from "@/lib/leave";
 import { SERVICE_LINES } from "@/lib/constants";
 import { useCurrentRole } from "@/lib/useCurrentRole";
 import { inSlScope, scopedServiceLines, usePmScope, inPmResources } from "@/lib/scope";
 import { BenchBandBadge, ResourceStatusBadge } from "@/components/StatusBadge";
 import { KpiCard } from "@/components/KpiCard";
-import { AlertTriangle, Coffee, Download, PauseCircle, FileSpreadsheet, FileText, CalendarClock } from "lucide-react";
+import { AlertTriangle, Coffee, Download, FileSpreadsheet, FileText } from "lucide-react";
 import { exportToExcel, exportToPdf } from "@/lib/export";
 import { usePagination, Pager } from "@/components/Pager";
 
@@ -56,42 +56,6 @@ function BenchPage() {
     [active, allocations.data, date],
   );
 
-  // "On Leave" = EVERYONE currently out: short leave (excluded from the bench), extended leave (>5d —
-  // stays on the bench with freed capacity, flagged EXT in the table), or a manual On_Leave status.
-  // Note: this is a display list only; the bench-exclusion math above still keys off `excludedByLeave`
-  // (short + manual), so including extended here does NOT change who's on the bench.
-  const onLeave = all.filter(
-    (r) => r.status !== "Exited" && (r.status === "On_Leave" || shortLeaveIds.has(r.id) || extLeaveIds.has(r.id)),
-  );
-  const onLeaveRef = useRef<HTMLDivElement>(null);
-  // The in-effect Leave allocation per on-leave resource, for showing the leave dates + when they come
-  // back. People with a manual On_Leave status but no leave row simply have no dates. If someone has
-  // more than one overlapping leave, keep the one ending latest (that's when they actually return).
-  const currentLeaveByRes = useMemo(() => {
-    const m = new Map<string, { start: string; end: string }>();
-    for (const a of allocations.data ?? []) {
-      if (
-        a.allocation_type === "Leave" && a.resource_id &&
-        a.allocation_start_date && a.allocation_end_date &&
-        a.allocation_start_date <= date && a.allocation_end_date >= date
-      ) {
-        const cur = m.get(a.resource_id);
-        if (!cur || a.allocation_end_date > cur.end) m.set(a.resource_id, { start: a.allocation_start_date, end: a.allocation_end_date });
-      }
-    }
-    return m;
-  }, [allocations.data, date]);
-  // Upcoming leave = future-dated Leave allocations (start > "as of" date), joined to their (in-scope)
-  // resource. Surfaces approved time-off BEFORE it begins, not only once it's in effect on the bench.
-  const upcomingRef = useRef<HTMLDivElement>(null);
-  const resById = useMemo(() => new Map(all.map((r) => [r.id, r] as const)), [all]);
-  const upcoming = useMemo(
-    () =>
-      upcomingLeave(allocations.data ?? [], date)
-        .filter((a) => resById.has(a.resource_id ?? ""))
-        .map((a) => ({ a, r: resById.get(a.resource_id!)! })),
-    [allocations.data, resById, date],
-  );
   // Clicking a KPI card filters the table by that band (toggles off if already active).
   const toggleBand = (b: string) => setBand((cur: string) => (cur === b ? "all" : b));
 
@@ -158,13 +122,11 @@ function BenchPage() {
         </div>
       }
     >
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <KpiCard label="Zero allocation" value={counts.zero} icon={Coffee} accent="warning" onClick={() => toggleBand("zero")} active={band === "zero"} />
         <KpiCard label="Partial (50-99%)" value={counts.high} icon={Coffee} accent="info" onClick={() => toggleBand("high")} active={band === "high"} />
         <KpiCard label="Partial (1-49%)" value={counts.low} icon={Coffee} accent="info" onClick={() => toggleBand("low")} active={band === "low"} />
         <KpiCard label="Over-allocated" value={counts.over} icon={AlertTriangle} accent="destructive" onClick={() => toggleBand("over")} active={band === "over"} />
-        <KpiCard label="On Leave" value={onLeave.length} icon={PauseCircle} accent="primary" onClick={() => onLeaveRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
-        <KpiCard label="Upcoming leave" value={upcoming.length} icon={CalendarClock} accent="info" onClick={() => upcomingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })} />
       </div>
 
       <div className="flex flex-wrap items-end gap-3 mb-4">
@@ -256,124 +218,6 @@ function BenchPage() {
         <Pager {...pg} />
       </div>
 
-      {onLeave.length > 0 && (
-        <div className="mt-8 scroll-mt-6" ref={onLeaveRef}>
-          <h3 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-1">
-            On Leave
-          </h3>
-          <p className="text-xs text-muted-foreground mb-3">
-            Everyone currently out. <span className="font-medium text-warning-foreground">EXT</span> = extended
-            leave (&gt;5d) — they stay on the bench with freed capacity; the rest are excluded from the bench.
-          </p>
-          <div className="rounded-xl border bg-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
-                  <tr>
-                    <th className="text-left px-5 py-2.5 font-medium">Resource</th>
-                    <th className="text-left px-3 py-2.5 font-medium">Omni ID</th>
-                    <th className="text-left px-3 py-2.5 font-medium">SL</th>
-                    <th className="text-left px-3 py-2.5 font-medium">Manager</th>
-                    <th className="text-left px-3 py-2.5 font-medium">Dates</th>
-                    <th className="text-left px-5 py-2.5 font-medium">Ends in</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {onLeave.map((r) => {
-                    const lv = currentLeaveByRes.get(r.id);
-                    const isExt = extLeaveIds.has(r.id);
-                    const fmt = (d: string) => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short" });
-                    // Days until they're back at work = the day after the leave's last day.
-                    const endsIn = lv
-                      ? Math.max(0, Math.round((new Date(lv.end).getTime() - new Date(date).getTime()) / 86_400_000)) + 1
-                      : null;
-                    return (
-                      <tr key={r.id} className="border-t hover:bg-muted/30">
-                        <td className="px-5 py-3 font-medium">{r.full_name}</td>
-                        <td className="px-3 py-3 text-muted-foreground font-mono text-xs">{r.omni_id}</td>
-                        <td className="px-3 py-3">
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase tracking-wide">
-                            {r.service_line}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3 text-muted-foreground">{r.manager_name ?? "—"}</td>
-                        <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
-                          {lv ? `${fmt(lv.start)} – ${fmt(lv.end)}` : "—"}
-                          {isExt && (
-                            <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-warning/20 text-warning-foreground font-medium uppercase tracking-wide">
-                              Ext
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-5 py-3 text-muted-foreground whitespace-nowrap">
-                          {endsIn == null ? "—" : `${endsIn}d`}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {upcoming.length > 0 && (
-        <div className="mt-8 scroll-mt-6" ref={upcomingRef}>
-          <h3 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-            Upcoming Leave
-          </h3>
-          <div className="rounded-xl border bg-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
-                  <tr>
-                    <th className="text-left px-5 py-2.5 font-medium">Resource</th>
-                    <th className="text-left px-3 py-2.5 font-medium">SL</th>
-                    <th className="text-left px-3 py-2.5 font-medium">Manager</th>
-                    <th className="text-left px-3 py-2.5 font-medium">Dates</th>
-                    <th className="text-right px-3 py-2.5 font-medium">Duration</th>
-                    <th className="text-left px-5 py-2.5 font-medium">Starts in</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {upcoming.map(({ a, r }) => {
-                    const days = leaveDurationDays(a.allocation_start_date!, a.allocation_end_date!);
-                    const startsIn = Math.max(0, Math.round((new Date(a.allocation_start_date!).getTime() - new Date(date).getTime()) / 86_400_000));
-                    const fmt = (d: string) => new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short" });
-                    return (
-                      <tr key={a.id ?? `${a.resource_id}-${a.allocation_start_date}`} className="border-t hover:bg-muted/30">
-                        <td className="px-5 py-3">
-                          <div className="font-medium">{r.full_name}</div>
-                          <div className="text-xs text-muted-foreground font-mono">{r.omni_id}</div>
-                        </td>
-                        <td className="px-3 py-3">
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground uppercase tracking-wide">
-                            {r.service_line}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3 text-muted-foreground">{r.manager_name ?? "—"}</td>
-                        <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">
-                          {fmt(a.allocation_start_date!)} – {fmt(a.allocation_end_date!)}
-                        </td>
-                        <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap">
-                          {days}d
-                          {days > 5 && (
-                            <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-warning/20 text-warning-foreground font-medium uppercase tracking-wide">
-                              Ext
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-5 py-3 text-muted-foreground">{startsIn === 0 ? "today" : `${startsIn}d`}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
     </AppShell>
   );
 }
