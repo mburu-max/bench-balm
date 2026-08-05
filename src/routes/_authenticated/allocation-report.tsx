@@ -17,16 +17,11 @@ import { SERVICE_LINES, ALLOCATION_TYPE_LABEL, type AllocationType } from "@/lib
 import { Download, FileSpreadsheet, FileText } from "lucide-react";
 import { exportToExcel, exportToPdf } from "@/lib/export";
 import { usePagination, Pager } from "@/components/Pager";
+import { DateRangePicker, overlapsRange, type DateRange } from "@/components/DateRangePicker";
 
 export const Route = createFileRoute("/_authenticated/allocation-report")({
   component: AllocationReportPage,
 });
-
-// An allocation counts on a given date if that date falls inside its window (open-ended if a
-// bound is missing).
-function overlaps(start: string, end: string, date: string): boolean {
-  return (!start || start <= date) && (!end || end >= date);
-}
 
 type Row = {
   id: string;
@@ -44,7 +39,10 @@ type Row = {
 
 function AllocationReportPage() {
   const report = useAllocationReport();
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [range, setRange] = useState<DateRange>(() => {
+    const t = new Date().toISOString().slice(0, 10);
+    return { from: t, to: t };
+  });
   const [sl, setSl] = useState("all");
   const [customer, setCustomer] = useState("all");
   const [project, setProject] = useState("all");
@@ -89,7 +87,7 @@ function AllocationReportPage() {
   const filtered = useMemo(
     () =>
       base
-        .filter((r) => overlaps(r.start, r.end, date))
+        .filter((r) => overlapsRange(r.start, r.end, range))
         .filter((r) => sl === "all" || r.serviceLine === sl)
         .filter((r) => customer === "all" || r.customer === customer)
         .filter((r) => project === "all" || r.projectCode === project)
@@ -103,9 +101,11 @@ function AllocationReportPage() {
             r.customer.toLowerCase().includes(t)
           );
         }),
-    [base, date, sl, customer, project, q],
+    [base, range, sl, customer, project, q],
   );
   const pg = usePagination(filtered, 10);
+  const stamp = new Date().toISOString().slice(0, 10);
+  const rangeLabel = range.from === range.to ? range.from : `${range.from} → ${range.to}`;
 
   const HEADERS = [
     "Service Line",
@@ -141,14 +141,14 @@ function AllocationReportPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `allocation-report-${date}.csv`;
+    a.download = `allocation-report-${stamp}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
   const exportExcel = () =>
-    exportToExcel(`allocation-report-${date}`, "Allocation Report", HEADERS, exportRows());
+    exportToExcel(`allocation-report-${stamp}`, "Allocation Report", HEADERS, exportRows());
   const exportPdf = () =>
-    exportToPdf(`allocation-report-${date}`, `Allocation Report — ${date}`, HEADERS, exportRows());
+    exportToPdf(`allocation-report-${stamp}`, `Allocation Report — ${rangeLabel}`, HEADERS, exportRows());
 
   return (
     <AppShell
@@ -168,10 +168,7 @@ function AllocationReportPage() {
       }
     >
       <div className="flex flex-wrap items-end gap-3 mb-4">
-        <div className="space-y-1.5">
-          <Label>As of</Label>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-auto" />
-        </div>
+        <DateRangePicker value={range} onChange={setRange} />
         <div className="space-y-1.5">
           <Label>Service Line</Label>
           <Select value={sl} onValueChange={setSl}>

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePagination, Pager } from "@/components/Pager";
+import { DateRangePicker, type DateRange } from "@/components/DateRangePicker";
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,13 @@ function SnapshotsPage() {
   const qc = useQueryClient();
   const canTake = !!(role?.isFinance || role?.isDeveloper);
   const [date, setDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  // Range filters which archived snapshot dates the sidebar lists (default: last 90 days).
+  const [range, setRange] = useState<DateRange>(() => {
+    const to = new Date().toISOString().slice(0, 10);
+    const f = new Date();
+    f.setDate(f.getDate() - 90);
+    return { from: f.toISOString().slice(0, 10), to };
+  });
 
   const dates = useQuery({
     queryKey: ["snapshot-dates"],
@@ -108,21 +116,28 @@ function SnapshotsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <div className="rounded-xl border bg-card p-4">
           <h3 className="text-sm font-semibold mb-3">Archive</h3>
+          <DateRangePicker value={range} onChange={setRange} presets={[]} className="mb-3" />
           <div className="space-y-1 max-h-[500px] overflow-y-auto">
-            {(dates.data ?? []).map((d) => (
-              <button
-                key={d}
-                onClick={() => setDate(d)}
-                className={`block w-full text-left px-3 py-1.5 rounded text-sm tabular-nums ${
-                  d === date ? "bg-accent text-accent-foreground" : "hover:bg-muted"
-                }`}
-              >
-                {d}
-              </button>
-            ))}
-            {!dates.data?.length && (
+            {(dates.data ?? [])
+              .filter((d) => (!range.from || d >= range.from) && (!range.to || d <= range.to))
+              .map((d) => (
+                <button
+                  key={d}
+                  onClick={() => setDate(d)}
+                  className={`block w-full text-left px-3 py-1.5 rounded text-sm tabular-nums ${
+                    d === date ? "bg-accent text-accent-foreground" : "hover:bg-muted"
+                  }`}
+                >
+                  {d}
+                </button>
+              ))}
+            {(dates.data ?? []).filter((d) => (!range.from || d >= range.from) && (!range.to || d <= range.to)).length === 0 && (
               <p className="text-xs text-muted-foreground">
-                No snapshots yet. {canTake && "Click \"Take snapshot\" to archive today's allocations."}
+                {dates.data?.length
+                  ? "No snapshots in this range."
+                  : canTake
+                    ? 'No snapshots yet. Click "Take snapshot" to archive today’s allocations.'
+                    : "No snapshots yet."}
               </p>
             )}
           </div>

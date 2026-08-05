@@ -6,6 +6,7 @@ import {
   FolderKanban,
   Users,
   CalendarRange,
+  CalendarClock,
   Briefcase,
   Coffee,
   LogOut,
@@ -96,6 +97,7 @@ const NAV_GROUPS: NavGroup[] = [
       // reporting. Governance + Developer + Finance only (isFinance already ⊇ governance/dev).
       { to: "/allocation-report", label: "Allocation Report", icon: ClipboardList, show: (r) => !!(r?.isGovernanceLead || r?.isFinance) },
       { to: "/bench", label: "Bench Report", icon: Coffee, show: (r) => !!r?.hasAnyOtherRole },
+      { to: "/leave", label: "Leave Report", icon: CalendarClock, show: (r) => !!r?.hasAnyOtherRole },
       { to: "/cliff-edge", label: "Cliff Edge", icon: AlertOctagon, show: (r) => !!r?.hasAnyOtherRole },
       // KPI Dashboard is hidden from PMs (they use their own project-focused dashboard).
       { to: "/kpis", label: "KPI Dashboard", icon: BarChart2, show: (r) => !!(r?.isSlLead || r?.isGovernanceLead || r?.isFinance) },
