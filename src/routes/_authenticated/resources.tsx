@@ -64,6 +64,7 @@ type Form = {
   status: ResourceStatus;
   service_line: ServiceLine | "";
   email: string;
+  exit_date: string;
 };
 
 const empty: Form = {
@@ -78,6 +79,7 @@ const empty: Form = {
   status: "Active",
   service_line: "",
   email: "",
+  exit_date: "",
 };
 
 function Field({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
@@ -123,6 +125,7 @@ function ResourcesPage() {
       status: r.status,
       service_line: r.service_line,
       email: r.email ?? "",
+      exit_date: r.exit_date ?? "",
     });
     setOpen(true);
   };
@@ -143,6 +146,8 @@ function ResourcesPage() {
       status: form.status,
       service_line: form.service_line as ServiceLine,
       email: form.email || null,
+      // Only meaningful when Exited; the DB trigger defaults/clears it and truncates allocations.
+      exit_date: form.status === "Exited" ? form.exit_date || null : null,
     };
     const { error } = form.id
       ? await supabase.from("resources").update(payload).eq("id", form.id)
@@ -320,6 +325,19 @@ function ResourcesPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {form.status === "Exited" && (
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label>Exit date (last working day)</Label>
+                  <Input
+                    type="date"
+                    value={form.exit_date}
+                    onChange={(e) => setForm({ ...form, exit_date: e.target.value })}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    On save, their open allocations are ended at this date (defaults to today if left blank).
+                  </p>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
@@ -384,6 +402,7 @@ function ResourcesPage() {
                   <Field label="Service Line" value={r.service_line} />
                   <Field label="Employment" value={r.employment_type} />
                   <Field label="Email" value={r.email ?? "—"} />
+                  {r.status === "Exited" && <Field label="Exit date" value={r.exit_date ?? "—"} />}
                 </div>
                 {canWrite && (
                   <DialogFooter className="mt-2 gap-2 sm:justify-start">
